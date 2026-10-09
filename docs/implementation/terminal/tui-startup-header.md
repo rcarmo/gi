@@ -3,7 +3,7 @@
 gi's startup header is adapted from Pi's built-in header and loaded-resource listing (pi-coding-agent interactive mode). It is implemented in `internal/tui/startup_header.go`.
 
 - **Collapsed:**
-  - The wordmark and version. A blue "g" (the gopher avatar's blue, RGB 64,128,192) and an "i" in the theme's text colour follow the avatar's blue/white/black.
+  - A four-cell, two-row half-block G/i logo and version, like Pi's compact pixel logo. G uses the gopher avatar's blue (RGB 64,128,192); i uses the theme's text colour. macOS Apple Terminal falls back to the coloured text wordmark, following Pi's half-block rendering restriction.
   - gi's key hints (`Esc interrupt · Ctrl+C quit · / commands · ! bash · Ctrl+O more`) and "Press Ctrl+O to show full startup help…".
   - One line on what gi reads from Pi.
 - **Expanded** (Ctrl+O, Pi's `app.tools.expand`; it toggles together with tool output): gi's full key list.

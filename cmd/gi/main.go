@@ -92,6 +92,7 @@ func run() error {
 	workspace := flag.String("workspace", config.DefaultWorkspaceRoot(), "Workspace root")
 	model := flag.String("model", "", "Override default model (e.g. gemma4:latest)")
 	logFile := flag.String("log-file", "", "Optional log file path")
+	debug := flag.Bool("debug", false, "Show TUI runtime hook audit events")
 	pidFile := flag.String("pid-file", "", "Optional pid file path")
 	webMode := flag.Bool("web", false, "Run the web UI server instead of the terminal UI")
 	_ = flag.Bool("tui", true, "Run the terminal UI (default; kept for compatibility)")
@@ -109,7 +110,7 @@ func run() error {
 		if err := os.MkdirAll(filepath.Dir(*dbPath), 0o755); err != nil {
 			return fmt.Errorf("create tui db dir: %w", err)
 		}
-		if err := gitui.RunMode(*dbPath, *workspace, *model, *tuiLayout); err != nil {
+		if err := gitui.RunMode(*dbPath, *workspace, *model, *tuiLayout, *debug); err != nil {
 			log.Fatalf("tui: %v", err)
 		}
 		return nil

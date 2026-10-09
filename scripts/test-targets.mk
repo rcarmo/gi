@@ -735,6 +735,17 @@ test-tui-pending-media: build
 test-tui-session-picker: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-session-picker.mjs
 
+.PHONY: test-pi-environment-settings
+test-pi-environment-settings: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'Test(PiTransport|PiConfiguredSSE|AgentsInTheCloud|ConfiguredTransport|SidePromptContext|SummarizeBranchReads|StartupHeader|HandleTopicEvent.*Hook)' ./internal/config ./internal/skills ./internal/inference ./internal/turn ./internal/tui
+
+.PHONY: test-startup-hooks-pty
+test-startup-hooks-pty:
+	mkdir -p $(BIN_DIR)
+	$(GO) test -c -o $(BIN_DIR)/gi-startup-hooks-pty.test ./internal/tui
+	GI_STARTUP_PTY_BIN=$(abspath $(BIN_DIR)/gi-startup-hooks-pty.test) bash scripts/test-startup-hooks-pty.sh
+	rm -f $(BIN_DIR)/gi-startup-hooks-pty.test
+
 test-tui-smoke: build $(TESTPROFILE)
 	chmod +x scripts/test-tui-smoke.sh
 	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-smoke TEST_DIR=$(abspath $(TUI_TEST_DIR)) scripts/test-tui-smoke.sh

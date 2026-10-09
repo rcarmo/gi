@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -25,9 +26,13 @@ const (
 )
 
 // giLogoBlue is the blue of gi's gopher avatar (fixtures-vibes ui/classic static/icon-*.png).
-// The wordmark follows the avatar's blue/white/black: a blue "g" and an "i"
-// in the theme's text colour (white on dark themes, black on light ones).
+// The four-cell, two-row half-block logo spells G/i in the avatar's blue
+// and the theme's text colour. Apple Terminal uses the text wordmark, as Pi does.
 var giLogoBlue = piRGB(64, 128, 192)
+
+func supportsGiBlockLogo(goos, termProgram string) bool {
+	return goos != "darwin" || termProgram != "Apple_Terminal"
+}
 
 func (c *chatTUI) startupHeaderShown() bool {
 	return c.startupHeader && c.cfg.QuietStartup != "true"
@@ -103,7 +108,7 @@ func displayPath(path string) string {
 
 // startupSignature changes whenever the header's content would.
 func (c *chatTUI) startupSignature() []string {
-	sig := []string{version.String(), c.cfg.QuietStartup, strings.Join(c.cfg.EnabledModels, ",")}
+	sig := []string{version.String(), c.cfg.QuietStartup, strings.Join(c.cfg.EnabledModels, ","), os.Getenv("TERM_PROGRAM")}
 	if c.startupDetailsShown() {
 		for _, s := range c.startupSections() {
 			sig = append(sig, s.name+"="+strings.Join(s.expanded, "|"))
@@ -128,9 +133,15 @@ func (c *chatTUI) renderStartupHeader(expanded bool) *gotui.Element {
 	line := func(spans ...gotui.TextSpan) { indented(1, spans...) }
 	blank := func() { root.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithHeight(1))) }
 	blank()
-	// Pi's wordmark style, in the colours of gi's gopher avatar.
-	line(gotui.TextSpan{Text: "g", Style: piFg(giLogoBlue).Bold()}, gotui.TextSpan{Text: "i", Style: piFg(piText).Bold()},
-		gotui.TextSpan{Text: " " + version.String(), Style: piFg(piDim)})
+	if supportsGiBlockLogo(runtime.GOOS, os.Getenv("TERM_PROGRAM")) {
+		// Four square-pixel rows packed into two terminal rows, like Pi's logo.
+		line(gotui.TextSpan{Text: "█▀▀", Style: piFg(giLogoBlue)}, gotui.TextSpan{Text: "▀", Style: piFg(piText)},
+			gotui.TextSpan{Text: " gi " + version.String(), Style: piFg(piDim)})
+		line(gotui.TextSpan{Text: "█▄█", Style: piFg(giLogoBlue)}, gotui.TextSpan{Text: "█", Style: piFg(piText)})
+	} else {
+		line(gotui.TextSpan{Text: "g", Style: piFg(giLogoBlue).Bold()}, gotui.TextSpan{Text: "i", Style: piFg(piText).Bold()},
+			gotui.TextSpan{Text: " " + version.String(), Style: piFg(piDim)})
+	}
 	details := c.startupDetailsShown()
 	if expanded {
 		// Pi's expandedInstructions: Pi's keyText for this platform.

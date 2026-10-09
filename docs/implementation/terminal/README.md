@@ -18,6 +18,7 @@ Terminal ports, rendering changes, editor behaviour and native PTY verification.
 - [TUI search and protected worktree reconciliation](tui-search-reconciliation-2026-09-29.md)
 - [Search across renderer soft wraps](tui-search-wrap.md)
 - [TUI startup header](tui-startup-header.md)
+- [Pi environment, startup logo and hook visibility](tui-environment-and-hooks.md)
 - [Terminal pre-admission draft guards](tui-submit-guards.md)
 - [TUI Markdown table rendering and streaming](tui-tables-2026-09-28.md)
 - [Thinking transcript width and reflow](tui-thinking-wrap.md)

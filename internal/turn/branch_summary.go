@@ -64,7 +64,7 @@ func (e *Engine) SummarizeBranch(ctx context.Context, sessionID, model string, m
 		thinking = e.admissionThinking(session, model)
 	}
 	summarize := func(ctx context.Context, req compaction.SummaryRequest) (compaction.SummaryResponse, error) {
-		return summarizeWith(ctx, model, thinking, req)
+		return summarizeWith(ctx, model, thinking, req, goai.Transport(e.runtimeCfg.Transport))
 	}
 	reserve := e.runtimeCfg.BranchSummaryReserveTokens
 	if reserve <= 0 {

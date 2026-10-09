@@ -448,6 +448,7 @@ type StreamResult struct {
 type StreamHooks struct {
 	// Validated immutable turn choice; empty leaves the provider default unset.
 	Thinking   string
+	Transport  goai.Transport // Pi's configured transport; empty leaves go-ai's default
 	OnPayload  func(payload any, model *goai.Model) (any, error)
 	OnResponse func(status int, headers map[string]string, model *goai.Model)
 	// MaxTokens caps the response; CacheRetention "none" avoids cache
@@ -499,6 +500,7 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 	if hooks != nil {
 		opts.OnPayload = hooks.OnPayload
 		opts.OnResponse = hooks.OnResponse
+		opts.Transport = hooks.Transport
 		if hooks.Thinking != "" {
 			level := goai.ThinkingLevel(hooks.Thinking)
 			opts.Reasoning = &level

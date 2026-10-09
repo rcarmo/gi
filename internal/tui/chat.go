@@ -46,7 +46,7 @@ func Run(dbPath, workspace, model string) error {
 	return RunMode(dbPath, workspace, model, "")
 }
 
-func RunMode(dbPath, workspace, model, mode string) error {
+func RunMode(dbPath, workspace, model, mode string, debug ...bool) error {
 	if mode != "" && mode != "regular" && mode != "fullscreen" {
 		return fmt.Errorf("invalid tui mode %q: use regular or fullscreen", mode)
 	}
@@ -68,7 +68,7 @@ func RunMode(dbPath, workspace, model, mode string) error {
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
 	engine.EnableMCP() // Pi mcp.json servers (.gi first, then .pi); connects in the background
 	defer engine.Close()
-	return runWithEngineMode(s, engine, cfg, mode == "regular")
+	return runWithEngineMode(s, engine, cfg, mode == "regular", debug...)
 }
 
 // Fixtures can install native hooks while reusing the production terminal loop.
@@ -76,7 +76,7 @@ func runWithEngine(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig
 	return runWithEngineMode(s, engine, cfg, false)
 }
 
-func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig, regular bool) error {
+func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig, regular bool, debug ...bool) error {
 	sessionID, err := initialSessionID(context.Background(), s)
 	if err != nil {
 		return err
@@ -101,6 +101,7 @@ func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeCo
 		durableDrafts: true,
 		regularMode:   regular,
 		startupHeader: true,
+		debug:         len(debug) > 0 && debug[0],
 	}
 
 	options := []gotui.AppOption{gotui.WithLegacyKeyboard(), gotui.WithRowRedraw()}
@@ -260,6 +261,7 @@ type chatTUI struct {
 	transcriptRegion            *gotui.Element
 	transcriptRef               *gotui.Ref
 	transcript                  []string
+	debug                       bool // -debug exposes successful runtime hook audit events
 	regularMode                 bool
 	regularHeaderPrinted        bool      // startup header printed to scrollback (regular mode)
 	startupHeader               bool      // show gi\'s startup header (set by the app, not by test fixtures)
@@ -1424,6 +1426,11 @@ func (c *chatTUI) renderHookEvent(payload map[string]any, ts time.Time) {
 	toolName, _ := payload["tool"].(string)
 	errText, _ := payload["error"].(string)
 	durationMS := intFromAny(payload["duration_ms"])
+	// Routine hook audit stays in the runtime event stream, not the conversation.
+	// Failures and policy denials still explain why a user action did not proceed.
+	if !c.debug && strings.TrimSpace(errText) == "" && typ != "hook_deny" && typ != "hook_abort" {
+		return
+	}
 	title := "Hook event"
 	status := "info"
 	switch typ {
@@ -1437,7 +1444,7 @@ func (c *chatTUI) renderHookEvent(payload map[string]any, ts time.Time) {
 		if errText != "" {
 			title, status = "Hook invocation error", "error"
 		} else {
-			title, status = "Hook invoked", "running"
+			title, status = "Hook invoked", "ok"
 		}
 	}
 	body := []string{}

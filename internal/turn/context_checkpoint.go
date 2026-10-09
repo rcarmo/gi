@@ -94,18 +94,22 @@ func (r *sessionRunner) compactionSummarizer(turnID, model string) compaction.Su
 		if rec, err := r.store.GetTurn(ctx, turnID); err == nil {
 			thinking, _ = rec.Metadata["selected_thinking_level"].(string)
 		}
-		return summarizeWith(ctx, model, thinking, req)
+		return summarizeWith(ctx, model, thinking, req, goai.Transport(r.engine.runtimeCfg.Transport))
 	}
 }
 
 // summarizeWith asks model for a summary: no tools, the given thinking
 // level, a capped response and no cache writes.
-func summarizeWith(ctx context.Context, model, thinking string, req compaction.SummaryRequest) (compaction.SummaryResponse, error) {
+func summarizeWith(ctx context.Context, model, thinking string, req compaction.SummaryRequest, transport ...goai.Transport) (compaction.SummaryResponse, error) {
 	if thinking == "off" {
 		thinking = ""
 	}
 	convCtx := &goai.Context{SystemPrompt: req.SystemPrompt, Messages: []goai.Message{goai.UserMessage(req.Prompt)}}
-	result, err := streamWithToolsWithHooks(ctx, model, convCtx, nil, &inference.StreamHooks{Thinking: thinking, MaxTokens: req.MaxTokens, CacheRetention: goai.CacheRetentionNone})
+	hooks := &inference.StreamHooks{Thinking: thinking, MaxTokens: req.MaxTokens, CacheRetention: goai.CacheRetentionNone}
+	if len(transport) > 0 {
+		hooks.Transport = transport[0]
+	}
+	result, err := streamWithToolsWithHooks(ctx, model, convCtx, nil, hooks)
 	if err != nil {
 		return compaction.SummaryResponse{}, err
 	}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rcarmo/gi/internal/compaction"
+	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
@@ -17,7 +18,7 @@ import (
 func TestSummarizeBranchReadsBranchLikePi(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
-	e := New(s)
+	e := NewWithRuntimeConfig(s, config.RuntimeConfig{Transport: "sse"}, "")
 	defer e.Close()
 	ctx := context.Background()
 	if _, err := s.CreateSession(ctx, "A", "A", nil); err != nil {
@@ -50,7 +51,7 @@ func TestSummarizeBranchReadsBranchLikePi(t *testing.T) {
 	if !strings.HasPrefix(summary, "The user explored a different conversation branch before returning here.") || !strings.Contains(summary, "SUMMARY\n\n<read-files>\nREADME.md\n</read-files>\n\n<modified-files>\nsrc/parse.go\n</modified-files>") {
 		t.Fatalf("summary %q", summary)
 	}
-	if req == nil || len(req.Tools) != 0 || req.SystemPrompt != compaction.SummarizationSystemPrompt || hooks.MaxTokens != 4096 {
+	if req == nil || len(req.Tools) != 0 || req.SystemPrompt != compaction.SummarizationSystemPrompt || hooks.Transport != goai.TransportSSE || hooks.MaxTokens != 4096 {
 		t.Fatalf("request %+v hooks %+v", req, hooks)
 	}
 	prompt := req.Messages[0].Content[0].Text

@@ -116,6 +116,10 @@ Hook failures surface as typed execution errors with hook name/source, failure k
 
 Each handler invocation is persisted to `hook_invocations` with hook name, phase, source, action, request/response JSON, error text, duration, and timestamp. Higher-level hook decisions publish under the canonical `runtime.hook` topic family so web/TUI/script subscribers can observe deny/abort/modify/respond outcomes without reading the audit table.
 
+## Terminal audit visibility
+
+Successful invocation, modification and direct-response audit messages are hidden in the TUI by default. Start `gi -debug` to show them; completed invocation rows have completed status. Hook errors and deny/abort decisions remain visible without the flag. The flag belongs to the running client and survives `/reload`; it does not change hook execution, persisted audit rows or topic publication.
+
 ## Ordering guarantees
 
 - Hooks execute synchronously in registration order for a phase.

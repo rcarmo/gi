@@ -1,7 +1,13 @@
+### Pi environment, startup logo and hook visibility
+
+- [x] Honour Pi transport settings through main, side and summary inference; verify a 40 KiB native SSE event without WebSocket upgrades or managed-file changes.
+- [x] Load ancestor AgentsInTheCloud instructions and skill namespaces with compatibility-link deduplication.
+- [x] Add the compact G/i block logo and hide successful hook audits unless `-debug` is set; keep errors/denials and verify fullscreen, regular, debug and quiet startup through real PTYs. [Verification](../implementation/terminal/tui-environment-and-hooks.md).
+
 ### Workspace editor acceptance (#46)
 
 - [x] Verify the adopted CodeMirror/Vim editor, saves, tab state, preview/popout and agent-open flows against 19 shared scenarios; remove 18 stale skips and repair the pinned report adapter. [Acceptance](../implementation/web/workspace-editor-acceptance.md).
-- [ ] Align shared workspace018 with reviewed-Overwrite approval, then run independent shared conflict acceptance before closing #46.
+- [x] Align Gi's shared-UI adaptation with the existing browser-dialog workflow; preserve reviewed revision preconditions and pass unchanged workspace018 on all six projects, plus cancel/stale-approval/Save Copy consumers on both desktop browsers.
 
 ### Terminal program status (OSC 7501)
 

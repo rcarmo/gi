@@ -5222,7 +5222,8 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 				// publish a terminal error while a transient retry is pending.
 			}
 		}, &inference.StreamHooks{
-			Thinking: thinking,
+			Thinking:  thinking,
+			Transport: goai.Transport(r.engine.runtimeCfg.Transport),
 			OnPayload: func(payload any, modelDef *goai.Model) (any, error) {
 				hookPayload := map[string]any{"ok": true, "request": payload, "stage": "payload"}
 				if modelDef != nil {

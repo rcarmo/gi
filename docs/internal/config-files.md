@@ -25,6 +25,12 @@ name winning: `skills/`, `tools/` (script tool manifests), `extensions/`.
 The workspace index includes `.gi/skills` as a skills root only where it
 exists, so other workspaces keep their index fingerprint.
 
+## Provider transport
+
+Pi's `transport` setting is read from project settings over user settings and passed to go-ai for normal turns, side prompts, compaction and branch summaries. Values are `auto` (default), `sse`, `websocket` and `websocket-cached`. The legacy `websockets` boolean maps to `websocket` or `sse` when the enum is absent. Reading either form leaves the file unchanged.
+
+AgentsInTheCloud's managed Pi settings use `sse`. Gi honours that preference instead of making a WebSocket attempt first. This avoids coder/websocket's default 32 KiB message limit on that path; it does not raise the limit for an explicit WebSocket selection.
+
 ## VNC target environment
 
 VNC startup configuration uses `GI_WEB_VNC_TARGETS` (JSON target array) and `GI_WEB_VNC_ALLOW_DIRECT` (only literal `true` enables direct host:port access). Defaults disable VNC. These are operator environment settings, not model-editable Pi preferences. See [VNC protocol and security limits](web-vnc.md).
@@ -32,9 +38,11 @@ VNC startup configuration uses `GI_WEB_VNC_TARGETS` (JSON target array) and `GI_
 ## Skills (#36)
 
 `internal/skills` ports Pi's `loadSkills`: user skills first
-(`<gi agent dir>/skills`, then `<Pi agent dir>/skills`), then the project's
-(`.gi/skills`, then `.pi/skills`); the first skill of a name wins, and a file
-reached twice through symlinks loads once. Within a directory, Pi's rules:
+(`<gi agent dir>/skills`, then `<Pi agent dir>/skills`), then project skills:
+`.gi/skills`, ancestor `.agents-in-the-cloud/skills` and `.agents/skills`
+(closest directory first), then the workspace's `.pi/skills`. The first skill
+of a name wins, and a file reached twice through symlinks loads once. This
+includes host skills when Gi starts inside a nested repository. Within a directory, Pi's rules:
 
 - a directory containing `SKILL.md` is one skill (not searched further);
 - otherwise `.md` files directly in the skills root are skills, and
@@ -58,7 +66,10 @@ directory's file (gi's, else Pi's), then one file per directory from the
 filesystem root down to the workspace, each the first of `AGENTS.override.md`,
 `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, `CLAUDE.MD`. In a linked git worktree
 nested in its main repository, the worktree's file shadows the main
-repository's. They become the prompt's `project_context` entries.
+repository's. AgentsInTheCloud's `.agents-in-the-cloud/AGENTS.md` is loaded
+after the normal context for each ancestor directory. Canonical-path
+comparison avoids duplicating linked instructions. They become the prompt's
+`project_context` entries.
 
 `.piclaw/config.json` (assistant and user names and avatars) is Piclaw's
 file, not Pi's; gi reads and writes it only there.

@@ -22,14 +22,14 @@ func TestSidePromptContextNoToolsNoPersistenceAndSessionIsolation(t *testing.T) 
 	db.CreateSession(ctx, "side-b", "side-b", nil)
 	db.AddMessage(ctx, "history-a", "side-a", "user", "history alpha", nil)
 	db.AddMessage(ctx, "history-b", "side-b", "user", "other session secret", nil)
-	cfg := config.RuntimeConfig{DefaultProvider: "side-fixture", DefaultModel: "model", DefaultThinkingLevel: "off"}
+	cfg := config.RuntimeConfig{DefaultProvider: "side-fixture", DefaultModel: "model", DefaultThinkingLevel: "off", Transport: "sse"}
 	e := NewWithRuntimeConfig(db, cfg, "")
 	defer e.Close()
 	goai.RegisterModel(&goai.Model{Provider: "side-fixture", ID: "model", Api: goai.ApiOpenAICompletions, ContextWindow: 32000})
 	old := streamWithToolsWithHooks
 	defer func() { streamWithToolsWithHooks = old }()
 	streamWithToolsWithHooks = func(ctx context.Context, model string, conv *goai.Context, emit func(map[string]any), hooks *inference.StreamHooks) (*inference.StreamResult, error) {
-		if len(conv.Tools) != 0 || model != "side-fixture/model" || hooks.MaxTokens != 1024 || hooks.CacheRetention != goai.CacheRetentionNone {
+		if len(conv.Tools) != 0 || model != "side-fixture/model" || hooks.Transport != goai.TransportSSE || hooks.MaxTokens != 1024 || hooks.CacheRetention != goai.CacheRetentionNone {
 			t.Fatal(model, hooks, conv.Tools)
 		}
 		var transcript strings.Builder
