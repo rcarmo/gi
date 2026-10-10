@@ -4,6 +4,7 @@ Dependency upgrades, release gates, profiling findings and implementation checkp
 
 [Implementation notes](../README.md) · [Current feature status](../../feature-parity.md)
 
+- [go-ai and Pi 1.1.0 baseline refresh](upstream-alignment-20261010.md)
 - [Gi acceptance and test-path migration](acceptance-2026-10-08.md)
 - [Classic UI acceptance, 2026-10-05](classic-ui-acceptance.md)
 - [Delegation items, 8 October 2026](delegation-2026-10-08.md)

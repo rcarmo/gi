@@ -1043,3 +1043,27 @@ test-terminal-reattach-consumer: $(TESTPROFILE)
 .PHONY: test-program-status-reader
 test-program-status-reader:
 	cd third_party/go-tui && $(GO) test -p=1 $(RACE) $(if $(TEST_RUN),-run '$(TEST_RUN)') ./...
+
+# Compare the current TUI goldens with exact published references, without
+# installing/updating Pi globally or rewriting the checked-in fixtures.
+.PHONY: test-tui-pi110-reference
+test-tui-pi110-reference:
+	$(BUN) test scripts/pi-reference.test.ts
+	@set -eu; root="$(GI_TEST_RUN_ROOT)/pi110-reference"; mkdir -p "$$root/home" "$$root/goldens"; \
+	trap 'rm -rf "$$root"' EXIT; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-tui":"1.1.0","@earendil-works/pi-coding-agent":"1.1.0"}}' > "$$root/package.json"; \
+	HOME="$$root/home" BUN_INSTALL_CACHE_DIR="$$root/cache" $(BUN) install --cwd "$$root"; \
+	export PI_GOLDEN_OUTPUT_DIR="$$root/goldens" PI_CODING_AGENT_DIR="$$root/home/.pi/agent" GI_CODING_AGENT_DIR="$$root/home/.gi/agent"; \
+	$(BUN) scripts/golden-pi-navigation.mjs "$$root/node_modules/@earendil-works/pi-tui"; \
+	$(BUN) scripts/golden-editor-keys.mjs "$$root/node_modules"; \
+	$(BUN) scripts/golden-hotkeys.mjs "$$root/node_modules"; \
+	for file in "$$root"/goldens/*; do diff -u "internal/tui/testdata/$$(basename "$$file")" "$$file"; done; \
+	echo 'Pi 1.1.0 navigation/editor/hotkeys goldens match; isolated reference disposed'
+
+.PHONY: tidy
+tidy:
+	$(GO) mod tidy
+
+.PHONY: test-upstream-alignment
+test-upstream-alignment: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestPi110|TestEditorKeysMatchPi|TestHotkeysMatchPi|TestPiConfiguredWebSocketAcceptsLargeProviderEvent|TestPiTransport|TestRecorded.*Duration|TestProgramStatus|Test.*Retry' ./internal/tui ./internal/inference ./internal/config ./internal/turn

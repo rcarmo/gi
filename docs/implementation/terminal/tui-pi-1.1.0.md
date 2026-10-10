@@ -36,6 +36,14 @@ capabilities and skips are unchanged. No deployment or physical-terminal
 cross-platform test ran. The installed harness still uses Pi 1.0.4; it was not
 upgraded as part of Gi's reference comparison.
 
+A [fresh baseline refresh](../maintenance/upstream-alignment-20261010.md)
+compares editor/navigation and four-platform hotkey goldens with isolated
+published 1.1.0 packages; it does not use or update the installed Pi harness.
+
+OSC 7501 program status is now implemented, with support negotiation,
+explicit opt-out, bounded metadata and lifecycle transitions. See
+[terminal program status](tui-program-status.md) for its contract and limits.
+
 ## Remaining 1.1.0 work
 
 Selection invalidation on session switch is already implemented: Gi clears
@@ -48,9 +56,6 @@ contracts need separate implementation or verification:
   for boundary, projection and verification limits.
 * `outputPad` must apply consistently to tool, shell and summary output. Gi
   does not yet expose this setting across those render paths.
-* OSC 7501 program status needs support negotiation/explicit opt-out, bounded
-  metadata-only messages, and idle/working/blocked/done/error transitions.
-  No protocol report should contain prompts or model output.
 * `/mcp` must remain usable during enable/reconnect/disable, and sign-in timeout
   must cover the whole cancellable request chain. Gi opens its manager live,
   but action screens currently replace it with status; whole-chain deadline

@@ -12,15 +12,17 @@ So this was the result. If you like `pi`, you should feel very much at home. If 
 
 ## Status
 
-Gi runs a terminal UI (the default) and a web UI (`gi -web`) from one pure-Go binary, with embedded web assets and SQLite-backed sessions, messages and turns. Bun is needed to build the browser assets; there is no Node or Bun runtime dependency.
+Gi runs a terminal UI (the default) and a web UI (`gi -web`) from one pure-Go binary, with embedded web assets and SQLite-backed sessions, messages and turns. Builds use Go 1.27.1. Bun is needed to build the browser assets; there is no Node or Bun runtime dependency.
 
-The terminal follows Pi 1.0.1 and the browser follows Piclaw 3.2.5. Gi reuses pinned Piclaw web components and implements its own backend, adapters and host UI, so the applications are not interchangeable. Browser behaviour is measured against the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite; the [feature and parity matrix][parity] has the latest results, the known differences and the open issues.
+The terminal targets Pi 1.1.0 workflows and keybindings; [verified alignment and remaining gaps](docs/implementation/terminal/tui-pi-1.1.0.md) are recorded separately. The committed browser baseline follows Piclaw 3.3.0. Gi reuses pinned Piclaw web components and implements its own backend, adapters and host UI, so the applications are not interchangeable. Browser behaviour is measured against the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite; the [feature and parity matrix][parity] has the latest results, the known differences and the open issues.
+
+Model inference uses go-ai's **1.1.0 upstream baseline**, pinned to `e8fe159110e2` (`v1.1.1-0.20261009233122-e8fe159110e2`), including the Codex 4 MiB WebSocket message-limit fix. This is a post-release revision, not a new stable release.
 
 ## Features
 
 * Streaming chat, session-local models and thinking levels, durable follow-up queues and run-bound steering share one Go turn engine. Reconnect refreshes state from the server. Automatic and manual compaction write model-generated summaries, as Pi does, and keep the visible conversation.
 * The terminal has Pi's selectors and commands: `/model`, `/scoped-models`, `/settings`, `/tree`, `/fork`, `/clone`, `/resume`, `/compact`, `/login`, `/logout`, `/export`, `/import`, `/share`, custom themes and Pi's default keybindings. It offers a fullscreen transcript or native scrollback (`-tui-mode regular`).
-* The browser has durable drafts and attachments, session selection and management, scoped search, Markdown/code rendering, image lightboxes, read-only workspace tabs and numeric message references (`msg:42`). Settings has General, Models, Appearance, Keyboard, Compaction, Providers, Keychain, Environment and Authentication sections.
+* The browser has durable drafts and attachments, session selection and management, scoped search, Markdown/code rendering, image lightboxes, revision-safe workspace editors, terminal tabs/popouts and numeric message references (`msg:42`). Settings has General, Models, Appearance, Keyboard, Compaction, Providers, Keychain, Environment and Authentication sections.
 * MCP servers (stdio and Streamable HTTP, with OAuth) use Pi's `mcp.json`, direct and deferred tools, `tool_search` and a QuickJS codemode tool; `gi mcp` and `/mcp` manage them. See the [MCP reference](docs/internal/mcp.md).
 * An encrypted keychain in Piclaw's format supplies secrets to shell commands by name; Settings also stores shell environment overrides. See the [keychain](docs/internal/keychain.md) and [shell environment](docs/internal/shell-environment.md) contracts.
 * Single-user TOTP sign-in uses an HttpOnly browser cookie and transactional auth storage. Tools and extensions run through Go, embedded Joker/JavaScript or explicitly configured subprocesses, with workspace files and managed `vfs://` references.
@@ -118,6 +120,8 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make check-cross-build` | Optional local pure-Go builds for Linux/macOS amd64/arm64 and Windows amd64; release CI also builds Windows amd64/arm64 (built, not tested) |
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
+| `make test-tui-pi110-reference` | Compare navigation/editor/hotkeys goldens with isolated published Pi 1.1.0 packages |
+| `make test-upstream-alignment` | Three-repeat native dependency/TUI/transport/retry regressions; add `PROFILING=1` for release verification |
 | `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |
 | `make test-tui-search` | Three-size fullscreen search, prompt-jump, draft/cursor and live-output checks |
 | `make test-tui-selection` | Three-size native drag/copy/edge-scroll/clipboard-policy and stale-selection checks |
@@ -170,7 +174,7 @@ The current TUI uses `go-tui`, supports terminal resize handling through the run
 
 The web UI reuses pinned Piclaw component sources and is maintained in rcarmo/fixtures-vibes (`ui/classic`), which Gi consumes through its `references/fixtures-vibes` submodule. It supplies `web/src/api.ts`, `web/src/app.ts`, auth/Settings modules and CSS overrides. Build-time patches in `references/fixtures-vibes/ui/classic/scripts/patch-*.mjs` change selected bundled behaviour without editing the supplied components; each patch fails the build if its anchor text changes.
 
-Workspace tabs are read-only previews with [retained conversation return and keyboard/touch navigation](docs/implementation/web/workspace-tab-transitions.md). Editable documents, dirty-buffer workflows, popouts and docking are not implemented. Composer padding and picker outer bounds follow a [pinned Classic reference](docs/implementation/web/picker-geometry.md), with a documented narrow-desktop containment correction. Session-strip/catalogue structure and full visual styling still differ from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/implementation/web/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
+Workspace tabs are read-only previews with [retained conversation return and keyboard/touch navigation](docs/implementation/web/workspace-tab-transitions.md). [Workspace editors](docs/implementation/web/workspace-editor-acceptance.md) support revision-safe saves, retained dirty buffers, Save copy and reviewed overwrite. [Terminal tabs, popouts and docking](docs/implementation/web/web-terminal-acceptance.md) are supported. Composer padding and picker outer bounds follow a [pinned Classic reference](docs/implementation/web/picker-geometry.md), with a documented narrow-desktop containment correction. Session-strip/catalogue structure and full visual styling still differ from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/implementation/web/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
 
 ### Authentication and exposure
 
@@ -229,7 +233,7 @@ make check      # standard verification suite
 
 The `test-ux` target creates a fresh database, workspace and configuration for each run. Gi-specific race and recovery probes live in `tests/web-regression/`; see [the browser suite guide][ux].
 
-Browser compliance uses the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite, checked out at `references/fixtures-vibes` and pinned to `6e49ae1` (Piclaw 3.2.5 scenarios). `make fixtures-vibes` runs it on Chromium and WebKit at phone, tablet and desktop sizes, then applies its report gate. `tests/fixtures-vibes/profile.json` declares the capabilities Gi claims; `tests/fixtures-vibes/skips.json` lists each absent capability and each known defect with its issue. Release-tag CI runs this gate separately from the native and Gi-specific browser checks. Gi keeps no copy of the shared Gherkin.
+Browser compliance uses the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite, checked out at `references/fixtures-vibes` and pinned to `92425adf2772d06221e85d124dcf3830b649a442` (Piclaw 3.3.0 baseline scenarios). `make fixtures-vibes` runs it on Chromium and WebKit at phone, tablet and desktop sizes, then applies its report gate. `tests/fixtures-vibes/profile.json` declares the capabilities Gi claims; `tests/fixtures-vibes/skips.json` lists each absent capability and each known defect with its issue. Release-tag CI runs this gate separately from the native and Gi-specific browser checks. Gi keeps no copy of the shared Gherkin.
 
 The `test-tui-smoke` target launches `gi` inside tmux, captures the pane, submits input, verifies blur handling, exercises transcript scrolling keys, resizes the terminal, and writes pane captures plus session artifacts under `test-results/tui-smoke/`. Mouse click focus is covered in unit tests.
 
