@@ -379,15 +379,22 @@ func (s *Store) AddMessage(ctx context.Context, id, sessionID, role, content str
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `
 		insert into messages (id, session_id, role, content, payload_json, created_at)
 		values (?, ?, ?, ?, ?, `+defaultNow+`)
 	`, id, sessionID, role, content, payloadJSON)
 	if err != nil {
 		return fmt.Errorf("add message: %w", err)
 	}
-	_, err = s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, sessionID)
-	return err
+	if _, err = tx.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, sessionID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) ListMessages(ctx context.Context, sessionID string) ([]Message, error) {
@@ -452,7 +459,11 @@ func (s *Store) AppendTurnEvent(ctx context.Context, turnID, sessionID, eventTyp
 		return err
 	}
 	for attempt := 0; attempt < 3; attempt++ {
-		_, err = s.db.ExecContext(ctx, `
+		tx, beginErr := s.db.BeginTx(ctx, nil)
+		if beginErr != nil {
+			return beginErr
+		}
+		_, err = tx.ExecContext(ctx, `
 			insert into turn_events (turn_id, session_id, seq, event_type, payload_json, created_at)
 			values (
 				?, ?,
@@ -461,9 +472,13 @@ func (s *Store) AppendTurnEvent(ctx context.Context, turnID, sessionID, eventTyp
 			)
 		`, turnID, sessionID, turnID, eventType, payloadJSON)
 		if err == nil {
-			_, err = s.db.ExecContext(ctx, `update turns set updated_at = `+defaultNow+` where id = ?`, turnID)
-			return err
+			if _, err = tx.ExecContext(ctx, `update turns set updated_at = `+defaultNow+` where id = ?`, turnID); err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+			return tx.Commit()
 		}
+		_ = tx.Rollback()
 		if !isTurnEventSeqConflict(err) {
 			return fmt.Errorf("append turn event: %w", err)
 		}
