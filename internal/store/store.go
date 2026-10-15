@@ -671,6 +671,32 @@ func (s *Store) CloneSessionBefore(ctx context.Context, sourceSessionID, newID, 
 	if err != nil {
 		return nil, err
 	}
+	// Reset boundaries and typed exchanges require insertion order for ties.
+	rowOrder := make(map[string]int64, len(messages))
+	orderRows, err := s.db.QueryContext(ctx, `select message_id,row_id from message_rows where message_id in (select id from messages where session_id=?)`, sourceSessionID)
+	if err != nil {
+		return nil, err
+	}
+	for orderRows.Next() {
+		var id string
+		var row int64
+		if err := orderRows.Scan(&id, &row); err != nil {
+			orderRows.Close()
+			return nil, err
+		}
+		rowOrder[id] = row
+	}
+	if err := orderRows.Err(); err != nil {
+		orderRows.Close()
+		return nil, err
+	}
+	orderRows.Close()
+	sort.SliceStable(messages, func(i, j int) bool {
+		if messages[i].CreatedAt != messages[j].CreatedAt {
+			return messages[i].CreatedAt < messages[j].CreatedAt
+		}
+		return rowOrder[messages[i].ID] < rowOrder[messages[j].ID]
+	})
 	if beforeMessageID != "" {
 		cut := -1
 		for i, msg := range messages {

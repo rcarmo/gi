@@ -65,7 +65,7 @@ func readContextSnapshot(ctx context.Context, q contextQuerier, sessionID string
 			return out, fmt.Errorf("decode context checkpoint: %w", err)
 		}
 	}
-	rows, err := q.QueryContext(ctx, `select id,session_id,role,content,payload_json,created_at from messages where session_id=? and role in ('user','assistant','tool_result') and coalesce(json_extract(payload_json,'$.kind'),'')!='compaction' order by created_at,id`, sessionID)
+	rows, err := q.QueryContext(ctx, `select id,session_id,role,content,payload_json,created_at from messages where session_id=? and role in ('user','assistant','tool_result') and coalesce(json_extract(payload_json,'$.kind'),'')!='compaction'`+contextResetBoundarySQL+` order by created_at,(select row_id from message_rows where message_id=messages.id)`, sessionID)
 	if err != nil {
 		return out, err
 	}
