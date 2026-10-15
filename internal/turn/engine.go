@@ -5431,17 +5431,22 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if errors.As(toolErr, &resultErr) {
 				errText = resultErr.Text // the complete result, e.g. shell output + exit status (Pi)
 			}
-			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
-			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output": errText}))
-			logutil.WarnIfErr("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
+			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "error": toolErr.Error(),
-			}))
+			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withDetails(map[string]any{
+				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
+			})); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
+			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output": errText}))
+
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 			appendToolResultWithImages(convCtx, call, errText, true, images)
-			logutil.WarnIfErr("add errored tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText+images.transcriptSuffix(), images.withDetails(map[string]any{
-				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
-			})))
+
 			outcome.lastToolFailureSig, outcome.repeatedToolFailureCount = nextRepeatedToolFailureCount(outcome.lastToolFailureSig, outcome.repeatedToolFailureCount, call, toolErr)
 			if outcome.repeatedToolFailureCount >= repeatedToolFailureLimit {
 				msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", outcome.repeatedToolFailureCount, toolErr)
@@ -5471,18 +5476,23 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if len(displayResult) > 100000 {
 				displayResult = displayResult[:100000] + "\n... (truncated)"
 			}
-			r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
-			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult}))
-			logutil.WarnIfErr("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
+			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "output_length": len(toolResult),
-			}))
+			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withDetails(map[string]any{
+				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
+			})); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
+			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult}))
+
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 			appendToolResultWithImages(convCtx, call, displayResult, false, images)
 			r.engine.declareLoadedTools(convCtx, images.added)
-			logutil.WarnIfErr("add successful tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult+images.transcriptSuffix(), images.withDetails(map[string]any{
-				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
-			})))
+
 			if tool, ok := r.engine.tools.GetRegistered(call.Name); ok && tool.CompletesTurn {
 				responsePosted = true
 			}
