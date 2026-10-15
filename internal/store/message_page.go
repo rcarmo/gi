@@ -91,7 +91,11 @@ func (s *Store) pageMessages(ctx context.Context, sessionID, before, after strin
 		source = "conversation_messages as messages"
 		args = append(args, sessionID, sessionID)
 	}
-	query := prefix + `select id,session_id,role,` + content + `,payload_json,created_at,coalesce(` + displayID + `,0),` + replyTo + ` from ` + source + ` where session_id=?`
+	payload := "payload_json"
+	if conversation {
+		payload = conversationPayloadSQL
+	}
+	query := prefix + `select id,session_id,role,` + content + `,` + payload + `,created_at,coalesce(` + displayID + `,0),` + replyTo + ` from ` + source + ` where session_id=?`
 	if conversation {
 		query += ` and (` + conversationVisibleSQL + `)`
 	}
