@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 
 	"github.com/rcarmo/gi/internal/compaction"
@@ -20,6 +21,25 @@ func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID st
 			messages = append(messages, branchSummaryContext(m.Content))
 		} else if m.Role == "user" {
 			messages = append(messages, r.userMessageWithProviderSafeMedia(ctx, sessionID, m.Content, m.Payload))
+		} else if m.Role == "tool_result" {
+			id, _ := m.Payload["tool_call_id"].(string)
+			name, _ := m.Payload["tool_name"].(string)
+			failed, _ := m.Payload["is_error"].(bool)
+			messages = append(messages, goai.Message{Role: goai.RoleToolResult, ToolCallID: id, ToolName: name, IsError: failed, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}, Details: m.Payload["details"]})
+		} else if m.Payload["kind"] == "tool_calls" {
+			text, _ := m.Payload["display_text"].(string)
+			content := []goai.ContentBlock{{Type: "text", Text: text}}
+			var calls []struct {
+				ID        string         `json:"id"`
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
+			}
+			if raw, err := json.Marshal(m.Payload["tool_calls"]); err == nil && json.Unmarshal(raw, &calls) == nil {
+				for _, call := range calls {
+					content = append(content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments})
+				}
+			}
+			messages = append(messages, goai.Message{Role: goai.RoleAssistant, Content: content})
 		} else {
 			messages = append(messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
 		}
@@ -43,6 +63,20 @@ func (r *sessionRunner) compactionBoundary(ctx context.Context, sessionID string
 	}
 	if nativeCount < 0 || nativeCount > len(snapshot.Messages) {
 		return nil, store.ErrContextChanged
+	}
+	// Never checkpoint between a tool-call batch and its results. Keeping the
+	// complete exchange in the suffix avoids orphaned results on next-turn replay.
+	pending := map[string]bool{}
+	for _, m := range conv.Messages[:count] {
+		for _, call := range goai.GetToolCalls(&m) {
+			pending[call.ID] = true
+		}
+		if m.Role == goai.RoleToolResult {
+			delete(pending, m.ToolCallID)
+		}
+	}
+	if len(pending) != 0 {
+		return nil, nil
 	}
 	// The summariser has a text transcript, not image bytes. Do not permanently
 	// hide media-bearing older messages behind a text-only summary.
