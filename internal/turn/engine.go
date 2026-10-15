@@ -5514,6 +5514,16 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 	// next model turn. A message queued during one tool must not suppress later
 	// calls from the same response; the queued row stays recoverable until here.
 	if ctx.Err() == nil {
+		if reset, err := s.ApplyPendingContextReset(ctx, sessionID, turnID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+			outcome.terminated = true
+			return outcome
+		} else if reset {
+			r.persistUsage(s, turnID, sessionID, totalUsage, iter)
+			r.finishTurnOK(s, turnID, sessionID, agentID, model, iter)
+			outcome.terminated = true
+			return outcome
+		}
 		if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 			log.Printf("steering dequeue after tool batch: %v", err)
 		} else {
@@ -5525,6 +5535,10 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 func (r *sessionRunner) appendFinalSteeringCheckpoint(s *store.Store, turnID, sessionID string) {
 	bgCtx := r.engine.backgroundContext()
+	if _, err := s.ApplyPendingContextReset(bgCtx, sessionID, turnID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("apply final context reset: %v", err)
+		return
+	}
 	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(bgCtx, sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)
 	} else if staged {

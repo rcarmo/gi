@@ -215,6 +215,13 @@ func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID, activeTurnID 
 		}
 		return nil, fmt.Errorf("dequeue steering head: %w", err)
 	}
+	var resetAtHead bool
+	if err := tx.QueryRowContext(ctx, `select coalesce(json_extract(payload_json,'$.kind'),'')='context_reset' from steering_queue where id=?`, firstID).Scan(&resetAtHead); err != nil {
+		return nil, err
+	}
+	if resetAtHead {
+		return nil, nil
+	}
 	limit := 1
 	if queueMode == "all" {
 		limit = 1000
@@ -226,9 +233,10 @@ func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID, activeTurnID 
  and (source_queue_id is null or (turn_id = ? and exists (
  select 1 from session_active_turns a join turns t on t.id = a.turn_id
  where a.session_id = steering_queue.session_id and a.turn_id = steering_queue.turn_id and t.status = 'running')))
+ and id < coalesce((select min(id) from steering_queue where session_id=? and status='queued' and json_extract(payload_json,'$.kind')='context_reset'),9223372036854775807)
 		order by id asc
 		limit ?
-	`, sessionID, activeTurnID, limit)
+	`, sessionID, activeTurnID, sessionID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("dequeue steering rows: %w", err)
 	}
