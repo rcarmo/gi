@@ -7549,6 +7549,12 @@ func TestToolCallHookCanRespondWithoutExecutingTool(t *testing.T) {
 	for _, event := range events {
 		if event.Type == "tool.finished" && event.Payload["tool"] == "plugin_tool" && event.Payload["tool_call_id"] == "tc_resp" && event.Payload["source"] == "hook" && event.Payload["hook_phase"] == "tool_call" {
 			foundFinished = true
+			if event.Payload["occurrence_id"] == "" || event.Payload["occurrence_id"] != msgs[0].Payload["occurrence_id"] {
+				t.Fatalf("hook settlement occurrence mismatch: event=%#v message=%#v", event.Payload, msgs[0].Payload)
+			}
+			if _, measured := event.Payload["duration_ms"]; measured {
+				t.Fatal("hook result invented execution duration")
+			}
 		}
 	}
 	if !foundFinished {

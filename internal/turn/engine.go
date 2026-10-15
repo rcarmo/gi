@@ -5315,22 +5315,19 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				if len(displayResult) > 100000 {
 					displayResult = displayResult[:100000] + "\n... (truncated)"
 				}
+				// Hook results have no execution boundary or measured duration.
+				hookOccurrence := store.NowID("tool")
+				if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished",
+					map[string]any{"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"},
+					store.NowID("msg"), displayResult,
+					map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "occurrence_id": hookOccurrence, "source": "hook", "hook_phase": "tool_call"}); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Hook result settlement failed: "+err.Error(), "persistence_error")
+					outcome.terminated = true
+					return outcome
+				}
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(injectedResult)})
-				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
-				logutil.WarnIfErr("append hook-responded tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
-					"phase":         "tool",
-					"tool":          call.Name,
-					"checkpoint":    true,
-					"tool_call_id":  call.ID,
-					"output_length": len(injectedResult),
-					"source":        "hook",
-					// No execution/start event: keep this synthetic result from
-					// terminating an older occurrence with a reused call ID.
-					"occurrence_id": store.NowID("tool"),
-					"hook_phase":    "tool_call",
-				}))
+				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
 				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
-				logutil.WarnIfErr("add injected tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "source": "hook", "hook_phase": "tool_call"}))
 				outcome.lastToolFailureSig = ""
 				outcome.repeatedToolFailureCount = 0
 				continue

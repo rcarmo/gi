@@ -19,6 +19,12 @@ func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventTy
 	if err != nil {
 		return err
 	}
+	// Admission is the cancellation boundary. Once admitted, settle both rows
+	// even if the caller cancels while SQLite is committing the result.
+	ctx, err = admitToolSettlement(ctx)
+	if err != nil {
+		return err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -37,4 +43,14 @@ func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventTy
 		return err
 	}
 	return tx.Commit()
+}
+
+func admitToolSettlement(ctx context.Context) (context.Context, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("nil tool settlement context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return context.WithoutCancel(ctx), nil
 }
