@@ -5535,9 +5535,18 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 func (r *sessionRunner) appendFinalSteeringCheckpoint(s *store.Store, turnID, sessionID string) {
 	bgCtx := r.engine.backgroundContext()
-	if _, err := s.ApplyPendingContextReset(bgCtx, sessionID, turnID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.Printf("apply final context reset: %v", err)
-		return
+	// The inbox is bounded. Drain consecutive empty resets here so no reset
+	// remains stranded after the active claim is released. A reset with text
+	// becomes ordinary follow-up work and stops this loop at the FIFO head.
+	for i := 0; i < 10; i++ {
+		applied, err := s.ApplyPendingContextReset(bgCtx, sessionID, turnID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			log.Printf("apply final context reset: %v", err)
+			return
+		}
+		if !applied {
+			break
+		}
 	}
 	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(bgCtx, sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)

@@ -106,3 +106,40 @@ func TestFinalAnswerResetRetainsAnswerButResetsProviderHead(t *testing.T) {
 		t.Fatalf("answer lost: %+v %v", page, err)
 	}
 }
+
+func TestFinalCheckpointDrainsConsecutiveEmptyResets(t *testing.T) {
+	ctx := context.Background()
+	s, err := store.Open(filepath.Join(t.TempDir(), "reset-drain.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	e := New(s)
+	defer e.Close()
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "s", "t", "test", "claim"); err != nil || !ok {
+		t.Fatalf("claim %t %v", ok, err)
+	}
+	for i := 0; i < 3; i++ {
+		if queued, err := e.ResetSession(ctx, "s", ""); err != nil || !queued {
+			t.Fatalf("queue %t %v", queued, err)
+		}
+	}
+	e.runner("s").appendFinalSteeringCheckpoint(s, "t", "s")
+	snapshot, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Version != 3 {
+		t.Fatalf("stranded reset: version=%d", snapshot.Version)
+	}
+	count, err := s.SteeringQueueLength(ctx, "s")
+	if err != nil || count != 0 {
+		t.Fatalf("stranded inbox: %d %v", count, err)
+	}
+}

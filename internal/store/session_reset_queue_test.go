@@ -110,3 +110,46 @@ func TestQueuedResetsSurviveReopenWithoutCrossingFIFO(t *testing.T) {
 		t.Fatalf("reset versions: %+v", snapshot)
 	}
 }
+
+func TestResetDoesNotCrossEarlierAllModeSteering(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "reset-order.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "s", "t", "test", "claim"); err != nil || !ok {
+		t.Fatalf("claim %t %v", ok, err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "s", "t", "user", "before", nil, nil, "all"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RequestContextReset(ctx, "s", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "s", "t", "user", "after", nil, nil, "all"); err != nil {
+		t.Fatal(err)
+	}
+	applied, err := s.ApplyPendingContextReset(ctx, "s", "t")
+	if err != nil || applied {
+		t.Fatalf("reset crossed earlier steering %t %v", applied, err)
+	}
+	first, err := s.DequeueSteeringForTurn(ctx, "s", "t")
+	if err != nil || len(first) != 1 || first[0].Content != "before" {
+		t.Fatalf("all crossed reset: %+v %v", first, err)
+	}
+	applied, err = s.ApplyPendingContextReset(ctx, "s", "t")
+	if err != nil || !applied {
+		t.Fatalf("reset not applied %t %v", applied, err)
+	}
+	after, err := s.DequeueSteeringForTurn(ctx, "s", "t")
+	if err != nil || len(after) != 1 || after[0].Content != "after" {
+		t.Fatalf("post-reset ordering: %+v %v", after, err)
+	}
+}

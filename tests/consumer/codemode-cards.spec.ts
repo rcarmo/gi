@@ -117,3 +117,23 @@ test('Gi reset: in-place reset preserves visible history across reload', async (
   await expect(cards(page).locator('.codemode-card-output')).toContainText('BEFORE_RESET_VISIBLE');
   expect(page.url()).toContain(session.id);
 });
+
+test('Gi reset: busy reset waits for nested tool completion and preserves result on reload', async ({page,runtime}) => {
+  test.setTimeout(60000);
+  const session=await opened(page,runtime);
+  const receipt=await prompt(page,session.id,"await tools.shell({command:'sleep 3; echo BUSY_RESET_DONE'}); return 'RESET_BATCH_SETTLED';");
+  await expect(cards(page).locator('.codemode-card-status')).toHaveText('running');
+  await expect(cards(page).locator('.codemode-card-calls')).toContainText('shell');
+  const reset=await page.request.post(new URL(`/api/sessions/${session.id}/reset`,page.url()).href,{data:{text:''}});
+  expect(reset.status()).toBe(202);
+  await expect(cards(page).locator('.codemode-card-status')).toHaveText('ok',{timeout:20000});
+  await expect(cards(page).locator('.codemode-card-calls')).toContainText('ok');
+  await expect.poll(async()=>{
+    const r=await page.request.get(new URL(`/api/sessions/${session.id}/turns`,page.url()).href);
+    const body=await r.json();return body.turns?.find((turn:any)=>turn.id===receipt.turn_id)?.status;
+  }).toBe('completed');
+  await page.reload();
+  await expect(cards(page)).toHaveCount(1);
+  await expect(cards(page).locator('.codemode-card-status')).toHaveText('ok');
+  await expect(cards(page).locator('.codemode-card-output')).toContainText('RESET_BATCH_SETTLED');
+});
