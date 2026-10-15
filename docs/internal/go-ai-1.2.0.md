@@ -11,11 +11,11 @@ Gi uses go-ai's provider APIs, model catalogue and OAuth support. Gi owns its tu
 | Provider API upgrade | Inference, store and turn packages compile and pass their tests with v1.2.0 | Full suite and provider request/replay regressions; no paid-provider acceptance yet |
 | Session append atomicity | Message insert plus session timestamp, and event insert plus turn timestamp, now share transactions | Pre-release CPU/allocations and concurrent-write verification |
 | Failed append semantics | SQLite trigger tests prove a failed parent update leaves no inserted row; retry succeeds once | Cancellation admission/commit boundary needs an explicit contract audit |
-| Tool cancellation/reload | Existing terminal events can be projected for TUI display without entering provider history | Web conversation paging does not expose cancelled codemode results; preserve occurrence identity and pagination when fixing it |
+| Tool cancellation/reload | Cancelled/aborted codemode events join the conversation relation before cursor filtering; raw/provider history unchanged. Store paging regressions and six-project browser checks pass | Pre-release profiling and committed frontend-pin verification remain |
 | Successful tool result | Tool result messages and lifecycle events are separate writes | Audit crash gaps and failed write ordering before choosing a unified append model |
 | Branch/session history | Gi has its own messages, turns, events, forks and compaction checkpoints | Compare upstream branch/reset/replay and tool-result identity contracts, including reused call IDs |
 | Images and model calls | v1.2.0 adds explicit image resize zero-value flags and other durable model/image contracts | Map exposed Gi features to the tagged AI/durable/codemode crosswalks; do not infer support from unused APIs |
-| Web frontend | F3 candidate is preserved in the original worktree; four checks passed 24/24 across six browser/layout projects | Cancellation reload fails; integrate candidate only after fixing this gate and testing the final pins |
+| Web frontend | Candidate F3 wiring with v1.2.0 passes 30/30 checks across Chromium/WebKit phone/tablet/desktop, zero retries, including cancellation reload as cancelled | Candidate assets are uncommitted; final-pin verification and profiling remain |
 
 No storage replacement has been selected. Backward compatibility is not required. A replacement must preserve provider transcript correctness, cancellation, occurrence identity and working web live/reload behaviour.
 
@@ -25,6 +25,9 @@ Go 1.27.1, project-owned test environment, inherited `PI_CODING_AGENT_DIR` and `
 
 - `go test ./internal/inference ./internal/store ./internal/turn -count=1` passes after the upgrade and transactional append changes.
 - Atomic append failure and normal store flow regressions pass with `-race -count=3`.
-- These are development checks. Full pre-release CPU, alloc_space and alloc_objects analysis and final web acceptance have not run.
+- Full store suite passes `-race -count=3` after the terminal conversation projection.
+- Candidate consumer matrix: five checks × six projects = 30 passes, zero retries. Covers live nested settlement/reload, failure, two sessions, cancellation/reload and absent-details compatibility injection. The absent-details check modifies real saved HTTP rows and is not live execution evidence.
+- Projection regressions cover equal timestamps, backward/forward paging, reused tool-call IDs with distinct occurrences, first-terminal-wins, session fencing, raw-history exclusion and persisted-result deduplication.
+- These are development checks. Full pre-release CPU, alloc_space and alloc_objects analysis and committed-pin web acceptance have not run.
 
 Protected dirty F3 and Joker edits in the original checkout were not changed by this slice.

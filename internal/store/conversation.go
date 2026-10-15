@@ -8,8 +8,8 @@ const conversationContentSQL = `case when role='assistant' and json_extract(payl
  when instr(content,char(10)||'[tool_call:')>0 then substr(content,1,instr(content,char(10)||'[tool_call:')-1)
  else content end else content end`
 
-const conversationVisibleSQL = `role in ('user','assistant','system')
- and (role='user' or coalesce(json_extract(payload_json,'$.kind'),'') != 'tool_result')
+const conversationVisibleSQL = `(role in ('user','assistant','system') or (role='tool_result' and json_extract(payload_json,'$.kind')='tool_result' and json_extract(payload_json,'$.tool_name')='codemode'))
+ and (role='user' or coalesce(json_extract(payload_json,'$.kind'),'') != 'tool_result' or (role='tool_result' and json_extract(payload_json,'$.tool_name')='codemode'))
  and not (role='system' and json_extract(payload_json,'$.kind') is 'queue')
  and not (role='assistant' and json_extract(payload_json,'$.kind') is 'tool_calls'
  and trim(` + conversationContentSQL + `)='')`
