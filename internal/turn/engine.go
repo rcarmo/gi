@@ -2359,6 +2359,16 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		phase = "queued"
 	}
 
+	// Apply recoverable resets without replaying interrupted tool execution.
+	for i := 0; i < 10; i++ {
+		applied, err := e.store.ApplyPendingContextReset(ctx, claim.SessionID, claim.TurnID)
+		if err != nil {
+			return fmt.Errorf("recover pending reset: %w", err)
+		}
+		if !applied {
+			break
+		}
+	}
 	payload := map[string]any{
 		"phase":                "recovery",
 		"checkpoint":           true,
