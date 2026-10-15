@@ -334,7 +334,7 @@ func Import(ctx context.Context, s *store.Store, f *File, sessionID, source stri
 			case "toolResult":
 				callID, _ := msg["toolCallId"].(string)
 				name, _ := msg["toolName"].(string)
-				add(e, "tool_result", contentText(msg["content"]), map[string]any{"kind": "tool_result", "tool_call_id": callID, "tool_name": giToolName(name), "is_error": msg["isError"] == true}, false, i)
+				add(e, "tool_result", contentText(msg["content"]), map[string]any{"kind": "tool_result", "tool_call_id": callID, "tool_name": giToolName(name), "is_error": msg["isError"] == true}, inContext, i)
 			case "bashExecution":
 				payload := map[string]any{"kind": "bash_execution", "command": msg["command"], "output": msg["output"], "exit_code": msg["exitCode"],
 					"cancelled": msg["cancelled"] == true, "truncated": msg["truncated"] == true}

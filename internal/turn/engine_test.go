@@ -5444,10 +5444,16 @@ func TestMixedSubmitSteeringHookAndCancelPublishesAlignedTopics(t *testing.T) {
 
 func TestProcessDirectSteeringNormalizesUnexpectedIngressRole(t *testing.T) {
 	holdShellTurns(t)
-	s := openTestStore(t)
+	// Match production file-backed locking: shared-cache memory returns
+	// SQLITE_LOCKED during concurrent engine writes instead of busy_timeout.
+	s, err := store.Open(filepath.Join(t.TempDir(), "steering-role.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 	ctx := context.Background()
 	engine := New(s)
+	defer engine.Close()
 	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_role_norm")
 	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_role_norm", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
 	if err != nil {
