@@ -477,7 +477,7 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 	}
 	call := goai.ToolCall{Type: "toolCall", ID: id, Name: tool.Name, Arguments: args}
 	payload := func(extra map[string]any) map[string]any {
-		p := map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments, "parent_tool_call_id": rt.ToolCallID}
+		p := map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments, "parent_tool_call_id": rt.ToolCallID, "parent_occurrence_id": rt.ToolOccurrenceID}
 		for k, v := range extra {
 			p[k] = v
 		}

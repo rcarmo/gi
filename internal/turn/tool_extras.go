@@ -19,11 +19,12 @@ const maxToolImageBytes = 20 << 20
 // become the result's AddedToolNames marker and are declared from the next
 // model call.
 type toolExtras struct {
-	blocks  []goai.ContentBlock
-	notes   []string       // transcript lines describing each image
-	added   []string       // tools loaded by this call
-	details map[string]any // structured result details for renderers (codemode calls)
-	usage   goai.Usage     // model usage made by the tool (codemode models.*)
+	occurrenceID string
+	blocks       []goai.ContentBlock
+	notes        []string       // transcript lines describing each image
+	added        []string       // tools loaded by this call
+	details      map[string]any // structured result details for renderers (codemode calls)
+	usage        goai.Usage     // model usage made by the tool (codemode models.*)
 }
 
 func (t *toolExtras) addUsageFunc() func(goai.Usage) {

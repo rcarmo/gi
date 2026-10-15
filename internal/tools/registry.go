@@ -36,6 +36,8 @@ type ToolRuntime struct {
 	// AddTools reports tools this call loaded for the session (tool_search);
 	// they are declared from the next model call (nil outside turns).
 	AddTools func(names []string)
+	// ToolOccurrenceID identifies this execution independently of reused model IDs.
+	ToolOccurrenceID string
 	// ToolCallID is the model's ID for this call (the parent of codemode's
 	// nested calls).
 	ToolCallID string

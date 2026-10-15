@@ -4481,19 +4481,24 @@ func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.Too
 	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", call.Name)
 	}
+	occurrenceID := ""
+	if images != nil {
+		occurrenceID = images.occurrenceID
+	}
 	return tool.Executor(ctx, tools.ToolRuntime{
-		Store:          r.store,
-		SessionID:      sessionID,
-		TurnID:         turnID,
-		WorkspaceRoot:  r.engine.runtimeCfg.WorkspaceRoot,
-		OnOutput:       onOutput,
-		AttachImage:    images.attachFunc(),
-		AddTools:       images.addToolsFunc(),
-		ToolCallID:     call.ID,
-		SetDetails:     images.setDetailsFunc(),
-		AddUsage:       images.addUsageFunc(),
-		PublishMessage: r.engine.publishWidgetMessage,
-		PublishPlan:    r.engine.PublishPlanChanged,
+		ToolOccurrenceID: occurrenceID,
+		Store:            r.store,
+		SessionID:        sessionID,
+		TurnID:           turnID,
+		WorkspaceRoot:    r.engine.runtimeCfg.WorkspaceRoot,
+		OnOutput:         onOutput,
+		AttachImage:      images.attachFunc(),
+		AddTools:         images.addToolsFunc(),
+		ToolCallID:       call.ID,
+		SetDetails:       images.setDetailsFunc(),
+		AddUsage:         images.addUsageFunc(),
+		PublishMessage:   r.engine.publishWidgetMessage,
+		PublishPlan:      r.engine.PublishPlanChanged,
 	}, call)
 }
 
@@ -5417,7 +5422,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		})
 
 		reportOutput := r.toolOutputReporter(turnID, sessionID, call.ID, toolOccurrenceID)
-		images := &toolExtras{}
+		images := &toolExtras{occurrenceID: toolOccurrenceID}
 		executionStart := time.Now()
 		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images)
 		durationMS := time.Since(executionStart).Milliseconds()
