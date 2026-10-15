@@ -221,7 +221,7 @@ test-ux-side-prompt-api: playwright-browsers
 
 
 test-web-terminal:
-	$(TESTPROFILE) gotest ./internal/web -run TestWebTerminal -count=3
+	$(TESTPROFILE) gotest $(RACE) ./internal/web -run TestWebTerminal -count=3
 
 bench-web-terminal:
 	$(TESTPROFILE) gotest ./internal/web -run '^$$' -bench BenchmarkWebTerminalReplayRing -benchmem -benchtime=300ms
@@ -336,7 +336,7 @@ test-fixtures-profile-lifecycle:
 test-editor-conflict-consumer:
 	mkdir -p $(BIN_DIR)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
-	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.consumer.config.ts --project chromium-desktop --project webkit-desktop
+	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.consumer.config.ts tests/consumer/editor-conflict.spec.ts tests/consumer/editor-refresh.spec.ts --project chromium-desktop --project webkit-desktop
 
 # Focused acceptance does not replace full-run compliance reports.
 fixtures-vibes-focused: $(if $(filter 1,$(FIXTURES_BUILD_WEB)),build-web)
@@ -735,6 +735,17 @@ test-tui-pending-media: build
 test-tui-session-picker: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-session-picker.mjs
 
+.PHONY: test-pi-environment-settings
+test-pi-environment-settings: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'Test(PiTransport|PiConfigured(SSE|WebSocket)|AgentsInTheCloud|ConfiguredTransport|SidePromptContext|SummarizeBranchReads|StartupHeader|HandleTopicEvent.*Hook)' ./internal/config ./internal/skills ./internal/inference ./internal/turn ./internal/tui
+
+.PHONY: test-startup-hooks-pty
+test-startup-hooks-pty:
+	mkdir -p $(BIN_DIR)
+	$(GO) test -c -o $(BIN_DIR)/gi-startup-hooks-pty.test ./internal/tui
+	GI_STARTUP_PTY_BIN=$(abspath $(BIN_DIR)/gi-startup-hooks-pty.test) bash scripts/test-startup-hooks-pty.sh
+	rm -f $(BIN_DIR)/gi-startup-hooks-pty.test
+
 test-tui-smoke: build $(TESTPROFILE)
 	chmod +x scripts/test-tui-smoke.sh
 	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-smoke TEST_DIR=$(abspath $(TUI_TEST_DIR)) scripts/test-tui-smoke.sh
@@ -1017,8 +1028,42 @@ test-vnc-viewer:
 test-tool-duration-pty:
 	@bash scripts/test-tool-duration-pty.sh
 
+.PHONY: test-terminal-lifecycle-consumer
+test-terminal-lifecycle-consumer:
+	mkdir -p $(BIN_DIR)
+	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
+	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json $(PLAYWRIGHT) test -c playwright.consumer.config.ts tests/consumer/terminal-lifecycle.spec.ts --project chromium-desktop --project webkit-desktop --repeat-each 3
+
 .PHONY: test-terminal-reattach-consumer
 test-terminal-reattach-consumer: $(TESTPROFILE)
 	mkdir -p $(BIN_DIR)
-	go build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
+	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
 	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json scripts/run-playwright.sh test -c playwright.consumer.config.ts tests/consumer/terminal-reattach.spec.ts --project chromium-desktop --project webkit-desktop --repeat-each 3
+
+.PHONY: test-program-status-reader
+test-program-status-reader:
+	cd third_party/go-tui && $(GO) test -p=1 $(RACE) $(if $(TEST_RUN),-run '$(TEST_RUN)') ./...
+
+# Compare the current TUI goldens with exact published references, without
+# installing/updating Pi globally or rewriting the checked-in fixtures.
+.PHONY: test-tui-pi110-reference
+test-tui-pi110-reference:
+	$(BUN) test scripts/pi-reference.test.ts
+	@set -eu; root="$(GI_TEST_RUN_ROOT)/pi110-reference"; mkdir -p "$$root/home" "$$root/goldens"; \
+	trap 'rm -rf "$$root"' EXIT; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-tui":"1.1.0","@earendil-works/pi-coding-agent":"1.1.0"}}' > "$$root/package.json"; \
+	HOME="$$root/home" BUN_INSTALL_CACHE_DIR="$$root/cache" $(BUN) install --cwd "$$root"; \
+	export PI_GOLDEN_OUTPUT_DIR="$$root/goldens" PI_CODING_AGENT_DIR="$$root/home/.pi/agent" GI_CODING_AGENT_DIR="$$root/home/.gi/agent"; \
+	$(BUN) scripts/golden-pi-navigation.mjs "$$root/node_modules/@earendil-works/pi-tui"; \
+	$(BUN) scripts/golden-editor-keys.mjs "$$root/node_modules"; \
+	$(BUN) scripts/golden-hotkeys.mjs "$$root/node_modules"; \
+	for file in "$$root"/goldens/*; do diff -u "internal/tui/testdata/$$(basename "$$file")" "$$file"; done; \
+	echo 'Pi 1.1.0 navigation/editor/hotkeys goldens match; isolated reference disposed'
+
+.PHONY: tidy
+tidy:
+	$(GO) mod tidy
+
+.PHONY: test-upstream-alignment
+test-upstream-alignment: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestPi110|TestEditorKeysMatchPi|TestHotkeysMatchPi|TestPiConfiguredWebSocketAcceptsLargeProviderEvent|TestPiTransport|TestRecorded.*Duration|TestProgramStatus|Test.*Retry' ./internal/tui ./internal/inference ./internal/config ./internal/turn

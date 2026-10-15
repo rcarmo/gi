@@ -4,7 +4,7 @@ Status: active layout contract for the Pi/PiClaw UX convergence track.
 
 ## Dependency gate (2026-09-22)
 
-Retain go-tui 0.18.2. Attempts with 0.22.1 and 0.19.0 erase a completed native-scrollback response after resize; the existing regular acceptance catches this at 60×18. All three-size suites pass after restoring 0.18.2 with upgraded go-ai/Go dependencies. [Upgrade evidence](dependency-upgrade-20260922.md). Do not exchange history integrity for a newer dependency or weaken the history assertions.
+Retain go-tui 0.18.2. Attempts with 0.22.1 and 0.19.0 erase a completed native-scrollback response after resize; the existing regular acceptance catches this at 60×18. All three-size suites pass after restoring 0.18.2 with upgraded go-ai/Go dependencies. [Upgrade evidence](../implementation/maintenance/dependency-upgrade-20260922.md). Do not exchange history integrity for a newer dependency or weaken the history assertions.
 
 ## Quick Actions (2026-09-23; design)
 

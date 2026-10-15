@@ -83,9 +83,21 @@ func DiscoverSkills(workspaceRoot string) ([]Skill, error) {
 	for _, dir := range UserSkillDirs() {
 		add(loadSkillsFromDir(dir, "user"))
 	}
-	for _, dir := range []string{filepath.Join(workspaceRoot, ".gi", "skills"), filepath.Join(workspaceRoot, ".pi", "skills")} {
-		add(loadSkillsFromDir(dir, "project"))
+	add(loadSkillsFromDir(filepath.Join(workspaceRoot, ".gi", "skills"), "project"))
+	// The host exposes additional skills in these namespaces, including when gi
+	// is launched from a nested repository. Closest directory wins; linked .pi
+	// skills are deduplicated by canonical file above.
+	if cwd, err := filepath.Abs(workspaceRoot); err == nil {
+		for dir := cwd; ; dir = filepath.Dir(dir) {
+			for _, name := range []string{".agents-in-the-cloud", ".agents"} {
+				add(loadSkillsFromDir(filepath.Join(dir, name, "skills"), "project"))
+			}
+			if filepath.Dir(dir) == dir {
+				break
+			}
+		}
 	}
+	add(loadSkillsFromDir(filepath.Join(workspaceRoot, ".pi", "skills"), "project"))
 	return out, nil
 }
 
@@ -131,7 +143,6 @@ func DiscoverToolManifests(workspaceRoot string) ([]ToolManifest, error) {
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
 }
-
 
 func relOrBase(path string) string {
 	if path == "" {

@@ -6,6 +6,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { requirePi110, goldenPath } from './pi-reference.mjs';
 
 const variant = process.env.GOLDEN_HOTKEYS_VARIANT;
 if (!variant) {
@@ -22,6 +23,7 @@ if (variant === "darwin") Object.defineProperty(process, "platform", { value: "d
 const candidates = [process.argv[2], `${homedir()}/.bun/install/global/node_modules`, "/workspace/.cache/pi-ref/node_modules"];
 const root = candidates.find((dir) => dir && existsSync(`${dir}/@earendil-works/pi-coding-agent/dist/index.js`));
 if (!root) throw new Error("pi-coding-agent not found");
+requirePi110(root, ['@earendil-works/pi-tui', '@earendil-works/pi-coding-agent']);
 const agent = `${root}/@earendil-works/pi-coding-agent/dist`;
 const { initTheme } = await import(`${agent}/modes/interactive/theme/theme.js`);
 const { InteractiveMode } = await import(`${agent}/modes/interactive/interactive-mode.js`);
@@ -43,4 +45,4 @@ const stub = {
 for (const [key, value] of Object.entries(stub)) Object.defineProperty(fake, key, { value, configurable: true });
 InteractiveMode.prototype.handleHotkeysCommand.call(fake);
 const markdown = children.find((child) => child.constructor.name === "Markdown");
-writeFileSync(`internal/tui/testdata/pi-hotkeys${variant === "default" ? "" : `-${variant}`}.md`, `${markdown.text}\n`);
+writeFileSync(goldenPath(`pi-hotkeys${variant === "default" ? "" : `-${variant}`}.md`), `${markdown.text}\n`);

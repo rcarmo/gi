@@ -10,6 +10,6 @@ All tracked Gherkin files live here. The folders separate ownership and evidence
 - `tui/`: terminal acceptance, including Markdown under `tui/markdown/`.
 - `search/`: derived workspace-index proposals, reported separately from Classic/Shared.
 
-Historical audit artefacts under `docs/internal/ux-reaudit-2026-09-26/` retain their original pre-move paths; they are not current file locations.
+Historical audit artefacts under `docs/implementation/audits/ux-reaudit-2026-09-26/` retain their original pre-move paths; they are not current file locations.
 
 `tests/ux/support/feature-tree.test.ts` checks that every tracked Gherkin file is in this tree and parses. `tests/ux/support/provenance.mjs` verifies the frozen snapshot hashes. The file-by-file status in [VALIDATION.md](VALIDATION.md) stays open until an independent installed reference supports each contract; a preserved or parsable file is not validation.

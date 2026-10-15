@@ -23,6 +23,27 @@ func headerText(t *testing.T, c *chatTUI, width int) string {
 	return strings.Join(out, "\n")
 }
 
+func TestStartupHeaderBlockLogoAndFallback(t *testing.T) {
+	t.Setenv("TERM_PROGRAM", "ghostty")
+	c := &chatTUI{startupHeader: true}
+	text := headerText(t, c, 100)
+	for _, want := range []string{" █▀▀▀ gi " + version.String(), "\n █▄██\n"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing block logo %q:\n%s", want, text)
+		}
+	}
+	if supportsGiBlockLogo("darwin", "Apple_Terminal") || !supportsGiBlockLogo("darwin", "iTerm.app") || !supportsGiBlockLogo("linux", "Apple_Terminal") {
+		t.Fatal("Apple Terminal fallback differs from Pi")
+	}
+	for _, width := range []int{8, 20, 80} {
+		for _, row := range c.transcriptRowsAtWidth(width) {
+			if len([]rune(row.text)) > width {
+				t.Fatalf("header spills at width %d: %q", width, row.text)
+			}
+		}
+	}
+}
+
 // gi's startup header: name, version and gi's keys collapsed; the full key
 // list and loaded resources on Ctrl+O; quietStartup like Pi.
 func TestStartupHeader(t *testing.T) {

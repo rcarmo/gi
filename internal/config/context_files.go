@@ -120,17 +120,22 @@ func LoadContextFiles(workspace string) []ContextFile {
 	for _, dir := range agentdir.Dirs() {
 		if f, ok := loadContextFileFromDir(dir); ok {
 			out = append(out, f)
-			seen[f.Path] = true
+			seen[canonicalize(f.Path)] = true
 			break
 		}
 	}
 	shadowed := findShadowedContextFile(cwd)
 	var ancestors []ContextFile
 	for dir := cwd; ; {
-		if f, ok := loadContextFileFromDir(dir); ok && !(shadowed != "" && canonicalize(f.Path) == shadowed) && !seen[f.Path] {
-			ancestors = append([]ContextFile{f}, ancestors...)
-			seen[f.Path] = true
+		var local []ContextFile
+		// AgentsInTheCloud applies secondary instructions after the directory's normal context.
+		for _, contextDir := range []string{dir, filepath.Join(dir, ".agents-in-the-cloud")} {
+			if f, ok := loadContextFileFromDir(contextDir); ok && !(shadowed != "" && canonicalize(f.Path) == shadowed) && !seen[canonicalize(f.Path)] {
+				local = append(local, f)
+				seen[canonicalize(f.Path)] = true
+			}
 		}
+		ancestors = append(local, ancestors...)
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break

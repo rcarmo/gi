@@ -8,7 +8,7 @@ test('@ux-workspace-018 Gi consumer: Reload, reviewed conditional Overwrite and 
   test.setTimeout(120000);
   const session = await runtime.newSession();
   const created: string[] = [];
-  page.on('dialog', d => void d.accept());
+  page.once('dialog', d => void d.accept());
   await page.goto(session.url);
   await openWorkspace(page);
   const name = await editorFile(page, sel, 'v1', n => created.push(n));
@@ -36,26 +36,59 @@ test('@ux-workspace-018 Gi consumer: Reload, reviewed conditional Overwrite and 
       if (r.method() === 'PUT' && new URL(r.url()).pathname === '/api/workspace/file') writes.push(JSON.parse(r.postData()!));
     });
     const overwrite = page.getByRole('button', { name: /^overwrite$/i }).filter({ visible: true });
-    await overwrite.click();
-    const review = page.getByRole('dialog', { name: 'Review overwrite' });
-    await expect(review).toBeVisible();
-    await expect(review.getByLabel('Current saved content')).toHaveValue(reviewed.text);
-    expect(writes).toHaveLength(0);
-    await expect(closeControl(page, name)).toHaveAccessibleName(/unsaved/i);
-    // Cancelling a review cannot authorise a write.
-    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
+    const review = async (snapshot: any, approve: boolean, beforeApproval?: () => Promise<void>) => {
+      const pending = page.waitForEvent('dialog');
+      const clicking = overwrite.click();
+      const dialog = await pending;
+      let accepted = false;
+      try {
+        expect(dialog.type()).toBe('confirm');
+        expect(dialog.message()).toContain(name);
+        expect(dialog.message()).toContain(snapshot.text);
+        expect(dialog.message()).toContain('Another change will cause a new conflict.');
+        await beforeApproval?.();
+        accepted = approve;
+      } finally {
+        await (accepted ? dialog.accept() : dialog.dismiss());
+        await clicking;
+      }
+    };
+    // Cancelling a native confirmation cannot authorise a write.
+    await review(reviewed, false);
     expect(writes).toHaveLength(0);
     expect((await read()).revision).toBe(reviewed.revision);
+    await expect(closeControl(page, name)).toHaveAccessibleName(/unsaved/i);
     await expect(conflict).toBeVisible({ timeout: 20000 });
-    await overwrite.click();
-    await expect(review.getByLabel('Current saved content')).toHaveValue(reviewed.text);
-    await review.getByRole('button', { name: 'Overwrite reviewed revision', exact: true }).click();
-    await expect(closeControl(page, name)).toHaveAccessibleName(/^close\b/i);
+
+    // A newer remote change while approval is pending must reject this exact reviewed revision.
+    await review(reviewed, true, async () => {
+      expect(writes).toHaveLength(0);
+      const changed = await page.request.put(new URL('/api/workspace/file', page.url()).href, {
+        data: { path: name, content: reviewed.text + ' newest', expected_revision: reviewed.revision },
+      });
+      expect(changed.status()).toBe(200);
+    });
+    await expect(conflict).toBeVisible({ timeout: 20000 });
+    await expect(closeControl(page, name)).toHaveAccessibleName(/unsaved/i);
     expect(writes).toEqual([{ path: name, content: 'v1 remote-reload local-overwrite', expected_revision: reviewed.revision }]);
+    const newer = await read();
+    expect(newer.text).toBe(reviewed.text + ' newest');
+    expect(newer.revision).not.toBe(reviewed.revision);
+
+    // A fresh, explicit approval uses only its newly displayed snapshot; no automatic retry.
+    await review(newer, true);
+    await expect(closeControl(page, name)).toHaveAccessibleName(/^close\b/i);
+    expect(writes).toEqual([
+      { path: name, content: 'v1 remote-reload local-overwrite', expected_revision: reviewed.revision },
+      { path: name, content: 'v1 remote-reload local-overwrite', expected_revision: newer.revision },
+    ]);
     expect((await read()).text).toBe('v1 remote-reload local-overwrite');
 
     await uncoverEditor(page, sel);
     await expect(editorText(page, sel)).toHaveText('v1 remote-reload local-overwrite');
+    // Focus actual text after the native confirmation, rather than the editor's trailing viewport padding.
+    await editorText(page, sel).locator('.cm-line').first().click();
+    await expect(editorText(page, sel)).toBeFocused();
     await typeInEditor(page, sel, ' keep-this-copy');
     await shell(page, runtime, sel, `printf ' remote-copy' >> ${name}`);
     await expect(conflict).toBeVisible({ timeout: 20000 });
@@ -77,8 +110,6 @@ test('@ux-workspace-018 Gi consumer: Reload, reviewed conditional Overwrite and 
     await openInEditor(page, sel, copy);
     await expect(editorText(page, sel)).toHaveText('v1 remote-reload local-overwrite keep-this-copy');
   } finally {
-    // Failure cleanup must not be blocked by an unanswered review modal.
-    await page.getByRole('dialog', { name: 'Review overwrite' }).getByRole('button', { name: 'Cancel', exact: true }).click({ timeout: 1000 }).catch(() => {});
     await removeFiles(page, created);
   }
 });

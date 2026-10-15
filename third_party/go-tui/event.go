@@ -7,6 +7,12 @@ type Event interface {
 	isEvent()
 }
 
+// TerminalReplyEvent carries an OSC or primary device-attributes reply.
+// It is never replayed as editor keystrokes.
+type TerminalReplyEvent struct{ Sequence string }
+
+func (TerminalReplyEvent) isEvent() {}
+
 // KeyEvent represents a keyboard input event.
 type KeyEvent struct {
 	// Key is the key pressed. For printable characters, this is KeyRune.

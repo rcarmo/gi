@@ -32,6 +32,8 @@ type RuntimeConfig struct {
 	// EnabledModelsConfigured is false when EnabledModels is gi's built-in
 	// fallback; Pi then has no "scoped" model list.
 	EnabledModelsConfigured bool `json:"-"`
+	// Transport is Pi's transport preference; project settings override user settings.
+	Transport string `json:"transport"`
 	// TUIWheelScrollLines is Pi's fullscreenWheelScrollLines; 0 means "auto".
 	TUIWheelScrollLines int `json:"tui_wheel_scroll_lines"`
 	// Theme is Pi's theme setting (project settings.json, else global).
@@ -177,6 +179,8 @@ type piSettings struct {
 	JavaScriptRuntime    string           `json:"javascriptRuntime"`
 	DefaultModel         string           `json:"defaultModel"`
 	DefaultThinkingLevel string           `json:"defaultThinkingLevel"`
+	Transport            string           `json:"transport"`
+	Websockets           *bool            `json:"websockets"` // Pi's legacy transport setting
 	EnabledModels        []string         `json:"enabledModels"`
 	MaxIterations        int              `json:"maxIterations"`
 	TUIScrollbackLimit   int              `json:"tuiScrollbackLimit"`
@@ -238,6 +242,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.DefaultProvider = ps.DefaultProvider
 		cfg.DefaultModel = ps.DefaultModel
 		cfg.DefaultThinkingLevel = ps.DefaultThinkingLevel
+		cfg.Transport = piTransport(ps)
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
 		cfg.MaxIterations = ps.MaxIterations
 		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
@@ -314,6 +319,9 @@ func Load(workspaceRoot string) RuntimeConfig {
 	if strings.TrimSpace(cfg.DefaultThinkingLevel) == "" {
 		// Pi's DEFAULT_THINKING_LEVEL.
 		cfg.DefaultThinkingLevel = "medium"
+	}
+	if cfg.Transport == "" {
+		cfg.Transport = "auto"
 	}
 	if len(cfg.Session.Dimensions) == 0 {
 		cfg.Session.Dimensions = []string{"chat"}
@@ -497,6 +505,20 @@ func readJSON(path string, target any) error {
 	return json.Unmarshal(data, target)
 }
 
+// piTransport also accepts Pi's pre-enum websockets preference. The enum wins.
+func piTransport(settings piSettings) string {
+	if settings.Transport != "" {
+		return strings.TrimSpace(settings.Transport)
+	}
+	if settings.Websockets != nil {
+		if *settings.Websockets {
+			return "websocket"
+		}
+		return "sse"
+	}
+	return ""
+}
+
 // applyGlobalPiSettings merges the global settings.json (~/.gi/agent, else
 // Pi's agent directory) under the project
 // settings, as Pi does: project values win, global values fill the model,
@@ -519,6 +541,9 @@ func applyGlobalPiSettings(cfg *RuntimeConfig) {
 	}
 	if strings.TrimSpace(cfg.DefaultThinkingLevel) == "" {
 		cfg.DefaultThinkingLevel = global.DefaultThinkingLevel
+	}
+	if cfg.Transport == "" {
+		cfg.Transport = piTransport(global)
 	}
 	if cfg.TUIWheelScrollLines == 0 {
 		cfg.TUIWheelScrollLines = wheelScrollLines(global.FullscreenWheelScrollLines)

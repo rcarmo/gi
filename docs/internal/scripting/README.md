@@ -1,6 +1,6 @@
 # Scripting runtimes
 
-Gi runs Joker natively and offers two internal JavaScript runtimes: native Goja and isolated QuickJS under wazero. No external interpreter is required. [Upgrade verification and limits](runtime-upgrade-2026-10-06.md) record the pinned versions and tested scope.
+Gi runs Joker natively and offers two internal JavaScript runtimes: native Goja and isolated QuickJS under wazero. No external interpreter is required. [Upgrade verification and limits](../../implementation/maintenance/runtime-upgrade-2026-10-06.md) record the pinned versions and tested scope.
 
 ## Selection
 

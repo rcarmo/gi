@@ -94,4 +94,4 @@ In-memory state must be reconstructable, disposable, or reconciled from SQLite s
 - `topic-system.md`
 - `hooks/lifecycle.md`
 - `subturn-runtime.md`
-- `picoclaw-parity-status.md`
+- `../implementation/plans/picoclaw-parity-status.md`

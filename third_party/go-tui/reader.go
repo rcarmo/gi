@@ -164,9 +164,12 @@ const (
 func parseInputWithRemainder(data []byte) ([]Event, []byte) {
 	start := bytes.Index(data, []byte(pasteStart))
 	if start < 0 {
-		return parseKeysWithRemainder(data)
+		return parseTerminalInput(data)
 	}
-	events, _ := parseKeysWithRemainder(data[:start])
+	events, rest := parseTerminalInput(data[:start])
+	if len(rest) != 0 {
+		return events, data[len(data[:start])-len(rest):]
+	}
 	body := data[start+len(pasteStart):]
 	end := bytes.Index(body, []byte(pasteEnd))
 	if end < 0 {
@@ -174,6 +177,54 @@ func parseInputWithRemainder(data []byte) ([]Event, []byte) {
 	}
 	events = append(events, PasteEvent{Text: string(body[:end])})
 	more, rest := parseInputWithRemainder(body[end+len(pasteEnd):])
+	return append(events, more...), rest
+}
+
+// Keep split OSC replies whole, including a split ST terminator. Bound the
+// retained sequence so a malformed terminal cannot grow the input buffer forever.
+func parseTerminalInput(data []byte) ([]Event, []byte) {
+	var events []Event
+	for i := 0; i+1 < len(data); i++ {
+		if data[i] != 0x1b {
+			continue
+		}
+		osc := data[i+1] == ']'
+		da := i+2 < len(data) && data[i+1] == '[' && data[i+2] == '?'
+		if !osc && !da {
+			if data[i+1] == '[' && i+2 == len(data) {
+				before, _ := parseKeysWithRemainder(data[:i])
+				return append(events, before...), data[i:]
+			}
+			continue
+		}
+		end := -1
+		for j := i + 2; j < len(data); j++ {
+			if osc && data[j] == 7 || da && data[j] >= 0x40 && data[j] <= 0x7e {
+				end = j + 1
+				break
+			}
+			if osc && data[j] == 0x1b && j+1 < len(data) && data[j+1] == '\\' {
+				end = j + 2
+				break
+			}
+		}
+		before, rest := parseKeysWithRemainder(data[:i])
+		events = append(events, before...)
+		if len(rest) != 0 {
+			return events, data[i-len(rest):]
+		}
+		if end < 0 {
+			if len(data)-i <= 8192 {
+				return events, data[i:]
+			}
+			// Discard an oversized unterminated reply rather than type it into the editor.
+			return events, nil
+		}
+		events = append(events, TerminalReplyEvent{Sequence: string(data[i:end])})
+		more, rest := parseTerminalInput(data[end:])
+		return append(events, more...), rest
+	}
+	more, rest := parseKeysWithRemainder(data)
 	return append(events, more...), rest
 }
 

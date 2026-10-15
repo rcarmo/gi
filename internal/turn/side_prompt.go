@@ -141,7 +141,7 @@ func (e *Engine) RunSidePrompt(ctx context.Context, sessionID, prompt, system st
 			emit(kind, delta)
 		}
 	}
-	result, err := streamWithToolsWithHooks(ctx, model, context, output, &inference.StreamHooks{Thinking: thinking, MaxTokens: 1024, CacheRetention: goai.CacheRetentionNone})
+	result, err := streamWithToolsWithHooks(ctx, model, context, output, &inference.StreamHooks{Thinking: thinking, Transport: goai.Transport(e.runtimeCfg.Transport), MaxTokens: 1024, CacheRetention: goai.CacheRetentionNone})
 	if outputErr != nil {
 		return nil, outputErr
 	}

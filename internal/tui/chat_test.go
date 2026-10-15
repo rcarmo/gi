@@ -840,6 +840,35 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventRoutineHooksRequireDebug(t *testing.T) {
+	for _, hook := range []string{"before_agent_start", "before_provider_request", "tool_call"} {
+		for _, typ := range []string{"hook_invocation", "hook_modify", "hook_respond"} {
+			t.Run(hook+"/"+typ, func(t *testing.T) {
+				c := &chatTUI{status: "Thinking", running: true, draft: "partial", transcript: []string{"you: hello"}, draftLineIndex: -1}
+				payload := map[string]any{"type": typ, "hook": hook, "duration_ms": 1}
+				c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: payload})
+				if c.status != "Thinking" || !c.running || c.draft != "partial" || strings.Join(c.transcript, "\n") != "you: hello" {
+					t.Fatalf("routine audit changed normal UI: status=%q transcript=%v", c.status, c.transcript)
+				}
+				c.debug = true
+				c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: payload})
+				meta := transcriptLastBlockMeta(t, c.transcript)
+				if meta.Kind != "hook" || meta.Status != "ok" || !transcriptContainsBody(c.transcript, "hook="+hook) {
+					t.Fatalf("debug audit missing: %+v %v", meta, c.transcript)
+				}
+			})
+		}
+	}
+}
+
+func TestHandleTopicEventHookDebugSurvivesReload(t *testing.T) {
+	c := &chatTUI{debug: true, cfg: config.RuntimeConfig{WorkspaceRoot: t.TempDir()}}
+	c.reloadLines()
+	if !c.debug {
+		t.Fatal("reload discarded the command-line debug choice")
+	}
+}
+
 func TestHandleTopicEventHookInvocationErrorRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_invocation", "hook": "tool_call", "tool": "grep", "error": "timed out after 1500ms"}})
@@ -853,7 +882,7 @@ func TestHandleTopicEventHookInvocationErrorRendering(t *testing.T) {
 }
 
 func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c := &chatTUI{debug: true, cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_modify", "hook": "tool_call", "tool": "grep"}})
 	if c.status != "hook modified via tool_call for grep" {
 		t.Fatalf("hook modify status/transcript = %q %#v", c.status, c.transcript)

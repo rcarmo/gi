@@ -26,4 +26,4 @@ rebased when upgrading go-tui and removed when upstream offers equivalent suppor
 This avoids reflection, cache edits, global screen clears and duplicate repaint
 hooks. It does not resolve terminal Unicode-width disagreements by itself or
 establish that the Ghostty report is fixed. Regression evidence and limitations
-are recorded in `docs/internal/tui-pi-scrolling.md`.
+are recorded in `docs/implementation/terminal/tui-pi-scrolling.md`.

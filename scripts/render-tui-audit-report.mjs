@@ -145,7 +145,7 @@ const html = `<!doctype html>
       <li><strong>Layout evidence:</strong> wide and narrow tmux captures for Gi, plus a Pi reference capture.</li>
       <li><strong>Markdown evidence:</strong> a seeded assistant transcript with headings, lists, blockquote, and responsive table rendering.</li>
       <li><strong>Automated tests:</strong> unit coverage for markdown/layout/input behavior and tmux Gherkin regression coverage.</li>
-      <li><strong>Source docs:</strong> <code>docs/internal/tui-ux-user-stories.md</code>, <code>docs/internal/tui-ux-report.md</code>, <code>docs/internal/tui-paste-analysis.md</code>, and <code>docs/internal/topic-system.md</code>.</li>
+      <li><strong>Source docs:</strong> <code>docs/implementation/plans/tui-ux-user-stories.md</code>, <code>docs/implementation/plans/tui-ux-report.md</code>, <code>docs/implementation/plans/tui-paste-analysis.md</code>, and <code>docs/internal/topic-system.md</code>.</li>
     </ul>
   </div>
 </body>

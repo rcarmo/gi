@@ -32,7 +32,7 @@ Canonical docs:
 
 - `runtime-refactor-adr.md`
 - `runtime-target-state.md`
-- `picoclaw-parity-status.md`
+- `../implementation/plans/picoclaw-parity-status.md`
 
 Owners:
 
@@ -71,7 +71,7 @@ Runtime contract:
 Canonical docs:
 
 - `hooks/lifecycle.md`
-- `agentic-loop-hooks.md`
+- `../implementation/plans/agentic-loop-hooks.md`
 - `runtime-target-state.md`
 
 Owners:
@@ -134,6 +134,6 @@ Owner areas: `internal/session`, `internal/store/session_channel_bindings.go`, `
 
 ### TUI runtime consumption
 
-Canonical docs: `tui-stack-evaluation.md`, `tui-pi-parity-plan.md`, `topic-system.md`.
+Canonical docs: `../implementation/plans/tui-stack-evaluation.md`, `../implementation/plans/tui-pi-parity-plan.md`, `topic-system.md`.
 
 Owner area: `internal/tui`.

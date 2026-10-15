@@ -46,7 +46,7 @@ func Run(dbPath, workspace, model string) error {
 	return RunMode(dbPath, workspace, model, "")
 }
 
-func RunMode(dbPath, workspace, model, mode string) error {
+func RunMode(dbPath, workspace, model, mode string, debug ...bool) error {
 	if mode != "" && mode != "regular" && mode != "fullscreen" {
 		return fmt.Errorf("invalid tui mode %q: use regular or fullscreen", mode)
 	}
@@ -68,7 +68,7 @@ func RunMode(dbPath, workspace, model, mode string) error {
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
 	engine.EnableMCP() // Pi mcp.json servers (.gi first, then .pi); connects in the background
 	defer engine.Close()
-	return runWithEngineMode(s, engine, cfg, mode == "regular")
+	return runWithEngineMode(s, engine, cfg, mode == "regular", debug...)
 }
 
 // Fixtures can install native hooks while reusing the production terminal loop.
@@ -76,7 +76,7 @@ func runWithEngine(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig
 	return runWithEngineMode(s, engine, cfg, false)
 }
 
-func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig, regular bool) error {
+func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig, regular bool, debug ...bool) error {
 	sessionID, err := initialSessionID(context.Background(), s)
 	if err != nil {
 		return err
@@ -101,6 +101,7 @@ func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeCo
 		durableDrafts: true,
 		regularMode:   regular,
 		startupHeader: true,
+		debug:         len(debug) > 0 && debug[0],
 	}
 
 	options := []gotui.AppOption{gotui.WithLegacyKeyboard(), gotui.WithRowRedraw()}
@@ -116,6 +117,10 @@ func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeCo
 	}
 	chat.app = app
 	app.SetPasteHandler(chat.handlePaste)
+	chat.programStatus = newProgramStatusTerminal(os.Stdout, os.Getenv("PI_PROGRAM_STATUS"))
+	app.SetTerminalReplyHandler(func(e gotui.TerminalReplyEvent) { chat.programStatus.reply(e.Sequence) })
+	chat.programStatus.start()
+	defer chat.programStatus.stop()
 	cleanup := chat.Init()
 	defer cleanup()
 	chat.watchActiveTheme()
@@ -221,6 +226,10 @@ type chatTUI struct {
 	historyDraftCursor          int
 	historyApplying             bool
 	running                     bool
+	programStatus               *programStatusTerminal
+	programResting              programStatus
+	programWasActive            bool
+	programSessionName          string
 	status                      string
 	compaction                  terminalCompaction
 	workspaceIndex              terminalIndex
@@ -252,6 +261,7 @@ type chatTUI struct {
 	transcriptRegion            *gotui.Element
 	transcriptRef               *gotui.Ref
 	transcript                  []string
+	debug                       bool // -debug exposes successful runtime hook audit events
 	regularMode                 bool
 	regularHeaderPrinted        bool      // startup header printed to scrollback (regular mode)
 	startupHeader               bool      // show gi\'s startup header (set by the app, not by test fixtures)
@@ -672,6 +682,9 @@ func (c *chatTUI) bindSession(sessionID string) {
 	}
 	c.stopSessionSubscription()
 	c.sessionGeneration++
+	c.programResting = programStatus{State: "idle"}
+	c.programWasActive = false
+	c.programSessionName = ""
 	c.compaction = terminalCompaction{}
 	c.sessionID = sessionID
 	c.regularPrinted = 0
@@ -679,6 +692,7 @@ func (c *chatTUI) bindSession(sessionID string) {
 	if c.store != nil {
 		if session, err := c.store.GetSession(context.Background(), sessionID); err == nil {
 			c.restoreSessionModel(session.State)
+			c.programSessionName = session.Title
 		}
 	}
 	if c.engine == nil {
@@ -768,6 +782,7 @@ func (c *chatTUI) hasRunningTranscriptBlock() bool {
 }
 
 func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
+	defer c.reportProgramStatus()
 	c.invalidateFooter()
 	if env.SessionID != "" && env.SessionID != c.sessionID {
 		return
@@ -848,10 +863,15 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		case "turn_usage":
 			c.updateUsageFromPayload(payload)
 		case "turn_completed":
+			c.programResting = programStatus{State: "done"}
 			c.resetRunningDraftState()
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		case "turn_terminal":
 			if status == "failed" || status == "aborted" || status == "cancelled" {
+				c.programResting = programStatus{State: "idle"}
+				if status == "failed" {
+					c.programResting = programStatus{State: "error", Message: firstProgramStatusLine(stringFromPayload(payload, "error"))}
+				}
 				c.resetRunningDraftState()
 				c.status = fmt.Sprintf("Turn %s", status)
 			}
@@ -961,6 +981,7 @@ func (c *chatTUI) useTopicNativeRuntimeStatus() bool {
 }
 
 func (c *chatTUI) handleEvent(ev map[string]any) {
+	defer c.reportProgramStatus()
 	if !sessionEventMatchesID(ev, c.sessionID) {
 		return
 	}
@@ -1096,6 +1117,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.finishThinkingTranscript(time.Now().UTC())
 			c.appendTranscript("error: " + truncate(msg, 160))
 			c.status = "Error"
+			c.programResting = programStatus{State: "error", Message: firstProgramStatusLine(msg)}
 			if c.app != nil {
 				c.app.MarkDirty()
 			}
@@ -1404,6 +1426,11 @@ func (c *chatTUI) renderHookEvent(payload map[string]any, ts time.Time) {
 	toolName, _ := payload["tool"].(string)
 	errText, _ := payload["error"].(string)
 	durationMS := intFromAny(payload["duration_ms"])
+	// Routine hook audit stays in the runtime event stream, not the conversation.
+	// Failures and policy denials still explain why a user action did not proceed.
+	if !c.debug && strings.TrimSpace(errText) == "" && typ != "hook_deny" && typ != "hook_abort" {
+		return
+	}
 	title := "Hook event"
 	status := "info"
 	switch typ {
@@ -1417,7 +1444,7 @@ func (c *chatTUI) renderHookEvent(payload map[string]any, ts time.Time) {
 		if errText != "" {
 			title, status = "Hook invocation error", "error"
 		} else {
-			title, status = "Hook invoked", "running"
+			title, status = "Hook invoked", "ok"
 		}
 	}
 	body := []string{}
@@ -3809,6 +3836,8 @@ func (c *chatTUI) nameSessionLines(text string, fields []string) []string {
 	if err := c.store.UpdateSessionTitle(context.Background(), c.sessionID, name); err != nil {
 		return []string{fmt.Sprintf("error: rename session: %v", err)}
 	}
+	c.programSessionName = name
+	c.reportProgramStatus()
 	return []string{fmt.Sprintf("sys: session renamed to %s", name)}
 }
 
@@ -4536,6 +4565,7 @@ func (c *chatTUI) pluginLines() []string {
 }
 
 func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
+	c.reportProgramStatus()
 	if c.regularMode {
 		return c.renderRegular(app)
 	}

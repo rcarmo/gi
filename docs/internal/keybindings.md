@@ -3,7 +3,7 @@
 Gi's TUI targets Pi 1.1.0 default keybindings (pi-coding-agent
 `docs/keybindings.md`, `core/keybindings.js` and pi-tui's `keybindings.js`).
 The current bounded alignment and remaining gaps are in
-[Pi 1.1.0 alignment](tui-pi-1.1.0.md). gi-only actions use keys
+[Pi 1.1.0 alignment](../implementation/terminal/tui-pi-1.1.0.md). gi-only actions use keys
 that Pi leaves free. `/hotkeys` prints Pi's own `/hotkeys` text, followed by a
 table of gi's extra keys.
 

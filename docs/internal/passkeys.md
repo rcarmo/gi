@@ -4,7 +4,7 @@ Status: opt-in native backend, passkey login and Settings > Authentication.
 Settings includes lockout-safe sign-in policy controls and [loopback first-owner
 TOTP setup](browser-bootstrap.md), followed by passkey registration. Physical-device
 validation is outstanding. The
-[26-scenario review](passkey-scenario-review.md) records partial and manual gaps.
+[26-scenario review](../implementation/audits/passkey-scenario-review.md) records partial and manual gaps.
 
 The backend uses `github.com/go-webauthn/webauthn` v0.18.2 for WebAuthn verification
 with required user verification. Runtime code is Go; tests use Chromium's virtual

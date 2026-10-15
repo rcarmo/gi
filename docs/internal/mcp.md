@@ -3,7 +3,7 @@
 Status: the client core (#25, phase 1), tool exposure (phase 2) and
 `tool_search` (phase 3) are in place. Codemode, `/mcp` and OAuth are later
 phases
-([plan](mcp-codemode-plan.md)). The TUI and web server call
+([plan](../implementation/plans/mcp-codemode-plan.md)). The TUI and web server call
 `Engine.EnableMCP()` at startup; engines built for tests never read the user's
 `mcp.json`.
 

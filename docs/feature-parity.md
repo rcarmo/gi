@@ -1,6 +1,6 @@
 # Gi features and Piclaw parity
 
-Updated: 2026-10-08. Gi's terminal alignment targets Pi 1.1.0 (`@earendil-works/pi-coding-agent`); its browser follows the pinned Piclaw v3.3.0 Classic UI. Browser behaviour is measured with the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite.
+Updated: 2026-10-09. Gi's terminal alignment targets Pi 1.1.0 (`@earendil-works/pi-coding-agent`); its browser follows the pinned Piclaw v3.3.0 Classic UI. Browser behaviour is measured with the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite.
 
 Gi shares pinned Piclaw browser components and Pi/Piclaw configuration files, but has its own Go runtime, SQLite state and terminal UI. It does not replace Piclaw. The browser and the terminal share one turn engine; their interaction coverage is tracked separately.
 
@@ -15,7 +15,7 @@ Gi shares pinned Piclaw browser components and Pi/Piclaw configuration files, bu
 
 ## Shared browser compliance
 
-`make fixtures-vibes` runs the suite pinned at `references/fixtures-vibes` (v0.2.0, `c28472f`) on Chromium and WebKit at phone, tablet and desktop sizes. `tests/fixtures-vibes/profile.json` declares the capabilities Gi claims, and `tests/fixtures-vibes/skips.json` lists every scenario Gi does not pass, with its reason. A failure that is not listed, a capability skip that is not listed, or a listed scenario that now passes fails the report gate.
+`make fixtures-vibes` runs the suite pinned at `references/fixtures-vibes` (`bb7786f`) on Chromium and WebKit at phone, tablet and desktop sizes. `tests/fixtures-vibes/profile.json` declares the capabilities Gi claims, and `tests/fixtures-vibes/skips.json` lists every scenario Gi does not pass, with its reason. A failure that is not listed, a capability skip that is not listed, or a listed scenario that now passes fails the report gate.
 
 The last full run started on 2026-10-04 at 20:46:28 UTC with Gi `5a68f4005a9fdab60d72808579c0c483536f07d1` and fixtures `6e49ae1dfb0c6ca900a9173ecc80817c12fd77cb`. It finished on 2026-10-05 after 388.5 minutes. Playwright recorded 1,233 passed tests, 280 failed, 71 skipped and zero flaky results across the six projects.
 
@@ -24,11 +24,13 @@ The last full run started on 2026-10-04 at 20:46:28 UTC with Gi `5a68f4005a9fdab
 | Original full4 gate | 316 | 185 | 1 | 3 | 49 | 78 |
 | Same results, reconciled skips on 2026-10-05 | 316 | 185 | 0 | 3 | 50 | 78 |
 
-The original gate failed because mandatory-core scenarios still used `capability-absent`, `@ux-extra-004/005` and `@ux-editor-007` had stale skips despite passing, and Vim scenario `@ux-editor-009` failed in all six projects without an issue-backed entry. The corrected skips file uses `not-implemented` for core workflows, removes those three passing entries and adds editor009 under [gi#46](https://github.com/rcarmo/gi/issues/46). Re-running only `make -C references/fixtures-vibes report` against the existing `compliance.json` gives `Gate: OK`; no browser tests were rerun. This gate accepts the issue-backed failure inventory, not feature completeness. Reports and the raw results are in `references/fixtures-vibes/test-results/`; an archived report is in [full4](internal/fixtures-vibes-full4.md).
+The original gate failed because mandatory-core scenarios still used `capability-absent`, `@ux-extra-004/005` and `@ux-editor-007` had stale skips despite passing, and Vim scenario `@ux-editor-009` failed in all six projects without an issue-backed entry. The corrected skips file uses `not-implemented` for core workflows, removes those three passing entries and adds editor009 under [gi#46](https://github.com/rcarmo/gi/issues/46). Re-running only `make -C references/fixtures-vibes report` against the existing `compliance.json` gives `Gate: OK`; no browser tests were rerun. This gate accepts the issue-backed failure inventory, not feature completeness. Reports and the raw results are in `references/fixtures-vibes/test-results/`; an archived report is in [full4](implementation/maintenance/fixtures-vibes-full4.md).
 
 The earlier 13:24 UTC run on `88e5b13` had a single `@ux-chat-lifecycle-009` WebKit `page.goto` engine error. It passed in the other five projects and in 10 of 10 repeats afterwards. Full4 passes that scenario. Focused checks also passed for `/theme` and `/tint` (90/90), avatar manifest icons (54/54), and confirmed cascade deletion with cancel/retry (36/36).
 
-The current suite/UI pin is `0259e9a4816d3d643159538095fdffc884104598` (Piclaw v3.3.0). It adds revision-safe editor/Plan persistence and agent file-open SSE bindings to the earlier `b17ef01` adoption, preserving shared specs and oracle data. Bounded consumer checks pass for Plan, held-save typing and file-open; the shared conflict scenario lacks reviewed Overwrite approval and clean-editor SSE refresh loses revision metadata in the lazy loader. The historical v0.2.0 run finished on 2026-10-05 with exit 2 and has not been rerun. Its [final review](internal/frozen-v020-20261005.md) records 193 passing scenarios, one unlisted bootstrap failure, 42 listed failures, three skips and 78 without tests; two missing heaps and absent browser profiling are recorded. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. See [browser checks](internal/classic-ui-acceptance.md) and [current acceptance](internal/acceptance-2026-10-08.md).
+The current suite/UI pin is `92425adf2772d06221e85d124dcf3830b649a442` (Piclaw v3.3.0 source with shared adaptations), including revision-safe editor/Plan persistence, agent-open SSE, the lazy-editor revision-forwarding fix and WebKit terminal reattach adoption. Nineteen editor scenarios passed 107 executions with seven unchanged shared-source skips at `bb7786f`; workspace018 now independently passes all six projects at `f46cbb1`. Both desktop browsers also pass Gi's reviewed-conflict and clean-refresh consumer checks, including a change while overwrite approval is pending. All editor skips are removed. The shared assertions remain unchanged; these focused runs do not establish full-suite compliance. See [editor acceptance](implementation/web/workspace-editor-acceptance.md). The historical v0.2.0 run finished on 2026-10-05 with exit 2 and has not been rerun. Its [final review](implementation/maintenance/frozen-v020-20261005.md) records 193 passing scenarios, one unlisted bootstrap failure, 42 listed failures, three skips and 78 without tests; two missing heaps and absent browser profiling are recorded. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. See [browser checks](implementation/maintenance/classic-ui-acceptance.md) and [current acceptance](implementation/maintenance/acceptance-2026-10-08.md).
+
+At `92425ad`, all 20 terminal scenarios pass their applicable checks across six projects: 110 passes, 10 unchanged source skips and zero retries. The late xterm teardown race is fixed; repeated real teardown and PTY continuity consumers pass on both desktop browsers. Twenty stale #45 skips are removed. This is focused acceptance, not a full current-pin compliance matrix. See [terminal acceptance](implementation/web/web-terminal-acceptance.md).
 
 `/btw` has isolated session-snapshot inference, abortable JSON/SSE routes and adopted Classic panel/retry/injection controls. On 2026-10-08 its shared scenario passed all six Chromium/WebKit viewport combinations; ten native checks passed three times. Chromium browser/runtime/runner captures were analysed and disposed; WebKit evidence is functional only. The stale extra001 skip is removed. See [side-prompt contract](internal/side-prompt.md).
 
@@ -36,7 +38,7 @@ Scenarios Gi does not pass:
 
 | Reason | Scenarios | Detail |
 |---|---|---|
-| Incomplete acceptance | 41 entries | Terminal ([gi#45](https://github.com/rcarmo/gi/issues/45)), CodeMirror/Vim editor ([gi#46](https://github.com/rcarmo/gi/issues/46)) and VNC ([gi#47](https://github.com/rcarmo/gi/issues/47)). Native backends are published; broader UI/configuration and agent-open checks remain. |
+| Incomplete acceptance | 2 entries | VNC ([gi#47](https://github.com/rcarmo/gi/issues/47)); broader UI/configuration acceptance remains. |
 | Capability absent | 2 entries | `@ux-shell-env-002/007`: Windows builds and shell detection exist, but no Windows host test ([gi#50](https://github.com/rcarmo/gi/issues/50)). |
 
 `@ux-shell-008` is skipped by the suite in all six projects. Adaptive Cards, image annotation and text highlights are removed from this suite pin; their 14 former skip entries are gone.
@@ -56,8 +58,8 @@ Scenarios with no suite test have no shared browser evidence either way.
 | Compaction | Implemented: automatic and manual compaction with model-written summaries (Pi's cut point and prompts), persisted context checkpoints, progress and cancel. See [compaction](internal/compaction.md). | — |
 | Timeline and media | Partial: Markdown, tables and code copy; image lightbox; stored media and resource links; tool timing; turn-outcome chips; single-message and confirmed cascade deletion; browser speech. | No iPad annotation or text highlights. Physical audio is unverified. See [cascade deletion](internal/message-deletion.md). |
 | Cards and widgets | Implemented dashboard widgets: durable tool, authenticated artifact lookup, post-commit SSE, opaque-origin sandbox and session-scoped bridge. Adaptive Cards render; unsupported Submit actions are rejected visibly. | No agent card-posting API. See [widgets](internal/dashboard-widgets.md). |
-| Workspace | Partial: rooted tree with hidden files, bounded previews, read-only tabs, folder hints, uploads, explicit lexical index/reindex; complete bounded edit reads, guarded Piclaw file aliases and client-scoped filesystem SSE. | Editable CodeMirror/Vim panes, popouts and docking await the shared frontend handoff ([gi#46](https://github.com/rcarmo/gi/issues/46)); backend [contract](internal/workspace-editor-backend.md) passes native/API tests. Plain code roots are opt-in; the empty Alt-I panel explains `extraRoots`, restart and Reindex ([gi#22](https://github.com/rcarmo/gi/issues/22), [guide](internal/search/README.md#plain-code-repositories)). No vector search. |
-| Web terminal | Implemented backend: native Linux/macOS PTY, WebSocket input/resize, owner isolation, bounded replay, reconnect, handoff and shutdown. See [contract](internal/web-terminal.md). | Shared frontend dock/tab/popout/zen integration awaits its owner ([gi#45](https://github.com/rcarmo/gi/issues/45)). Capability and skips stay unchanged until independent browser acceptance. Windows PTY is unsupported. |
+| Workspace | Implemented: rooted tree, uploads, previews, CodeMirror/Vim editing, conditional saves, rename/MRU/pinned tabs, Markdown preview, dock/popout/reattach, external-change SSE and agent-open requests. Explicit lexical index/reindex remains available. | All 20 editor scenarios have shared acceptance evidence; workspace018 now passes with native reviewed confirmation ([gi#46](https://github.com/rcarmo/gi/issues/46)). See [backend contract](internal/workspace-editor-backend.md) and [acceptance](implementation/web/workspace-editor-acceptance.md). Plain code roots remain opt-in. |
+| Web terminal | Implemented backend: native Linux/macOS PTY, WebSocket input/resize, owner isolation, bounded replay, reconnect, handoff and shutdown. See [contract](internal/web-terminal.md). | Shared dock/tab/popout/zen integration passes independent six-project acceptance ([gi#45](https://github.com/rcarmo/gi/issues/45)); 20 stale skips are removed. The catalogue retired `@cap-terminal`. Windows PTY is unsupported. See [acceptance](implementation/web/web-terminal-acceptance.md). |
 | VNC | Implemented backend: explicit target policy, authenticated WebSocket/TCP bridge, bounded buffers/timeouts, owner/target-bound handoff and shutdown. See [contract](internal/web-vnc.md). | Disabled without operator target configuration. Viewer/tab/popout integration awaits the shared frontend owner ([gi#47](https://github.com/rcarmo/gi/issues/47)); capability/skips stay unchanged. Physical display behaviour is unverified. |
 | Settings | Implemented: General (identity, upload limit), Models (filtered), Appearance (theme presets, tint, output padding; stored in the browser; also set by `/theme` and `/tint`), Keyboard (shortcut editing), Compaction, Providers (OpenAI and Anthropic API keys), Keychain, Environment and Authentication. | Providers cannot set up OAuth or custom providers; use `/login` in the terminal. |
 | Keychain and shell environment | Implemented: Piclaw-format encrypted keychain, shell substitution of named secrets, and environment overrides applied to every shell path. See [keychain](internal/keychain.md) and [shell environment](internal/shell-environment.md). | — |
@@ -71,7 +73,7 @@ An instance with no enrolled owner permits application access. The CLI binds to 
 
 ## Terminal
 
-The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](internal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; [recorded tool duration](internal/tool-duration.md) now survives live/restored rendering with explicit legacy/projection limits. Terminal status and output padding are still open. Web overlays do not become permanent terminal panels.
+The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](implementation/terminal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; [recorded tool duration](internal/tool-duration.md) now survives live/restored rendering with explicit legacy/projection limits. Terminal status and output padding are still open. Web overlays do not become permanent terminal panels.
 
 | Area | Behaviour | Limits |
 |---|---|---|
@@ -90,7 +92,7 @@ PTY tests cover fullscreen and regular modes at 60×18, 100×22 and 140×36. Pro
 
 | Workstream | Current state | Acceptance target |
 |---|---|---|
-| tsnet remote access | Scaffold: `internal/peering` wraps `tailscale.com/tsnet` and reports status. Nothing starts a tailnet listener. See [plan](internal/peering-tsnet-plan.md). | Opt-in tailnet HTTPS for the existing UI, API and SSE, with persistent node state, secret references and the existing app authentication. No public exposure by default. |
+| tsnet remote access | Scaffold: `internal/peering` wraps `tailscale.com/tsnet` and reports status. Nothing starts a tailnet listener. See [plan](implementation/plans/peering-tsnet-plan.md). | Opt-in tailnet HTTPS for the existing UI, API and SSE, with persistent node state, secret references and the existing app authentication. No public exposure by default. |
 | Iroh inter-instance chat | Planned; Gi has no Iroh transport. | Explicit pairing, receiver-owned policies, signed bounded messages and files, durable retries and one-hop peer and agent addresses. Interoperability with Piclaw's remote-peer add-on needs confirmation. |
 
 tsnet carries operator web access and Iroh carries peer messages. Neither grants the other's authority. The runtime stays pure Go, without CGO, native Rust libraries or sidecars.
@@ -116,11 +118,11 @@ CI runs only for `v*` release tags. It runs fixtures-vibes compliance, the focus
 
 Dated plans and audits keep their original scope: the [UX audit][audit], the [full web/TUI plan][plan] and the [implementation checklist][checklist].
 
-[audit]: internal/ux-test-audit-2026-09-24.md
-[tui]: internal/tui-pi-parity-plan.md
+[audit]: implementation/audits/ux-test-audit-2026-09-24.md
+[tui]: implementation/plans/tui-pi-parity-plan.md
 [media]: internal/tui-clipboard-media.md
 [checklist]: checklists/implementation.md
-[plan]: internal/full-web-tui-parity-plan.md
+[plan]: implementation/plans/full-web-tui-parity-plan.md
 
 ## Shared front-end ownership
 
