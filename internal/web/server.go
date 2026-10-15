@@ -334,6 +334,13 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	switch parts[1] {
+	case "reset":
+		if len(parts) != 2 {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "not found"})
+			return
+		}
+		s.handleSessionReset(w, r, sessionID)
+		return
 	case "plan":
 		if len(parts) == 2 {
 			s.handleSessionPlan(w, r, sessionID)

@@ -62,3 +62,51 @@ func TestQueuedResetAtomicAcknowledgement(t *testing.T) {
 		t.Fatalf("reset follow-up: %+v %v", follow, err)
 	}
 }
+
+func TestQueuedResetsSurviveReopenWithoutCrossingFIFO(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "reset-recover.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "s", "t", "test", "claim"); err != nil || !ok {
+		t.Fatalf("claim %t %v", ok, err)
+	}
+	for _, text := range []string{"", ""} {
+		if queued, err := s.RequestContextReset(ctx, "s", text); err != nil || !queued {
+			t.Fatalf("queue %t %v", queued, err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	for i := 0; i < 2; i++ {
+		applied, err := s.ApplyPendingContextReset(ctx, "s", "t")
+		if err != nil || !applied {
+			t.Fatalf("apply %d %t %v", i, applied, err)
+		}
+	}
+	applied, err := s.ApplyPendingContextReset(ctx, "s", "t")
+	if err != nil || applied {
+		t.Fatalf("unexpected third reset: %t %v", applied, err)
+	}
+	snapshot, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Version != 2 || len(snapshot.Messages) != 0 {
+		t.Fatalf("reset versions: %+v", snapshot)
+	}
+}

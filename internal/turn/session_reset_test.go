@@ -68,3 +68,41 @@ func TestBusyResetWaitsForCompleteToolBatch(t *testing.T) {
 		t.Fatalf("visible tool history lost: %+v", messages)
 	}
 }
+
+func TestFinalAnswerResetRetainsAnswerButResetsProviderHead(t *testing.T) {
+	ctx := context.Background()
+	s, err := store.Open(filepath.Join(t.TempDir(), "reset-final.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	e := New(s)
+	defer e.Close()
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "s", "t", "test", "claim"); err != nil || !ok {
+		t.Fatalf("claim %t %v", ok, err)
+	}
+	if _, err := e.ResetSession(ctx, "s", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(ctx, "answer", "s", "assistant", "final answer", nil); err != nil {
+		t.Fatal(err)
+	}
+	e.runner("s").finishTurnOK(s, "t", "s", "agent", "fixture", 1)
+	snapshot, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Messages) != 0 {
+		t.Fatalf("old answer entered new head: %+v", snapshot.Messages)
+	}
+	page, err := s.PageConversationMessages(ctx, "s", "", "", 50)
+	if err != nil || len(page.Messages) != 1 || page.Messages[0].Content != "final answer" {
+		t.Fatalf("answer lost: %+v %v", page, err)
+	}
+}

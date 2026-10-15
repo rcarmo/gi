@@ -104,3 +104,16 @@ test('Gi codemode: legacy saved result without details still renders output on r
   await expect(cards(page).locator('.codemode-card-calls li')).toHaveCount(0);
   expect(removed).toBeGreaterThan(0);
 });
+
+test('Gi reset: in-place reset preserves visible history across reload', async ({page,runtime}) => {
+  const session = await opened(page,runtime);
+  await prompt(page,session.id,"return 'BEFORE_RESET_VISIBLE';");
+  await expect(cards(page).locator('.codemode-card-status')).toHaveText('ok',{timeout:20000});
+  await expect(page.getByText('consumer settled',{exact:true})).toBeVisible();
+  const response=await page.request.post(new URL(`/api/sessions/${session.id}/reset`,page.url()).href,{data:{text:''}});
+  expect(response.status()).toBe(200);
+  await page.reload();
+  await expect(cards(page)).toHaveCount(1);
+  await expect(cards(page).locator('.codemode-card-output')).toContainText('BEFORE_RESET_VISIBLE');
+  expect(page.url()).toContain(session.id);
+});
