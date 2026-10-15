@@ -57,6 +57,9 @@ func (s *Store) searchMessages(ctx context.Context, sessionID, query, scope stri
 		if err != nil {
 			return nil, err
 		}
+		if conversation {
+			m.Payload = conversationPayload(m.Payload)
+		}
 		out = append(out, m)
 	}
 	return out, rows.Err()

@@ -66,7 +66,7 @@ func (t *toolExtras) withReplay(payload map[string]any, text string, failed bool
 			payload["added_tool_names"] = append([]string(nil), t.added...)
 		}
 	}
-	payload["content_blocks"] = blocks
+	payload["provider_content_blocks"] = blocks
 	return t.withDetails(payload)
 }
 

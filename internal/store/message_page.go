@@ -117,6 +117,9 @@ func (s *Store) pageMessages(ctx context.Context, sessionID, before, after strin
 		if err != nil {
 			return out, err
 		}
+		if conversation {
+			m.Payload = conversationPayload(m.Payload)
+		}
 		out.Messages = append(out.Messages, m)
 	}
 	if err = rows.Err(); err != nil {

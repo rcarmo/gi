@@ -26,7 +26,7 @@ func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID st
 			name, _ := m.Payload["tool_name"].(string)
 			failed, _ := m.Payload["is_error"].(bool)
 			blocks := []goai.ContentBlock{{Type: "text", Text: m.Content}}
-			if saved, ok := decodeReplayValue[[]goai.ContentBlock](m.Payload["content_blocks"]); ok {
+			if saved, ok := decodeReplayValue[[]goai.ContentBlock](m.Payload["provider_content_blocks"]); ok {
 				blocks = saved
 			}
 			added, _ := decodeReplayValue[[]string](m.Payload["added_tool_names"])
@@ -88,7 +88,7 @@ func (r *sessionRunner) compactionBoundary(ctx context.Context, sessionID string
 	// The summariser has a text transcript, not image bytes. Do not permanently
 	// hide media-bearing older messages behind a text-only summary.
 	for _, m := range snapshot.Messages[:nativeCount] {
-		if blocks, ok := decodeReplayValue[[]goai.ContentBlock](m.Payload["content_blocks"]); ok {
+		if blocks, ok := decodeReplayValue[[]goai.ContentBlock](m.Payload["provider_content_blocks"]); ok {
 			for _, block := range blocks {
 				if block.Type == "image" {
 					return nil, nil
