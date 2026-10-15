@@ -4372,6 +4372,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			// both history and the visible timeline.
 			msgID := store.NowID("msg")
 			messagePayload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "agent_id": agentID, "iterations": iter}
+			messagePayload["provider_message"] = result
 			r.addResponseRecord(ctx, s, turnID, model, result, messagePayload)
 			r.addRecoveryMarker(ctx, sessionID, turnID, messagePayload)
 			if err := s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, messagePayload); err != nil {
@@ -4419,8 +4420,12 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			"turn_id": turnID, "agent_id": agentID, "display_text": strings.TrimSpace(textContent),
 			"tool_calls": recordedCalls,
 		}
+		callsPayload["provider_message"] = result
 		r.addResponseRecord(ctx, s, turnID, model, result, callsPayload)
-		logutil.WarnIfErr("add assistant tool_calls summary", s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, callsPayload))
+		if err := s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, callsPayload); err != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist assistant tool calls: "+err.Error(), "persistence_error")
+			return
+		}
 
 		outcome := r.executeToolCallsPhase(ctx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, &totalUsage)
 		if outcome.terminated {
@@ -5431,9 +5436,9 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "error": toolErr.Error(),
-			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withDetails(map[string]any{
+			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withReplay(map[string]any{
 				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
-			})); err != nil {
+			}, errText, true)); err != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
 				outcome.terminated = true
 				return outcome
@@ -5476,9 +5481,9 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "output_length": len(toolResult),
-			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withDetails(map[string]any{
+			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withReplay(map[string]any{
 				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
-			})); err != nil {
+			}, displayResult, false)); err != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
 				outcome.terminated = true
 				return outcome

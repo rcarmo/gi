@@ -57,6 +57,19 @@ func (t *toolExtras) setDetailsFunc() func(map[string]any) {
 	return func(d map[string]any) { t.details = d }
 }
 
+// withReplay preserves provider-visible result blocks separately from display text.
+func (t *toolExtras) withReplay(payload map[string]any, text string, failed bool) map[string]any {
+	blocks := []goai.ContentBlock{{Type: "text", Text: text}}
+	if t != nil {
+		blocks = append(blocks, t.blocks...)
+		if !failed && len(t.added) > 0 {
+			payload["added_tool_names"] = append([]string(nil), t.added...)
+		}
+	}
+	payload["content_blocks"] = blocks
+	return t.withDetails(payload)
+}
+
 // withDetails adds the tool's details, if any, to an event or message payload.
 func (t *toolExtras) withDetails(payload map[string]any) map[string]any {
 	if t != nil && t.details != nil {

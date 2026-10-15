@@ -87,3 +87,50 @@ func TestCompactionCannotSplitReplayedToolExchange(t *testing.T) {
 		t.Fatalf("complete exchange rejected: %+v %v", complete, err)
 	}
 }
+
+func TestReplayPreservesProviderBlocksAndToolLoadout(t *testing.T) {
+	r := &sessionRunner{}
+	assistant := goai.Message{Role: goai.RoleAssistant, Provider: "anthropic", Model: "fixture", Content: []goai.ContentBlock{
+		{Type: "thinking", Thinking: "private reasoning", ThinkingSignature: "signed"},
+		{Type: "toolCall", ID: "c", Name: "shell", Arguments: map[string]any{}, ThoughtSignature: "call-signed"},
+	}}
+	extras := &toolExtras{blocks: []goai.ContentBlock{{Type: "image", Data: "aW1hZ2U=", MimeType: "image/png"}}, added: []string{"discovered"}}
+	payload := extras.withReplay(map[string]any{"tool_call_id": "c", "tool_name": "shell"}, "output", false)
+	snapshot := store.ContextSnapshot{Messages: []store.Message{
+		{Role: "assistant", Payload: map[string]any{"provider_message": assistant}},
+		{Role: "tool_result", Content: "display notes", Payload: payload},
+	}}
+	messages := r.projectContextSnapshot(context.Background(), "s", snapshot)
+	if len(messages) != 2 || messages[0].Content[0].ThinkingSignature != "signed" || messages[0].Content[1].ThoughtSignature != "call-signed" {
+		t.Fatalf("signed content lost: %+v", messages)
+	}
+	result := messages[1]
+	if len(result.Content) != 2 || result.Content[1].Type != "image" || result.Content[1].Data != "aW1hZ2U=" || len(result.AddedToolNames) != 1 {
+		t.Fatalf("result extras lost: %+v", result)
+	}
+	boundary, err := r.compactionBoundary(context.Background(), "s", &goai.Context{Messages: messages}, snapshot, map[string]any{"messages_to_summarize": 2})
+	if err != nil || boundary != nil {
+		t.Fatalf("image checkpoint accepted: %+v %v", boundary, err)
+	}
+	failed := extras.withReplay(map[string]any{}, "failure", true)
+	if _, ok := failed["added_tool_names"]; ok {
+		t.Fatal("failed result activated tools")
+	}
+}
+
+func TestInterruptedReplayUsesProviderOrphanRepair(t *testing.T) {
+	model := &goai.Model{ID: "fixture", Provider: "fixture", Api: goai.ApiOpenAICompletions}
+	messages := []goai.Message{
+		{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "toolCall", ID: "reused", Name: "shell", Arguments: map[string]any{}}}},
+		goai.UserMessage("continue"),
+		{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "toolCall", ID: "reused", Name: "shell", Arguments: map[string]any{}}}},
+		{Role: goai.RoleToolResult, ToolCallID: "reused", ToolName: "shell", Content: []goai.ContentBlock{{Type: "text", Text: "later result"}}},
+	}
+	repaired := goai.TransformMessages(messages, model)
+	if len(repaired) != 5 || repaired[1].Role != goai.RoleToolResult || !repaired[1].IsError {
+		t.Fatalf("orphan not fenced at user boundary: %+v", repaired)
+	}
+	if repaired[4].IsError {
+		t.Fatal("later reused ID result was replaced")
+	}
+}
