@@ -174,6 +174,9 @@ func decodeReplayValue[T any](value any) (T, bool) {
 	if value == nil {
 		return out, false
 	}
+	if typed, ok := value.(T); ok {
+		return typed, true
+	}
 	raw, err := json.Marshal(value)
 	if err != nil || json.Unmarshal(raw, &out) != nil {
 		return out, false
