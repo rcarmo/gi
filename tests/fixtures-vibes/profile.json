@@ -3,6 +3,7 @@
   "version": "gi-main+fixtures-vibes-adapter",
   "lifecycle": {
     "prepare": "sh ./prepare.sh",
+    "env": { "GI_WEB_VNC_ALLOW_DIRECT": "true" },
     "start": "HOME=\"$FIXTURES_ROOT/home\" GI_CODING_AGENT_DIR=\"$FIXTURES_ROOT/home/.gi/agent\" PI_CODING_AGENT_DIR=\"$FIXTURES_ROOT/home/.pi/agent\" FIXTURE_MODEL_URL=\"$FIXTURE_MODEL_URL\" GI_KEYCHAIN_KEY=\"fixtures-vibes\" exec \"$FIXTURES_ROOT/bin/gi\" -web -bind 127.0.0.1 -port \"$FIXTURES_PORT\" -db \"$FIXTURES_ROOT/gi.db\" -workspace \"$FIXTURES_ROOT/workspace\""
   },
   "readiness": { "path": "/api/sessions", "status": 200, "timeoutMs": 30000 },
@@ -11,7 +12,7 @@
     "open": "/?chat_jid=gi:{id}"
   },
   "auth": { "mode": "none" },
-  "capabilities": ["@cap-queue", "@cap-svg-render", "@cap-thoughts", "@cap-agent-avatar", "@cap-theme-tint", "@cap-tool-output", "@cap-message-delete", "@cap-quick-actions", "@cap-slash-commands", "@cap-skills", "@cap-pwa", "@cap-steer", "@cap-attachments", "@cap-session-picker", "@cap-workspace", "@cap-model-picker", "@cap-read-aloud", "@cap-upload-cancel", "@cap-tool-pane", "@cap-messages-tool", "@cap-reconnect", "@cap-stop", "@cap-compaction", "@cap-context-meter", "@cap-steer-idle", "@cap-session-manage", "@cap-workspace-write", "@cap-system-meters", "@cap-search", "@cap-settings-dialog", "@cap-touch", "@cap-plan-sidebar", "@cap-widgets"],
+  "capabilities": ["@cap-queue", "@cap-svg-render", "@cap-thoughts", "@cap-agent-avatar", "@cap-theme-tint", "@cap-tool-output", "@cap-message-delete", "@cap-quick-actions", "@cap-slash-commands", "@cap-skills", "@cap-pwa", "@cap-steer", "@cap-attachments", "@cap-session-picker", "@cap-workspace", "@cap-model-picker", "@cap-read-aloud", "@cap-upload-cancel", "@cap-tool-pane", "@cap-messages-tool", "@cap-reconnect", "@cap-stop", "@cap-compaction", "@cap-context-meter", "@cap-steer-idle", "@cap-session-manage", "@cap-workspace-write", "@cap-system-meters", "@cap-search", "@cap-settings-dialog", "@cap-touch", "@cap-plan-sidebar", "@cap-widgets", "@cap-vnc"],
   "selectors": { "sendButton": "button[aria-label='Send message']", "stopButton": "button[aria-label$='Stop response']", "queueItem": ".compose-queue-stack-item", "quickActionHighlight": ".timeline-quick-actions-item.active", "quickActionItem": ".timeline-quick-actions-item", "pickerHighlight": "[role='menuitem'].active, [role='option'][aria-selected='true']" },
   "tools": { "shell": "shell" },
   "commands": { "selectModel": "/model fixture-vibes/{model}", "setAgentAvatar": "/agent-avatar {source}", "clearAgentAvatar": "/agent-avatar clear" },

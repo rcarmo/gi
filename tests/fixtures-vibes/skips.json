@@ -2,9 +2,19 @@
   "runtime": "gi",
   "fixturesVibes": "92425adf2772d06221e85d124dcf3830b649a442",
   "skips": [
-    {"id": "@ux-workspace-008", "reason": "not-implemented", "detail": "Native allowlisted VNC backend is published (79fd83b); adopted VNC configuration/read-only/error/menu browser acceptance is incomplete. @cap-vnc remains unclaimed.", "issue": "https://github.com/rcarmo/gi/issues/47"},
-    {"id": "@ux-workspace-015", "reason": "not-implemented", "detail": "Native allowlisted VNC backend is published (79fd83b); adopted VNC configuration/read-only/error/menu browser acceptance is incomplete. @cap-vnc remains unclaimed.", "issue": "https://github.com/rcarmo/gi/issues/47"},
-    {"id": "@ux-shell-env-002", "reason": "capability-absent", "capability": "@cap-windows-shell", "detail": "Gi detects PowerShell/cmd and expands $env: keychain variables (unit-tested), and release CI builds Windows binaries, but Gi is not tested on a Windows host, so it does not claim @cap-windows-shell (gi#50).", "issue": "https://github.com/rcarmo/gi/issues/50"},
-    {"id": "@ux-shell-env-007", "reason": "capability-absent", "capability": "@cap-windows-shell", "detail": "Gi detects PowerShell/cmd and expands $env: keychain variables (unit-tested), and release CI builds Windows binaries, but Gi is not tested on a Windows host, so it does not claim @cap-windows-shell (gi#50).", "issue": "https://github.com/rcarmo/gi/issues/50"}
+    {
+      "id": "@ux-shell-env-002",
+      "reason": "capability-absent",
+      "capability": "@cap-windows-shell",
+      "detail": "Gi detects PowerShell/cmd and expands $env: keychain variables (unit-tested), and release CI builds Windows binaries, but Gi is not tested on a Windows host, so it does not claim @cap-windows-shell (gi#50).",
+      "issue": "https://github.com/rcarmo/gi/issues/50"
+    },
+    {
+      "id": "@ux-shell-env-007",
+      "reason": "capability-absent",
+      "capability": "@cap-windows-shell",
+      "detail": "Gi detects PowerShell/cmd and expands $env: keychain variables (unit-tested), and release CI builds Windows binaries, but Gi is not tested on a Windows host, so it does not claim @cap-windows-shell (gi#50).",
+      "issue": "https://github.com/rcarmo/gi/issues/50"
+    }
   ]
 }

@@ -67,3 +67,24 @@ capability enablement remain outstanding; #47 is not closed by these slices.
 
 Raw completed results, logs, test binaries and fixture state were removed
 after analysis. No merge, release tag or deployment is implied by this record.
+
+### Shared VNC and codemode follow-up
+
+On candidate `4a9baf2e` with frontend `407850a1`, shared VNC
+@ux-workspace-015 passed all six browser/layout projects against an isolated
+fixture with direct connections explicitly enabled. Production defaults stay
+unchanged. The published profile now declares @cap-vnc, and the two stale
+VNC-related skip entries (workspace-008/015) are removed. Workspace-008 generic
+preview coverage passed Chromium 3/3; its existing three WebKit upload skips
+remain. After the declarations changed, workspace-015 passed 6/6 again.
+Together with the earlier owned live-RFB 18/18, this completes the measured
+VNC error/reconnect, empty/readonly/interactive and menu/tab-close slices.
+
+Codemode consumer acceptance passed 42/42 over Chromium/WebKit phone, tablet
+and desktop: live nested call and saved-card reload, script failure without
+invented nested calls, cross-session isolation, interruption/cancellation,
+legacy output without details, in-place reset and busy-reset completion.
+These results do not alone establish every requested #30 presentation detail
+(script syntax, duration/error previews and truncated-output links), which
+still require review. They are development acceptance, not final release
+profiling. Completed scratch data is removed after analysis.
