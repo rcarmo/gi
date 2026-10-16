@@ -4468,6 +4468,9 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 // executeToolWithImages also collects images the tool attaches (nil: tools
 // describe images in text instead).
 func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.ToolCall, sessionID, turnID string, onOutput func(string) error, images *toolExtras) (string, error) {
+	if call.ArgumentsError != "" {
+		return "", fmt.Errorf("Invalid tool arguments: %s", call.ArgumentsError)
+	}
 	if strings.TrimSpace(turnID) != "" {
 		turnRec, err := r.store.GetTurn(ctx, turnID)
 		if err != nil {

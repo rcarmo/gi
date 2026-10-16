@@ -193,3 +193,16 @@ func TestExportPathsAndHTML(t *testing.T) {
 		t.Fatalf("jsonl header %.120s (%v)", data2, err)
 	}
 }
+
+func TestRecordedCallsRetainArgumentsError(t *testing.T) {
+	calls := recordedCalls(map[string]any{"tool_calls": []any{map[string]any{"id": "bad", "name": "shell", "arguments": map[string]any{}, "argumentsError": "Expected object"}}})
+	if len(calls) != 1 || calls[0].ArgumentsError != "Expected object" {
+		t.Fatalf("parse error lost: %+v", calls)
+	}
+	entry := (item{role: "assistant", calls: calls}).entry()
+	msg := entry["message"].(map[string]any)
+	blocks := msg["content"].([]any)
+	if blocks[0].(map[string]any)["argumentsError"] != "Expected object" {
+		t.Fatalf("export lost marker: %+v", entry)
+	}
+}

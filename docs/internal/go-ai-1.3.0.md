@@ -11,6 +11,7 @@ Development verification: Go1.27.1, project-owned isolated test environment with
 ## Remaining audit
 
 - Ensure batch execution start/end hooks and direct/nested dispatch paths honour the upstream malformed-argument boundary; current test covers call/approval/result hooks only.
-- Preserve marker in imported/exported tool histories and verify persistence/reopen.
+- Direct dispatch rejects the marker before lookup; import/export preserves argumentsError. Focused direct/import/export/malformed-call tests pass race ×3. Persistence/reopen and batch-hook coverage remain.
+- Compatibility streaming in internal/inference/inference.go parses fragments independently and ignores parse errors; needs accumulation/final strict parse plus ArgumentsError regression before acceptance.
 - Audit remaining v1.2→v1.3 provider/catalogue/durable delta against tagged release docs, rather than assuming the dependency upgrade is sufficient.
 - Run full native/race and web acceptance, pre-release CPU/allocation analysis and disposal, then publish a review candidate. No merge or deployment authorised.

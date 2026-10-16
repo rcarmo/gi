@@ -60,3 +60,11 @@ func TestInvalidToolArgumentsRejectBeforeCallHooksAndEffects(t *testing.T) {
 		}
 	}
 }
+
+func TestDirectToolDispatchRejectsArgumentsErrorBeforeLookup(t *testing.T) {
+	e := New(nil)
+	_, err := e.runner("unused").executeToolWithImages(context.Background(), goai.ToolCall{Name: "not_registered", ArgumentsError: "bad JSON"}, "unused", "unused", nil, nil)
+	if err == nil || err.Error() != "Invalid tool arguments: bad JSON" {
+		t.Fatalf("marker ignored: %v", err)
+	}
+}
