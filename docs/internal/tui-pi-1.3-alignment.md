@@ -235,3 +235,25 @@ selection assertion or clipboard check changed, and no click retry was added.
 The complete three-size suite then passed three consecutive runs (nine PTYs).
 This resolves the observed race; it is not a claim about all terminal timing.
 Completed probe captures, binaries and logs were removed after diagnosis.
+
+### Offline informational commands (#16)
+
+`/changelog [version]` now reads an explicit allowlist of bundled notes,
+currently `unreleased`; it performs no network or model call, accepts no
+filesystem path and caps assets at 64 KiB. Unknown released versions report
+that no notes are packaged. Candidate notes explicitly do not announce a
+release. `/bug [preview]` renders local allowlisted build/OS/architecture/TUI
+state only. It does not marshal RuntimeConfig, inspect environment variables,
+read credentials/transcripts or include paths, endpoints, model/provider
+names or session IDs. Save/upload arguments are rejected; no file or network
+effect exists. Users review and copy the preview themselves.
+
+`/trust` remains absent from completion. An explicit invocation reports that
+project MCP configuration is ignored and no trust state changed. This avoids
+pretending that a trust-enforcement policy exists; issue #16 remains open for
+that contract decision. Existing MCP tests verify untrusted project config is
+ignored. Diagnostic units check exclusions, path/version rejection, draft
+preservation and explicit trust feedback. Full TUI units pass, diagnostic/
+command/draft tests pass race ×3, and vet passes under Go 1.27.2. No release
+profiling claim is attached to these development tests. Scratch is disposed
+after analysis.

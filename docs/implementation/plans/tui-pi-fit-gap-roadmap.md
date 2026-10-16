@@ -33,8 +33,10 @@ copies keep the source channel/account and get distinct chat identities.
 gi's former `/fork @agentN` peer session is now `/spawn [@agentN]` (the old
 form still works).
 
-Pi built-ins not in gi yet (omitted, not approximated): `/bug`,
-`/changelog`, `/trust`. `/import` reads Pi session files and `/share`
+`/bug [preview]` provides allowlisted local diagnostics without save/upload;
+`/changelog [version]` reads bundled offline notes. `/trust` remains absent
+from completion and reports that project MCP config is ignored, not trusted.
+`/import` reads Pi session files and `/share`
 uploads one as a secret gist (docs/internal/session-import.md). `/tree`, `/settings`, `/scoped-models` and
 `/login` open Pi's interactive UIs; `/tree` navigates gi's branch sessions
 (docs/internal/tui-tree.md).
@@ -75,7 +77,7 @@ Implemented commands:
 
 Still intentionally absent or deferred:
 
-- `/changelog` dedicated informational command (`/hotkeys` is implemented);
+- Online release-note lookup (`/changelog` reads packaged notes only);
 - process-extension command dispatch (JS/Joker extension command dispatch is implemented);
 - additional rich forms/widgets beyond the searchable model/session/thinking selectors.
 

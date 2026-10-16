@@ -22,6 +22,12 @@ func (c *chatTUI) handleCommand(text string) {
 		return
 	}
 	switch fields[0] {
+	case "/changelog":
+		c.appendTranscript(changelogLines(fields[1:])...)
+	case "/bug":
+		c.appendTranscript(c.bugPreviewLines(fields[1:])...)
+	case "/trust":
+		c.appendTranscript("trust: unsupported; project MCP configuration is ignored, not trusted. No trust state was changed.")
 	case "/help":
 		c.transcript = append(c.transcript, c.helpLines()...)
 	case "/hotkeys":
@@ -267,8 +273,7 @@ func (c *chatTUI) extensionCommandLines(text string, fields []string) ([]string,
 // Pi-style slash autocomplete below the editor.
 // piCommands mirrors Pi's BUILTIN_SLASH_COMMANDS: same order, names and
 // argument hints, with Pi's descriptions where gi behaves the same. Pi
-// built-ins gi does not implement yet (/bug, /changelog, /trust) are
-// omitted rather than approximated.
+// /trust is omitted because gi has no project trust enforcement model.
 var piCommands = []struct{ name, hint string }{
 	{"/settings", "Open settings menu"},
 	{"/model <provider/model>", "Select model (opens selector UI)"},
@@ -291,6 +296,8 @@ var piCommands = []struct{ name, hint string }{
 	{"/resume [index|session_id]", "Resume a different session"},
 	{"/reload", "Reload config, skills and context files"},
 	{"/quit", "Quit gi"},
+	{"/changelog [version]", "Read bundled offline release notes"},
+	{"/bug [preview]", "Preview allowlisted local diagnostics (no upload)"},
 }
 
 // giCommands are gi's own commands, listed after Pi's built-ins the way Pi
