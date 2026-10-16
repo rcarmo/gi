@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {realpathSync} from 'node:fs';
 import {waitForAppShell} from './helpers';
 
 // Protocol checks do not claim dock/tab/popout UI acceptance. That host remains
@@ -22,7 +23,9 @@ test('terminal API executes in workspace, resizes and transfers without losing i
  await expect.poll(()=>page.evaluate(()=>(window as any).__terminalFrames.filter((p:any)=>p.type==='output').map((p:any)=>p.data).join(''))).toContain('PTY_READY');
  const first=await page.evaluate(()=>(window as any).__terminalFrames.find((p:any)=>p.type==='session'));
  const output=await page.evaluate(()=>(window as any).__terminalFrames.filter((p:any)=>p.type==='output').map((p:any)=>p.data).join(''));
- expect(output).toContain(`WORKSPACE=${info.cwd}`);expect(output).toContain('27 91');
+ // Shell PWD resolves symlinked roots; compare canonical directory identity.
+ const shellCwd=[...output.matchAll(/(?:^|[\r\n])WORKSPACE=([^\r\n]+)/g)].at(-1)?.[1];expect(shellCwd).toBeDefined();
+ expect(realpathSync(shellCwd!)).toBe(realpathSync(info.cwd));expect(output).toContain('27 91');
  const response=await request.post('/terminal/handoff',{headers:{'x-piclaw-terminal-client':client}});expect(response.status()).toBe(200);const {handoff}=await response.json();
  await page.evaluate(async token=>{await (window as any).__openTerminal(token);(window as any).__terminalSocket.send(JSON.stringify({type:'input',data:"printf 'TRANSFER_%s\\n' \"$TERMINAL_TEST_STATE\"\r"}));},handoff.token);
  await expect.poll(()=>page.evaluate(()=>(window as any).__terminalFrames.filter((p:any)=>p.type==='output').map((p:any)=>p.data).join(''))).toContain('TRANSFER_retained');

@@ -271,3 +271,15 @@ exit instead of assuming one press exits. Assertions were unchanged.
 Both helpers now place disposable captures under GI_TEST_RUN_ROOT/tests.
 Completed logs/captures/binaries were removed after analysis. This acceptance
 does not establish external-provider admission or complete Pi TUI parity.
+
+### Terminal API path and handoff refresh
+
+The terminal browser protocol checks passed three repetitions (six tests):
+actual PTY workspace execution, 91×27 resize, shell-state/session-ID retention
+through handoff, disconnect cleanup and cross-origin/client-identity rejection.
+On this host /workspace resolves to /srv/piclaw-dev/workspace in shell PWD;
+the assertion now compares realpath directory identity and reads an anchored
+WORKSPACE output line, not the echoed printf command. This keeps the exact
+workspace-execution requirement without requiring one symlink spelling.
+It does not replace terminal dock/tab/popout UI acceptance. Completed probe
+artifacts and the owned server were removed after analysis.
