@@ -15,7 +15,7 @@ async function fixture(page,request,info,mode='complete'){
   await expect.poll(async()=> (await turns()).find(x=>x.id===res.turn_id)?.status).toBe('completed');
   await expect.poll(async()=> (await activity()).status).toBe('idle');
  }
- const path=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(path,'..'),{recursive:true});const release=()=>writeFileSync(path,'go');
+ const path=resolve(process.env.GI_TEST_RUN_ROOT,'results/ux-parity/queue-gates',token);mkdirSync(resolve(path,'..'),{recursive:true});const release=()=>writeFileSync(path,'go');
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
  await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/prompt`)&&r.request().method()==='POST');
@@ -37,11 +37,11 @@ test('Gi compaction reload, late poll and session switch preserve ownership',asy
   // A native appended queue record triggers a refresh while compaction is held.
   const queued=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'after compaction',intent:'queue',model:'ux-local/gate'}})).json();
   await expect.poll(()=>held).toBe(true);
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('option').click();await input.fill('target draft');
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+child)}"]`).click();await input.fill('target draft');
   release();await expect.poll(async()=> (await turns()).find(t=>t.id===queued.turn_id).status,{timeout:15000}).toBe('completed');unblock();
   await expect(page.locator('.compose-context-pie')).not.toHaveClass(/is-compacting/);await expect(input).toHaveValue('target draft');await expect(page.getByRole('alert')).toHaveCount(0);
   await page.unroute(`**/api/sessions/${main.id}/activity`);
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('option').click();await expect(input).toHaveValue('preserved draft during compaction');await expect(page.locator('.compose-context-pie')).not.toHaveClass(/is-compacting/);
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+main.id)}"]`).click();await expect(input).toHaveValue('preserved draft during compaction');await expect(page.locator('.compose-context-pie')).not.toHaveClass(/is-compacting/);
   expect((await request.post(`/api/sessions/${main.id}/activity`,{data:{turn_id:turn.turn_id}})).status()).toBe(409);
  }finally{unblock();release();}
 });
@@ -94,7 +94,7 @@ test('Gi manual Compact failure, stale token and cancellation never submit the d
  await page.route(url,async route=>{if(route.request().method()==='POST'&&fail){fail=false;await route.abort('failed');return;}await route.continue();});
  await pie.click();await expect(page.getByRole('alert').filter({hasText:'Compact failed:'})).toBeVisible();await expect(input).toHaveValue('never submit me');await expect(pie).toBeEnabled();expect(await turns()).toHaveLength(2);
  const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/compaction`)&&r.request().method()==='POST');await pie.click();const manual=await(await sent).json();
- const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
+ const gate=resolve(process.env.GI_TEST_RUN_ROOT,'results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
  try{
   await expect(pie).toHaveClass(/is-compacting/);await page.getByRole('button',{name:'Compacting context — Stop response',exact:true}).click();await expect.poll(async()=> (await turns()).find(t=>t.id===manual.turn_id).status).toBe('cancelled');await expect(pie).toBeEnabled();await expect(input).toHaveValue('never submit me');await expect(page.locator('.compose-file-pill[title="retain.txt"]')).toBeVisible();
   const messages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;expect(messages.some(m=>m.content==='never submit me')).toBe(false);expect(messages.filter(m=>m.payload?.turn_id===manual.turn_id&&m.payload?.kind==='compaction')).toHaveLength(0);
@@ -116,7 +116,7 @@ async function settingsManualFixture(page,request,info){
  await page.locator('.compose-box input[type=file]').setInputFiles({name:'settings-compact.txt',mimeType:'text/plain',buffer:Buffer.from('preserve settings media')});
  const dialog=page.getByRole('dialog',{name:'Settings',exact:true});
  const open=async()=>{await page.keyboard.press('Control+,');await dialog.getByRole('button',{name:'Compaction',exact:true}).click();await expect(dialog.getByTestId('compaction-policy')).toBeVisible();};
- const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main}`);mkdirSync(resolve(gate,'..'),{recursive:true});
+ const gate=resolve(process.env.GI_TEST_RUN_ROOT,'results/ux-parity/queue-gates',`manual-${main}`);mkdirSync(resolve(gate,'..'),{recursive:true});
  return{main,child,input,dialog,open,turns,release:()=>writeFileSync(gate,'go')};
 }
 
@@ -179,7 +179,7 @@ test('@gi-settings-017 Late accepted compaction response stays with its closed o
  await page.route(`**/api/sessions/${main}/compaction`,async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();turnId=(await response.json()).turn_id;held=true;await gate;await route.fulfill({response});done();});
  try{
   await open();await dialog.getByRole('button',{name:'Compact now',exact:true}).click();await expect.poll(()=>held).toBe(true);
-  await page.keyboard.press('Escape');await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('option').click();await input.fill('target compaction draft');
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+child)}"]`).click();await input.fill('target compaction draft');
   await open();await expect(dialog).toContainText(`gi:${child}`);await expect(dialog.getByTestId('compaction-capability')).toContainText('Not enough eligible context');
   unblock();await delivered;release();await expect.poll(async()=> (await turns()).find(t=>t.id===turnId)?.status).toBe('completed');
   await expect(dialog.getByTestId('settings-compaction-progress')).toHaveCount(0);await expect(dialog.getByRole('alert')).toHaveCount(0);await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
@@ -194,7 +194,7 @@ test('@gi-settings-017 A held compaction read cannot enable actions in a differe
  try{
   await page.keyboard.press('Control+,');await dialog.getByRole('button',{name:'Compaction',exact:true}).click();await expect.poll(()=>held).toBe(true);
   await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
-  await page.keyboard.press('Escape');await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('option').click();await input.fill('held-read target draft');await open();
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+child)}"]`).click();await input.fill('held-read target draft');await open();
   unblock();await delivered;await expect(dialog.getByTestId('compaction-capability')).toContainText('Not enough eligible context');await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
   await page.keyboard.press('Escape');await expect(input).toHaveValue('held-read target draft');
  }finally{unblock();release();}
@@ -277,7 +277,7 @@ test('@ux-context-003 Manual Compact capability, callback and preserved draft',a
  const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/compaction`)&&r.request().method()==='POST');
  try{await pie.click();await expect(pie).toBeEnabled();await expect(pie).toHaveAccessibleDescription('Compaction request pending');await expect(pie).toHaveAttribute('data-tooltip',/Compaction request pending$/);await pie.dispatchEvent('click');expect(posts).toBe(1);}finally{releaseRequest();}
  const response=await sent;expect(response.status()).toBe(202);const manual=await response.json();await page.unroute(`**/api/sessions/${main.id}/compaction`);
- const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
+ const gate=resolve(process.env.GI_TEST_RUN_ROOT,'results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
  try{
   await expect(pie).toHaveClass(/is-compacting/);await expect(input).toHaveValue('unsent manual draft');await expect(page.locator('.compose-file-pill[title="manual.txt"]')).toBeVisible();
   const repeat=await request.post(`/api/sessions/${main.id}/compaction`,{data:response.request().postDataJSON()});expect(repeat.status()).toBe(409);
