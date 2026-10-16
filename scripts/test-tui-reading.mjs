@@ -32,16 +32,18 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   type('UX queue gate:reading');keys('Enter');await wait(()=>!idle()&&capture().includes('UX queue gate:reading'),'native provider blocked');
   keys('PageUp','PageUp');await sleep(180);const reading=shot('reading'),anchor=top(reading);assert(Boolean(anchor),'history anchor absent');
   type('newer draft');keys('Left','Left','Left');await sleep(150);
-  assert(top(capture())===anchor,'typing moved the history reader');
+  await wait(()=>!capture().includes('Jump to latest message'),'typing resumes latest');
   assert(capture().replaceAll('▌','').includes('newer draft'),'new typing lost');
+  keys('PageUp','PageUp');await sleep(180);const completionAnchor=top(capture());assert(Boolean(completionAnchor),'completion history anchor absent');
   writeFileSync(join(dir,'reading'),'release');await wait(()=>completed(23),'native provider completes');await sleep(200);
-  const done=shot('completed');assert(top(done)===anchor,'completion moved history anchor');assert(JSON.stringify(bars(done))===JSON.stringify(idleBars),'completion changed idle rows');
+  const done=shot('completed');assert(top(done)===completionAnchor,'completion moved history anchor');assert(JSON.stringify(bars(done))===JSON.stringify(idleBars),'completion changed idle rows');
   type('X');await sleep(120);assert(capture().replaceAll('▌','').includes('newer drXaft'),'completion moved cursor');keys('BSpace');
+  keys('PageUp','PageUp');await sleep(180);const resizeAnchor=top(capture());
   tmux('resize-window','-t',session,'-x','80','-y','24');await sleep(200);tmux('resize-window','-t',session,'-x',String(width),'-y',String(height));await sleep(200);
-  assert(top(capture())===anchor,'resize round trip moved history anchor');assert(JSON.stringify(bars(capture()))===JSON.stringify(idleBars),'resize added rows');
+  assert(top(capture())===resizeAnchor,'resize round trip moved history anchor');assert(JSON.stringify(bars(capture()))===JSON.stringify(idleBars),'resize added rows');
   type('X');await sleep(120);assert(capture().replaceAll('▌','').includes('newer drXaft'),'resize moved cursor');keys('BSpace');
-  keys('C-a','C-k');type('submitted while reading');keys('Enter');await wait(()=>completed(24),'submit from history');await sleep(180);
-  assert(top(capture())===anchor,'submission moved history reader');assert(sql("select count(*) from messages where role='user' and content='submitted while reading';")==='1','submission duplicated');
+  keys('C-a','C-k');type('submitted while reading');keys('PageUp','PageUp');await sleep(180);const submitAnchor=top(capture());keys('Enter');await wait(()=>completed(24),'submit from history');await sleep(180);
+  assert(top(capture())===submitAnchor,'submission moved history reader');assert(sql("select count(*) from messages where role='user' and content='submitted while reading';")==='1','submission duplicated');
   // Explicit navigation resumes following. No new button, status row or panel.
   for(let i=0;i<12;i++)keys('PageDown');await sleep(200);
   type('following newest edge');keys('Enter');await wait(()=>completed(25),'follow submission');await wait(()=>capture().includes('Gi received: following newest edge'),'newest response visible');

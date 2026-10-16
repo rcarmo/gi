@@ -364,3 +364,32 @@ historical-viewport contract. No runtime change or assertion relaxation was
 made to paper over this conflict. This remains an open release/TUI crosswalk
 gate. Completed failure captures, reference installs, logs and binaries were
 removed after diagnosis; concise limitation retained here.
+
+### Reading contract resolved; regular-mode retained-history failure
+
+Git history resolves the edit/reading conflict: `b452a2dc` (September 22)
+introduced edit-preserved scroll; `e476b704` (September 30) deliberately made
+user edits return to latest and added separate restoration-preserves-position
+tests. The older reading PTY had not been updated. It now verifies editing
+returns to latest, then explicitly re-enters history before asynchronous
+completion, resize and submission. All three sizes pass, retaining cursor,
+exactly-once storage and idle geometry assertions. No runtime scroll change
+was made. The corresponding edit/restoration and regular unit tests pass.
+
+Source-copy PTYs pass six fullscreen/regular × size cases: exact OSC52 source
+bytes (including whitespace/trailing newline), newest persisted assistant
+selection, clipboard-off fallback, unsent draft and stable geometry. Source
+bytes are an exact clipboard contract, not generated-signal equivalence.
+
+Regular terminal acceptance remains failing at 60×18: after width/height
+resize and temporary picker cancellation, subsequent local-command output
+loses the earlier gate-response text from native scrollback. Added snapshots
+and an earlier intact() check isolate this to the first local error output.
+The native copy-mode probe now locates the shell marker instead of assuming
+no leading blank scrollback, and multiline reset explicitly clears both
+logical lines (Ctrl+A/K is line-local). Those harness fixes do not remove the
+history-preservation assertion. Speculative picker-width invalidation and
+invalid-layout growth changes did not fix the failure and were reverted.
+No passing regular-mode acceptance is claimed. This concrete retention bug
+still blocks release. Completed probe data and matching binaries were removed
+after diagnosis, keeping the failing test and this concise reproduction.
