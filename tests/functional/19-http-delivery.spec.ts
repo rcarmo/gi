@@ -39,9 +39,9 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    await page.goto(origin);const input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));
    const text=`lost-ack-${name}-${Date.now()}`,newer='newer unsent 中文🙂';let admitted:any=null,posts=0;let payload:any;
    await page.route(`**/api/sessions/${id}/prompt`,async route=>{posts++;payload=route.request().postDataJSON();const response=await route.fetch();expect(response.status()).toBe(202);admitted=await response.json();await gate;await route.abort('failed')});
-   await input.fill(text);await input.press('Enter');await expect.poll(()=>admitted?.turn_id).toBeTruthy();await expect(page.getByRole('status').filter({hasText:'Sending message'})).toBeVisible();await input.fill(newer);
+   await input.fill(text);await input.press('Enter');await expect.poll(()=>admitted?.turn_id).toBeTruthy();await expect(page.locator('[role="status"][data-submission-state="sending"]')).toBeVisible();await input.fill(newer);
    await expect(page.locator('.post.agent-post .post-content').filter({hasText:`Gi received: ${text}`})).toHaveCount(1);release();
-   await expect(page.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);await expect(input).toHaveValue(newer);expect(payload.client_request_id).toBeTruthy();expect(posts).toBe(1);
+   await expect(page.locator('[role="status"][data-submission-state="sending"]')).toHaveCount(0);await expect(input).toHaveValue(newer);expect(payload.client_request_id).toBeTruthy();expect(posts).toBe(1);
    await page.reload();await expect(input).toHaveValue(newer);await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);
    const turns=(await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.prompt===text)).toHaveLength(1);expect(errors).toEqual([]);
   }finally{release();await context.close();await browser.close()}
@@ -65,10 +65,10 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
   try{
    await page.goto(origin);const input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const parent=await page.evaluate(()=>localStorage.getItem('gi_session_id'));const draft=`parent unsent ${name} 中文`;
    await input.fill(draft);const created=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${parent}/fork`));
-   await page.locator('.compose-session-trigger-top button').click();await page.locator('[data-session-entry-key="action:new"]').click();const response=await created;expect(response.status()).toBe(201);const child=(await response.json()).branch.chat_jid.replace(/^gi:/,'');await expect(input).toBeFocused();await expect(input).toHaveValue('');
+   await page.locator('.compose-session-trigger-top button').click();await page.getByRole('button',{name:'New branch',exact:true}).click();const response=await created;expect(response.status()).toBe(201);const child=(await response.json()).branch.chat_jid.replace(/^gi:/,'');await expect(input).toBeFocused();await expect(input).toHaveValue('');
    const text=`child-${name}-${Date.now()}`;await input.fill(text);await input.press('Enter');await expect(page.locator('.post.agent-post .post-content').filter({hasText:`Gi received: ${text}`})).toHaveCount(1);
-   await page.locator('.compose-session-trigger-top button').click();await page.locator(`[data-session-jid="gi:${parent}"]`).click();await expect(input).toHaveValue(draft);await page.reload();await expect(input).toHaveValue(draft);
-   await page.locator('.compose-session-trigger-top button').click();await page.locator(`[data-session-jid="gi:${child}"]`).click();await expect(page.locator('.post.agent-post .post-content').filter({hasText:`Gi received: ${text}`})).toHaveCount(1);
+   await page.locator('.compose-session-trigger-top button').click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+parent)}"]`).click();await expect(input).toHaveValue(draft);await page.reload();await expect(input).toHaveValue(draft);
+   await page.locator('.compose-session-trigger-top button').click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+child)}"]`).click();await expect(page.locator('.post.agent-post .post-content').filter({hasText:`Gi received: ${text}`})).toHaveCount(1);
    const turns=(await(await context.request.get(`${origin}/api/sessions/${child}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.prompt===text)).toHaveLength(1);
   }finally{await context.close();await browser.close()}
  });
@@ -115,7 +115,7 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    await expect.poll(async()=>{const data=await(await context.request.get(`${origin}/api/sessions/${held.admitted.session_id}/turns`)).json();return data.turns.find((t:any)=>t.id===held.admitted.turn_id)?.status}).toBe('completed');
    if(reopen){await page.close();release();page=await context.newPage();await page.goto(origin);input=page.locator('.compose-box textarea')}
    else release();
-   await expect(input).toHaveValue(newer);await expect(page.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);expect(held.count).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);
+   await expect(input).toHaveValue(newer);await expect(page.locator('[role="status"][data-submission-state="sending"]')).toHaveCount(0);expect(held.count).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);
    await page.reload();await expect(input).toHaveValue(newer);
    const turns=(await(await context.request.get(`${origin}/api/sessions/${held.admitted.session_id}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.id===held.admitted.turn_id)).toHaveLength(1);
    expect((await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns||[]).toHaveLength(before.length);
@@ -138,7 +138,7 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    await expect.poll(async()=>(await storedDraft(a,id))?.pending?.length).toBe(1);
    await other.fill('other tab unsaved');await expect(b.getByText(/Draft not saved:.*another tab/)).toBeVisible();
    let otherPosts=0;b.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))otherPosts++});
-   await other.press('Enter');await expect(other).toHaveValue('other tab unsaved');await expect(b.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);expect(otherPosts).toBe(0);
+   await other.press('Enter');await expect(other).toHaveValue('other tab unsaved');await expect(b.locator('[role="status"][data-submission-state="sending"]')).toHaveCount(0);expect(otherPosts).toBe(0);
    const row:any=await storedDraft(b,id);expect(row.pending).toHaveLength(1);expect(row.pending[0].draft.text).toBe(text);expect(row.pending[0].draft.media).toHaveLength(1);
    await a.close();await b.close();release();
    a=await context.newPage();await a.route(`**/api/sessions/${id}/send-receipt?*`,r=>r.fulfill({status:503,contentType:'application/json',body:'{"error":"unavailable"}'}));await a.goto(origin);
@@ -189,7 +189,7 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    }else{
     await expect(page.getByText(/Draft recovery unavailable:.*upgrade blocked/)).toBeVisible();
     const input=page.locator('.compose-box textarea');await input.fill('unsaved during blocked upgrade');let posts=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))posts++});
-    await input.press('Enter');await expect(input).toHaveValue('unsaved during blocked upgrade');await expect(page.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);expect(posts).toBe(0);
+    await input.press('Enter');await expect(input).toHaveValue('unsaved during blocked upgrade');await expect(page.locator('[role="status"][data-submission-state="sending"]')).toHaveCount(0);expect(posts).toBe(0);
     await old.evaluate(()=>(window as any).__oldDraftDB.close());await page.reload();await expect(page.getByText(/Draft recovery unavailable/)).toHaveCount(0);await expect(input).toBeVisible();
    }
    expect((await storedDraft(page,'legacy'))?.draft.text).toBe('old durable');
