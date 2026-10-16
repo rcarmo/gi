@@ -299,3 +299,8 @@ and its terminal lifecycle. Matching tests live alongside each. The editor
 viewport PTY helper writes only beneath `GI_TEST_RUN_ROOT/tests/` and requires
 the standard project test environment. Up/Down navigate editor visual rows
 before recalling history at document boundaries; Ctrl+A/E remain line-local.
+
+The session/model picker PTY helper supports `GI_TUI_MODE=fullscreen|regular`
+and isolates its working directory, HOME and agent configuration. Captures
+are run-owned under `tests/tui-sessions/<mode>/`. Picker cancellation must
+preserve the primary transcript as well as draft text and editor geometry.

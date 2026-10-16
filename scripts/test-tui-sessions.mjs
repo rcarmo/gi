@@ -7,7 +7,10 @@ import { resolve, join } from 'node:path';
 
 const root = resolve(import.meta.dir, '..');
 const binary = process.env.GI_TUI_BIN || join(root, 'bin/gi');
-const artifacts = join(root, 'test-results/tui-sessions');
+if (!process.env.GI_TEST_RUN_ROOT) throw Error('Use make test-env and source scripts/project-test-env.sh');
+const mode = process.env.GI_TUI_MODE || 'fullscreen';
+if (!['fullscreen', 'regular'].includes(mode)) throw Error('Invalid GI_TUI_MODE');
+const artifacts = join(process.env.GI_TEST_RUN_ROOT, 'tests/tui-sessions', mode);
 const temp = mkdtempSync(join(tmpdir(), 'gi-tui-sessions-'));
 const db = join(temp, 'gi.db');
 const session = `gi-session-parity-${process.pid}`;
@@ -22,11 +25,15 @@ async function waitFor(predicate, label) {
   const end = Date.now()+10000;
   while (Date.now()<end) {
     try { if (predicate()) return; } catch {}
-    await sleep(80);
+    await sleep(250);
   }
   throw new Error(`Timed out: ${label}\n${capture()}`);
 }
-async function command(text) { type(text); keys('Enter'); await sleep(150); }
+async function command(text) {
+  keys('C-a'); keys('C-k'); type(text);
+  await waitFor(()=>capture().replace(/\s+/g,'').includes(text.replace(/\s+/g,'')), 'command input '+text);
+  keys('Escape'); keys('Enter'); await sleep(150);
+}
 async function snapshot(name) {
   await sleep(180);
   const screen = capture();
@@ -46,7 +53,7 @@ try {
   const settings=JSON.stringify({defaultProvider:'test',defaultModel:'test-model',defaultThinkingLevel:'low',enabledModels:['test/test-model','test/bootstrap','test/unavailable'],untouched:{flag:true}});
   writeFileSync(join(temp,'.pi/settings.json'),settings);
   const quote = text => `'${text.replaceAll("'", "'\\''")}'`;
-  tmux('new-session','-d','-x','100','-y','22','-s',session,`cd ${quote(root)} && ${quote(binary)} -tui -db ${quote(db)} -workspace ${quote(temp)}`);
+  tmux('new-session','-d','-x','100','-y','22','-s',session,`cd ${quote(temp)} && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME=${quote(temp)} ${quote(binary)} -tui -tui-mode ${mode} -db ${quote(db)} -workspace ${quote(temp)}`);
   await waitFor(()=>capture().includes('%/'),'startup');
   await command('/fork @other');
   await waitFor(()=>sql('select count(*) from sessions;')==='2','native child fork');
@@ -115,6 +122,7 @@ try {
     tmux('resize-window','-t',target,'-x',String(width),'-y',String(height));await sleep(250);
     await command('/model test/test-model');
     await waitFor(()=>selected()==='test-model','reset selected model');
+    keys('C-a'); keys('C-k');
     type(`model draft ${label}`);
     const before=await snapshot(`${label}-model-before`);
     keys('M-m');await waitFor(()=>capture().includes('Ctrl+S to set as default'),'open model selector');
@@ -144,7 +152,7 @@ try {
   }
   // Clean restart restores the selected model of the native main session.
   keys('C-d');await waitFor(()=>{try{tmux('has-session','-t',session);return false;}catch{return true;}},'clean exit');
-  tmux('new-session','-d','-x','100','-y','22','-s',session,`cd ${quote(root)} && ${quote(binary)} -tui -db ${quote(db)} -workspace ${quote(temp)}`);
+  tmux('new-session','-d','-x','100','-y','22','-s',session,`cd ${quote(temp)} && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME=${quote(temp)} ${quote(binary)} -tui -tui-mode ${mode} -db ${quote(db)} -workspace ${quote(temp)}`);
   await waitFor(()=>capture().includes('bootstrap')&&capture().includes('%/'),'restart restores selected model');
   await snapshot('model-after-restart');
   assert(readFileSync(join(temp,'.pi/settings.json'),'utf8')===settings,'restart altered global config');

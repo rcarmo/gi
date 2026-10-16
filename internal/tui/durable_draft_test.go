@@ -271,3 +271,24 @@ func TestDurableDraftConfirmedCheckPreservesEditableSuccessor(t *testing.T) {
 		t.Fatal(pair)
 	}
 }
+
+func TestDurableModelCommandPreservesDraftAcrossSessionSwitch(t *testing.T) {
+	c := durableTestChat(t)
+	origin := c.sessionID
+	c.input.SetText("ordinary draft")
+	c.input.SetText("/model test-model")
+	c.onSubmit(c.input.Text())
+	if c.input.Text() != "ordinary draft" {
+		t.Fatalf("after command: %q", c.input.Text())
+	}
+	other, err := c.store.CreateSession(context.Background(), "draft-other", "other", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.switchSession(other.ID) || !c.switchSession(origin) {
+		t.Fatal("switch failed")
+	}
+	if c.input.Text() != "ordinary draft" {
+		t.Fatalf("restored: %q", c.input.Text())
+	}
+}

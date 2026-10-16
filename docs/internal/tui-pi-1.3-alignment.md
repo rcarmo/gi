@@ -137,3 +137,28 @@ probe inherited host credential paths and failed isolation-sensitive inference
 tests; that probe is not acceptance evidence. These development checks are not
 final release profiling. Full Pi 1.3 crosswalk, broader PTY/browser refresh and
 issue #16 command policy remain open. Completed scratch was removed after use.
+
+### Session/model picker primary-screen restoration
+
+Real session/model PTY acceptance now runs explicitly in fullscreen and
+regular mode at 60×18, 100×22 and 140×36. Both modes passed: bounded picker
+rows, exact cancel snapshots, A/B draft isolation, unavailable-model errors,
+selected-model persistence after process restart, unchanged global settings,
+no unintended turns and no extra editor rows. The native durable-model-command
+regression also preserves a draft across session switches.
+
+The old harness launched from the source directory without an isolated HOME,
+and did not wait for fully typed commands before Enter. It now uses the owned
+fixture workspace/HOME, removes inherited agent-directory overrides, waits
+for input and dismisses completion before executing a supplied command.
+Captures belong beneath GI_TEST_RUN_ROOT/tests/tui-sessions/<mode>.
+
+Regular-mode acceptance exposed a real one-row transcript shift on picker
+cancellation. ExitAltScreen already restores the saved inline layout; the
+subsequent resetInlineHistoryModel printed an empty history line. Removing
+that call from picker teardown preserves the exact primary-screen snapshot.
+The exact assertion was retained, not relaxed. With this fix, fullscreen
+session/model checks were rerun, editor viewport passed all six mode/size
+cases, and the full internal/tui race suite passed under Go 1.27.2. This is
+not final release profiling or exhaustive Pi 1.3 parity. Completed scratch
+and failed-probe captures were deleted after analysis.

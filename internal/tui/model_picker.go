@@ -97,9 +97,8 @@ func (c *chatTUI) closeModelPickerScreen() {
 	// Shrink on the temporary screen before restoring main-screen history.
 	c.app.SetInlineHeight(c.modelMenuInlineHeight)
 	c.app.Terminal().ExitAltScreen()
-	// Dock height changes on the alternate screen desynchronised go-tui's
-	// model of the main screen's history rows.
-	c.resetInlineHistoryModel()
+	// ExitAltScreen restores the saved inline layout. Printing an empty
+	// history line here shifts the primary transcript on every cancellation.
 	c.modelMenuResized = false
 	c.modelMenuRenderedHeight = 0
 }
