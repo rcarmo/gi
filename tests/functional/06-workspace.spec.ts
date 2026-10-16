@@ -7,11 +7,17 @@
 import { test, expect } from '@playwright/test';
 import { BASE_URL, waitForAppShell, apiGet } from './helpers';
 
-test('Read-only workspace preview returns to conversation without closing retained tabs',async({page,request})=>{
- const path=`functional-transition-${Date.now()}.md`;const created=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'# Functional preview'}}});expect((await created.json()).error).toBeFalsy();
+test('Native workspace editor preserves the conversation draft while switching retained tabs',async({page,request})=>{
+ const token=Date.now(),paths=[`functional-transition-${token}.md`,`functional-second-${token}.md`];
+ for(const path of paths){const r=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'# Functional preview'}}});expect((await r.json()).error).toBeFalsy();}
  await page.setViewportSize({width:390,height:844});await page.goto(BASE_URL);await waitForAppShell(page);const input=page.locator('.compose-box textarea');await input.fill('Functional retained conversation');
- await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();const preview=page.getByRole('region',{name:`Read-only preview: ${path}`,exact:true});await expect(preview.getByRole('heading',{name:'Functional preview',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Return to conversation',exact:true}).click();await expect(preview).toBeHidden();await expect(input).toBeFocused();await expect(input).toHaveValue('Functional retained conversation');await page.getByRole('button',{name:'Show read-only tabs',exact:true}).click();await expect(preview).toBeVisible();await expect(page.getByRole('tab')).toBeFocused();await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(input).toBeFocused();await expect(input).toHaveValue('Functional retained conversation');
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ for(const path of paths){await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.locator('.workspace-edit').click();await expect(page.getByRole('tab').filter({hasText:path})).toBeVisible();}
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Hide workspace',exact:true}).click();
+ const tabs=page.getByRole('tablist');await expect(tabs.getByRole('tab')).toHaveCount(2);
+ await tabs.getByRole('tab').filter({hasText:paths[0]}).locator('.tab-label').click();await expect(page.locator('.cm-editor')).toContainText('Functional preview');await expect(input).toHaveValue('Functional retained conversation');
+ for(const path of paths){const close=tabs.getByRole('button',{name:`Close ${path}`,exact:true});await close.focus();await close.press('Enter');}
+ await expect(tabs).toHaveCount(0);await expect(input).toBeFocused();await expect(input).toHaveValue('Functional retained conversation');
 });
 
 test.describe('Workspace', () => {
@@ -119,24 +125,25 @@ test('workspace index reads keep edited bytes stale until the next explicit appl
  expect((await search('lifecyclenewviolet')).hits.map((h:any)=>h.path)).toEqual([path]);expect((await search('lifecycleoldorchid')).hits).toEqual([]);
 });
 
-test('Read-only workspace tab mounts native content and closes back to the draft',async({page,request})=>{
- const path=`functional-tab-${Date.now()}.md`;const written=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Native tab proof\n\nUse `inline proof` as code.'}}});expect(written.ok()).toBe(true);expect((await written.json()).error).toBeFalsy();
- await page.goto(BASE_URL);const input=page.locator('textarea').last();await expect(input).toBeVisible();await input.fill('retained tab draft');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();
- const preview=page.getByRole('region',{name:`Read-only preview: ${path}`,exact:true});await expect(preview.getByRole('heading',{name:'Native tab proof',exact:true})).toBeVisible();await expect(preview.locator('[contenteditable=true],textarea')).toHaveCount(0);
- const code=preview.locator('.workspace-preview-text p code');await expect(code).toHaveText('inline proof');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily)).toContain('monospace');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily===getComputedStyle(el.parentElement!).fontFamily)).toBe(false);
- const updated=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Refreshed tab bytes\n\nγ'}}});expect((await updated.json()).error).toBeFalsy();
- await preview.getByRole('button',{name:'Refresh preview',exact:true}).click();await expect(preview.getByRole('heading',{name:'Refreshed tab bytes'})).toBeVisible();await expect(preview.getByRole('heading',{name:'Native tab proof'})).toHaveCount(0);
- await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(preview).toHaveCount(0);await expect(input).toHaveValue('retained tab draft');
+test('Native Markdown editor preview renders source and refreshes clean external writes',async({page,request})=>{
+ const path=`functional-tab-${Date.now()}.md`;const written=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'# Native tab proof\n\nUse `inline proof` as code.'}}});expect((await written.json()).error).toBeFalsy();
+ await page.goto(BASE_URL);const input=page.locator('.compose-box textarea');await input.fill('retained tab draft');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.locator('.workspace-edit').click();
+ const tab=page.getByRole('tab').filter({hasText:path});await expect(page.locator('.cm-editor')).toContainText('Native tab proof');await tab.click({button:'right'});await page.locator('.tab-context-menu').getByRole('button',{name:'Preview',exact:true}).click();
+ const preview=page.locator('.md-preview-panel');await expect(preview.getByRole('heading',{name:'Native tab proof',exact:true})).toBeVisible();await expect(preview.locator('[contenteditable=true],textarea')).toHaveCount(0);
+ const code=preview.locator('p code');await expect(code).toHaveText('inline proof');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily)).toContain('monospace');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily===getComputedStyle(el.parentElement!).fontFamily)).toBe(false);
+ const updated=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'# Refreshed tab bytes\n\nγ'}}});expect((await updated.json()).error).toBeFalsy();
+ await expect(preview.getByRole('heading',{name:'Refreshed tab bytes'})).toBeVisible();await expect(preview.getByRole('heading',{name:'Native tab proof'})).toHaveCount(0);
+ await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(preview).toHaveCount(0);await tab.getByRole('button',{name:`Close ${path}`,exact:true}).click();await expect(input).toHaveValue('retained tab draft');await expect(input).toBeFocused();
 });
 
-test('Read-only pinned workspace tab survives Close All and preserves draft', async ({page,request}) => {
+test('Native pinned workspace tab survives Close All and preserves draft', async ({page,request}) => {
  const token=`pin-${Date.now()}`,paths=[`${token}-a.md`,`${token}-b.csv`];
  for(const path of paths){const r=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Pinned native file'}}});expect((await r.json()).error).toBeFalsy();}
  await page.goto(BASE_URL);const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('pin keeps draft');
- const tabs=page.getByRole('tablist',{name:'Editor tabs',exact:true}),menu=page.locator('.tab-context-menu');
+ const tabs=page.getByRole('tablist'),menu=page.locator('.tab-context-menu');
  for(const path of paths){
   await page.getByTestId('hamburger').click();const show=page.getByRole('menuitem',{name:'Show workspace',exact:true});if(await show.count())await show.click();else await page.keyboard.press('Escape');
-  await page.locator('.workspace-tree').getByText(path,{exact:true}).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();
+  await page.locator('.workspace-tree').getByText(path,{exact:true}).click();await page.locator('.workspace-edit').click();
  }
  if(!await page.locator('.app-shell.workspace-collapsed').count()){await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Hide workspace',exact:true}).click();}
  const a=page.locator('.tab-item').filter({has:page.locator('.tab-label',{hasText:paths[0]})});await a.click({button:'right'});await menu.getByRole('button',{name:'Pin',exact:true}).click();await expect(a).toHaveClass(/pinned/);
@@ -150,8 +157,8 @@ test('editor compatibility API reads complete text and saves without changing un
  try {
   const original=await (await request.get(`/workspace/file?path=${path}&mode=edit&max=1000000`)).json();
   expect(original).toMatchObject({path,text:content,content,truncated:false});
-  const unchanged=await request.put('/workspace/file',{data:{path,content}});expect(unchanged.status()).toBe(200);expect((await unchanged.json()).mtime).toBe(original.mtime);
-  const changed=await request.put('/workspace/file',{data:{path,content:'saved by native editor API'}});expect(changed.status()).toBe(200);
+  const unchanged=await request.put('/workspace/file',{data:{path,content,expected_revision:original.revision}});expect(unchanged.status()).toBe(200);expect((await unchanged.json()).mtime).toBe(original.mtime);
+  const changed=await request.put('/workspace/file',{data:{path,content:'saved by native editor API',expected_revision:original.revision}});expect(changed.status()).toBe(200);
   expect(await (await request.get(`/workspace/raw?path=${path}`)).text()).toBe('saved by native editor API');
   expect((await (await request.get(`/workspace/stat?path=${path}`)).json()).size).toBe(26);
   expect((await request.get('/workspace/file?path=../../etc/passwd&mode=edit')).status()).toBe(400);

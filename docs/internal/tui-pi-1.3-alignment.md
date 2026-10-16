@@ -450,3 +450,24 @@ is not yet established. The independent 1,590-case shared run continues on
 symlinks and active run roots must remain until the owners finish. The later
 session API extraction is a checked pure move, but exact integrated acceptance
 must still include it before release. Do not tag based on these partial runs.
+
+### Browser acceptance repairs after the stopped shared run
+
+The theme/picker matrix passed 126/126 across six projects after the stored
+appearance-command receipt (`9900bc08`) and deferred picker focus changes. Web
+race checks, native tests and vet also passed at that checkpoint.
+
+Subsequent functional diagnosis found and repaired real host integration gaps:
+mobile picker dismissal, duplicate hidden-file event ownership, expanded subtree
+refresh, clipboard guard resolution before the overlay resolver, session prefix
+matching, clean external editor refresh notifications, and mobile tab/menu overlap.
+The shared frontend checkpoint is `a45cb2da`; its units pass 193/193 and the hook
+check and build pass. Vendored Piclaw sources remain unchanged.
+
+Functional tests now use native option IDs/ARIA state, native editor tabs and
+Markdown preview, revision-conditional saves, and the project-owned fixture DB.
+The removed custom read-only tab host is not the current editor contract. The
+latest full functional run passed 146 cases with 13 existing capability skips and
+one harness failure: a tab-centre click hit its close control. Targeting the tab
+label fixed that case; focused acceptance passed 2/2. This is not a final full-run
+pass, integrated-main acceptance, or release authorization. Issue #11 stays open.
