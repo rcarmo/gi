@@ -529,3 +529,11 @@ built separately to cover the sixth release matrix target and also passed.
 These are build checks, not runtime tests on those operating systems. Disposable
 cross-build outputs were removed at completion. The shared-browser suite remains
 active and has no final verdict.
+
+The integrated web-adapter gate exposed stale Bun transpiler entries resolving
+Piclaw3.3.0 imports after the pin moved to3.3.4. Repeating the unchanged tests
+with `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` passed 193/193 frontend units and the
+host adapter checks. The Makefile/test-environment helper now disable that cache
+explicitly; the gate passed again without a command-local override. No source
+assertions or vendored modules were relaxed. This is a verification-environment
+repair; the active shared browser run is untouched.

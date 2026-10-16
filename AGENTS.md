@@ -318,3 +318,8 @@ GI_CODING_AGENT_DIR, including after login-shell environment initialisation.
 `internal/web/api_sessions.go` owns session collection GET/create/fork admission;
 its main-session allocation regression is in `api_sessions_test.go`. Keep this
 same-package boundary mechanical; routing composition remains in `server.go`.
+
+Bun verification disables its runtime transpiler cache with
+`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`. Stale transpilation can retain module
+resolution from an older vendored Piclaw tree even after source pins advance.
+Dependency download caches remain under the project-owned cache root.

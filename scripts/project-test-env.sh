@@ -27,6 +27,7 @@ gi_test_path() {
 case "$GI_TEST_RUN_ROOT" in "$PROJECT_TMP_ROOT"/runs/*) ;; *) echo 'GI_TEST_RUN_ROOT must be beneath the project runs directory' >&2; return 1 ;; esac
 gi_test_path "$GI_TEST_RUN_ROOT" || return 1
 export TMPDIR="$GI_TEST_RUN_ROOT/tmp" TMP="$GI_TEST_RUN_ROOT/tmp" TEMP="$GI_TEST_RUN_ROOT/tmp"
+export BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 export BUN_INSTALL_CACHE_DIR="$PROJECT_TMP_ROOT/cache/bun" npm_config_cache="$PROJECT_TMP_ROOT/cache/npm" XDG_CACHE_HOME="$PROJECT_TMP_ROOT/cache/xdg"
 export GOCACHE="$PROJECT_TMP_ROOT/cache/go-build" GOMODCACHE="$PROJECT_TMP_ROOT/cache/go-mod" GOTMPDIR="$TMPDIR/go"
 export PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-$PROJECT_TMP_ROOT/cache/ms-playwright}
