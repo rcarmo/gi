@@ -647,6 +647,7 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	var fullText, fullThinking string
 	usage := &goai.Usage{}
 	toolCalls := map[int]*goai.ToolCall{}
+	argumentFragments := map[int]*strings.Builder{}
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -720,10 +721,12 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 					if call.Arguments == nil {
 						call.Arguments = map[string]any{}
 					}
-					var args map[string]any
-					if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err == nil {
-						call.Arguments = args
+					builder := argumentFragments[tc.Index]
+					if builder == nil {
+						builder = &strings.Builder{}
+						argumentFragments[tc.Index] = builder
 					}
+					builder.WriteString(tc.Function.Arguments)
 				}
 			}
 		}
@@ -740,7 +743,12 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	}
 	for _, idx := range sortedToolCallIndexes(toolCalls) {
 		call := toolCalls[idx]
-		msg.Content = append(msg.Content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments})
+		if fragments := argumentFragments[idx]; fragments != nil {
+			call.Arguments, call.ArgumentsError = completedCompatToolArguments(fragments.String())
+		} else {
+			call.Arguments, call.ArgumentsError = completedCompatToolArguments("")
+		}
+		msg.Content = append(msg.Content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments, ArgumentsError: call.ArgumentsError})
 		if broadcast != nil {
 			broadcast(map[string]any{"type": "tool_call_end", "name": call.Name, "id": call.ID})
 		}

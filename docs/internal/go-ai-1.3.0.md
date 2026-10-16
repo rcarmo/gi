@@ -12,6 +12,7 @@ Development verification: Go1.27.1, project-owned isolated test environment with
 
 - Ensure batch execution start/end hooks and direct/nested dispatch paths honour the upstream malformed-argument boundary; current test covers call/approval/result hooks only.
 - Direct dispatch rejects the marker before lookup; import/export preserves argumentsError. Focused direct/import/export/malformed-call tests pass race ×3. Persistence/reopen and batch-hook coverage remain.
-- Compatibility streaming in internal/inference/inference.go parses fragments independently and ignores parse errors; needs accumulation/final strict parse plus ArgumentsError regression before acceptance.
+- Compatibility SSE now accumulates argument fragments by index and validates completed object JSON, preserving ArgumentsError into the emitted content block. HTTP fixture tests cover split/interleaved valid objects, array/null/truncated failures and empty arguments; race ×3 plus full inference/turn suites pass. Deliberate current limitation: go-ai's internal completed-call parser can repair malformed escapes/control characters; Gi's compatibility parser rejects them conservatively. Equivalent repair remains an audit item.
+- The compatibility request serializer also needs typed call/result replay review; parser completion alone does not prove provider transcript parity.
 - Audit remaining v1.2→v1.3 provider/catalogue/durable delta against tagged release docs, rather than assuming the dependency upgrade is sufficient.
 - Run full native/race and web acceptance, pre-release CPU/allocation analysis and disposal, then publish a review candidate. No merge or deployment authorised.
