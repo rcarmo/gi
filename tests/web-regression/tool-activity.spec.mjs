@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-const gates=resolve('test-results/ux-parity/queue-gates');
+const gates=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`);
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
 // Native lifecycle regression, complementary to the independent installed
 // Output oracle. Neither grants whole-chat parity or restores the old mapping.
@@ -27,8 +27,8 @@ test('Active tool has owned timing and terminal metadata does not create a persi
   await expect.poll(()=>held,{timeout:12000}).toBe(true);
   id=await submit('UX tool fail: native error');release();await expect.poll(async()=>(await activity()).tool?.state).toBe('failed');await expect.poll(async()=>(await activity()).tool?.turn_id).toBe(id);await expect.poll(async()=>(await activity()).status).toBe('idle');await expect(region).toHaveCount(0);
   const failed=await activity();expect(failed.tool.duration_ms).toBeGreaterThanOrEqual(0);expect(failed.tool.tool_call_id).not.toBe(started.tool.tool_call_id);
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${other}"]`).getByRole('option').click();await expect(region).toHaveCount(0);await input.fill('other tool draft');expect((await activity(other)).tool).toBeUndefined();
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('option').click();await expect(region).toHaveCount(0);await expect(input).toHaveValue('tool draft β');await expect(page.locator('.compose-box')).toContainText('tool-ref.txt');
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-gi%3A${other}"]`).click();await expect(region).toHaveCount(0);await input.fill('other tool draft');expect((await activity(other)).tool).toBeUndefined();
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-gi%3A${main.id}"]`).click();await expect(region).toHaveCount(0);await expect(input).toHaveValue('tool draft β');await expect(page.locator('.compose-box')).toContainText('tool-ref.txt');
   await info.attach('tool-status',{body:await page.screenshot(),contentType:'image/png'});
  }finally{release?.();writeFileSync(resolve(gates,token),'release');await page.unrouteAll({behavior:'wait'});}
 });

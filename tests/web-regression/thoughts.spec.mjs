@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
 async function setup(page,request,info) {
-  const token=`preview-${info.project.name}-${Date.now()}`,gate=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const token=`preview-${info.project.name}-${Date.now()}`,gate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token);mkdirSync(resolve(gate,'..'),{recursive:true});
   const create=async name=>{const r=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`${token}-${name}`}});expect(r.status()).toBe(201);return(await r.json()).id;};
   const a=await create('a'),b=await create('b');await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),a);await page.goto('/');
   const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
@@ -84,7 +84,7 @@ test('@gi-preview-001 Expansion and buffers reset across session switches and na
     // Only newly received bytes return after a session revisit; no cached old
     // previews or expansion. Final native message remains the durable history.
     await f.finish();await expect(page.locator('.agent-thinking').filter({hasText:'Thought line'})).toHaveCount(0);
-    const key=f.token+'-next';secondGate=resolve('test-results/ux-parity/queue-gates',key);
+    const key=f.token+'-next';secondGate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,key);
     const posted=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===`/api/sessions/${f.a}/prompt`);
     await f.input.fill(`UX preview expand UX steer gate:${key}`);await f.input.press('Enter');expect((await posted).status()).toBe(202);await f.input.fill('next turn unsent');
     await expect(f.panel('Thoughts').getByRole('button',{name:'more…',exact:true})).toBeVisible();await expect(f.panel('Thoughts')).toHaveAttribute('data-expanded','false');
@@ -101,7 +101,7 @@ test('@gi-preview-001 Expansion and buffers reset across session switches and na
 
 for (const fallback of [true]) test(`${fallback?'@gi-preview-003':'@ux-thoughts-001'} Wrapped paragraph disclosure follows real overflow on resize and streaming${fallback?' without ResizeObserver':''}`,async({page,request},info)=>{
 
-  const token=`wrapped-${fallback}-${info.project.name}-${Date.now()}`,gate=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const token=`wrapped-${fallback}-${info.project.name}-${Date.now()}`,gate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token);mkdirSync(resolve(gate,'..'),{recursive:true});
   const created=await request.post('/api/sessions',{data:{agent_id:token,title:token}});expect(created.status()).toBe(201);const id=(await created.json()).id;
   await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),id);await page.goto('/');
   const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();

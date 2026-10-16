@@ -8,7 +8,7 @@ async function fixture(page,request,info){
  const token=`return-${info.project.name}-${Date.now()}`;
  const main=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
  const child=(await(await request.post(`/api/sessions/${main.id}/fork`,{data:{agent_id:token+'-child',title:token+'-child'}})).json()).branch.chat_jid.slice(3);
- const path=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(path,'..'),{recursive:true});const release=()=>writeFileSync(path,'ok');
+ const path=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token);mkdirSync(resolve(path,'..'),{recursive:true});const release=()=>writeFileSync(path,'ok');
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
  await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  await input.fill(`UX queue gate:${token}`);await input.press('Enter');await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeVisible({timeout:15000});

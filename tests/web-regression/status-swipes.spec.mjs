@@ -13,7 +13,7 @@ async function swipe(target, points = [['touchstart',190,150],['touchmove',85,15
 }
 
 for (const kind of ['thought']) test(`${kind === 'draft' ? '@ux-mobile-003' : '@gi-swipe-003'} Native streaming ${kind} panel links allow swipes but retain selection and direction guards`, async ({page,request},info) => {
-  const token = `panels-${kind}-${info.project.name}-${Date.now()}`, gate = resolve('test-results/ux-parity/queue-gates',token); mkdirSync(resolve(gate,'..'),{recursive:true});
+  const token = `panels-${kind}-${info.project.name}-${Date.now()}`, gate = resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token); mkdirSync(resolve(gate,'..'),{recursive:true});
   const create = async name => {const r=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`${token}-${name}`}});expect(r.status()).toBe(201);return(await r.json()).id;};
   const a=await create('a');await create('b');
   await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);Object.defineProperty(navigator,'userAgent',{configurable:true,value:'iPhone Safari'});},a);

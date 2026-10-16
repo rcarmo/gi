@@ -21,7 +21,7 @@ async function fixture(page,request,info){
  const token=`steer-${info.project.name}-${Date.now()}`;
  const main=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
  const child=(await(await request.post(`/api/sessions/${main.id}/fork`,{data:{agent_id:token+'-child',title:token+'-child'}})).json()).branch.chat_jid.slice(3);
- const path=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(path,'..'),{recursive:true});const release=()=>writeFileSync(path,'ok');
+ const path=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token);mkdirSync(resolve(path,'..'),{recursive:true});const release=()=>writeFileSync(path,'ok');
  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);
  await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  await input.fill(`UX steer gate:${token}`);await input.press('Enter');
@@ -65,7 +65,7 @@ test('Gi Steer fences active ownership and permits explicit idle action',async({
   expect((await(await request.get(`/api/sessions/${child}/messages`)).json()).messages || []).toHaveLength(0);
   // A real run that cannot consume steering returns a visible, held queue row.
   // This gives native idle and initial-unknown activity, not fabricated SSE.
-  const shellToken=`idle-${token}`;const shellPath=resolve('test-results/ux-parity/queue-gates',shellToken);
+  const shellToken=`idle-${token}`;const shellPath=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,shellToken);
   const shell=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:`UX queue gate:${shellToken}`,model:'test-model'}})).json();
   const idleQueued=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'unconsumed idle row',intent:'queue',model:'test-model'}})).json();
   expect((await request.post(`/api/sessions/${main.id}/queue/${idleQueued.turn_id}/steer`,{data:{active_turn_id:shell.turn_id}})).status()).toBe(200);
@@ -82,7 +82,7 @@ test('Gi Steer fences active ownership and permits explicit idle action',async({
   const newToken=`resume-${token}`;await input.fill(`UX steer gate:${newToken}`);await input.press('Enter');
   const retry=idleRow.getByRole('button',{name:steerName});await expect(retry).toBeEnabled();
   let freshRun;await expect.poll(async()=>{freshRun=(await turns()).find(t=>t.status==='running');return freshRun?.id;}).toBeTruthy();expect(freshRun.id).not.toBe(shell.turn_id);
-  await retry.click();await expect(idleRow).toHaveCount(0);writeFileSync(resolve('test-results/ux-parity/queue-gates',newToken),'ok');
+  await retry.click();await expect(idleRow).toHaveCount(0);writeFileSync(resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,newToken),'ok');
   await expect.poll(async()=> (await turns()).find(t=>t.id===freshRun.id).status,{timeout:15000}).toBe('completed');
   const resumed=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages.filter(m=>m.role==='user'&&m.content==='unconsumed idle row');
   expect(resumed).toHaveLength(1);expect(resumed[0].payload.turn_id).toBe(freshRun.id);
@@ -107,7 +107,7 @@ test('Gi stale Steer reply after session switch cannot change target draft',asyn
 });
 
 test('Gi display-idle admission queues a distinct prompt until the completed claim cleans up',async({page,request},info)=>{
- const token=`completed-${info.project.name}-${Date.now()}`,gate=resolve('test-results/ux-parity/queue-gates',token);
+ const token=`completed-${info.project.name}-${Date.now()}`,gate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token);
  mkdirSync(resolve(gate,'..'),{recursive:true});
  const session=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
  await request.patch(`/api/sessions/${session.id}/model`,{data:{model:'ux-local/gate'}});

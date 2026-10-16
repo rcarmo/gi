@@ -3,7 +3,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
-const gates=resolve('test-results/ux-parity/queue-gates');
+const gates=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`);
 
 test('Native direct reply stays visible before queued steering continuation',async({page,request},info)=>{
  const token=`direct-${info.project.name}-${Date.now()}`;mkdirSync(gates,{recursive:true});

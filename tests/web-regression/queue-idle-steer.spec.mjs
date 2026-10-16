@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 test('idle queue Steer starts the selected returned turn without a Stop hold or Resume control',async({page,request},info)=>{
- const token=`idle-steer-${info.project.name}-${Date.now()}`,gates=resolve('test-results/ux-parity/queue-gates');mkdirSync(gates,{recursive:true});
+ const token=`idle-steer-${info.project.name}-${Date.now()}`,gates=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`);mkdirSync(gates,{recursive:true});
  const {id}=await(await request.post('/api/sessions',{data:{title:token,agent_id:token}})).json();
  const active=await(await request.post(`/api/sessions/${id}/prompt`,{data:{prompt:`UX queue gate:${token}`,model:'test-model'}})).json();
  const queue=async prompt=>{const r=await request.post(`/api/sessions/${id}/prompt`,{data:{prompt,intent:'queue',model:'test-model'}});expect(r.status()).toBe(202);return(await r.json()).turn_id;};

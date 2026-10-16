@@ -554,3 +554,23 @@ then succeeded. Only import paths changed; schema and acceptance logic did not.
 The original profiled make invocation therefore remains a failed invocation;
 its successful browser results and successful report regeneration are recorded
 separately. Profile analysis/disposal is still running before final cleanup.
+
+### v0.1.2 release-CI failure and next patch repairs
+
+Tag v0.1.2 at57dc2a8c is immutable. CI38976489907 exposed additional release
+surfaces absent from the earlier local gate selection: obsolete helper filenames,
+an unrelated removed pane-host fixture prerequisite, pinned picker geometry /
+touch dismissal, and intermittent settings-to-composer focus restoration. The
+run was cancelled after diagnosis; no successful v0.1.2 release is claimed.
+
+Repairs are staged on review/release-gates-v0.1.3 and frontend
+review/release-picker-contracts (5870d21a). Current verification: picker geometry
+24/24, compose surface36/36, tool-terminal12/12, and all release helper unit
+targets pass. Tool-terminal diagnosis also corrected project-owned queue release
+paths and obsolete native session selectors; assertions remain intact. Focus
+restoration retries are bounded and act only when no control owns focus and no
+modal is open. Native close-button Enter bypasses session row activation.
+
+These are focused development results, not final integrated pre-release evidence.
+Frontend/Gi PRs, independent review, profiling and applicable final gates remain
+before a new patch tag. Preserve both failed v0.1.1 and v0.1.2 tags.
