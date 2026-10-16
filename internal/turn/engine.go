@@ -145,6 +145,7 @@ type DirectOrigin struct {
 }
 
 type SubmitResult struct {
+	SourceCommitted bool   `json:"source_committed,omitempty"`
 	TurnID          string `json:"turn_id"`
 	SessionID       string `json:"session_id"`
 	Status          string `json:"status"`

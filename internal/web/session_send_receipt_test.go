@@ -59,6 +59,9 @@ func TestWebSendReceiptLocalRoutedSteeredAndDuplicate(t *testing.T) {
 			if err := json.Unmarshal(rr.Body.Bytes(), &admitted); err != nil {
 				t.Fatal(err)
 			}
+			if admitted["source_committed"] != true {
+				t.Fatalf("admitted send lacks composer acknowledgement: %+v", admitted)
+			}
 			receipt := sendReceipt(t, mux, "A", "client_request_id=request", 200)
 			if receipt["confirmed"] != true {
 				t.Fatal(receipt)
