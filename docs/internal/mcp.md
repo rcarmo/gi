@@ -1,9 +1,9 @@
 # MCP client (`internal/mcp`)
 
-Status: the client core (#25, phase 1), tool exposure (phase 2) and
-`tool_search` (phase 3) are in place. Codemode, `/mcp` and OAuth are later
-phases
-([plan](../implementation/plans/mcp-codemode-plan.md)). The TUI and web server call
+Status: client core, tool exposure/search, codemode, `/mcp`, OAuth and
+standalone commands are implemented. Issues #25 and #30 are closed after
+merged acceptance; [measured evidence and limitations](tui-pi-1.3-alignment.md)
+remain separate from release-wide verification. The TUI and web server call
 `Engine.EnableMCP()` at startup; engines built for tests never read the user's
 `mcp.json`.
 
@@ -14,7 +14,9 @@ The format is Pi's `mcp.json`, read from:
 1. user level: `~/.gi/agent/mcp.json`, otherwise `~/.pi/agent/mcp.json`;
 2. project level: `<workspace>/.gi/mcp.json`, otherwise
    `<workspace>/.pi/mcp.json`. **This is read only for trusted projects.** gi
-   has no project trust yet (#16), so project MCP configs are ignored for now.
+   has no project-trust enforcement model. The #16 decision keeps project MCP
+   configs ignored and `/trust` unadvertised; explicit invocation reports no
+   trust state was changed.
 
 For each file the first existing location wins; the `.gi` and `.pi` files are
 not merged (#26). A project entry replaces a user entry with the same name, and
@@ -29,8 +31,9 @@ error. The server keeps scope `global` and records the override file
 (`ServerConfig.Override`); `Config.ProjectConfig` is the trusted project's
 mcp.json. Golden: `scripts/golden-mcp-overrides.mjs` runs Pi's own
 `loadMcpConfig` and `updateMcpServerConfig`; `TestProjectOverridesMatchPi`.
-Until project trust exists (#16) no project file is read, so overrides and the
-manager's per-project actions stay inactive in practice.
+Under the current trust policy no project file is read, so overrides and the
+manager's per-project actions stay inactive. The reader seam is not an enabled
+user feature.
 
 ```json
 { "mcpServers": { "internal-tools": { "enabled": false } } }
@@ -237,8 +240,8 @@ Focused captures are short: CPU samples are too sparse for throughput comparison
   - Connects to every enabled server and prints its state, its tools (marking tools whose exposure differs from the server's), its resource counts and any errors.
   - A server with a project override shows `project override: <file>` (Pi 1.0.1).
   - Exits 1 when an entry is invalid or an enabled server does not connect.
-- **Project config:** gi does not read project MCP configuration until it has project trust (#16), so the project file is reported as ignored.
-- **Sign-in:** `login` and `logout` report that OAuth is not supported yet (#25 phase 6c).
+- **Project config:** ignored under the trust policy above, with explicit feedback.
+- **Sign-in:** `login` and `logout` use the bounded OAuth workflows documented below; failed or cancelled login does not grant authority.
 
 ## `/mcp` in the TUI (`internal/tui/mcp_command.go`)
 

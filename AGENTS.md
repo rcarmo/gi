@@ -311,3 +311,7 @@ beneath that owned run and removes it after use; no global Pi install is
 required. Use the Make targets so tool-syntax binaries resolve beneath build/.
 Fixture HOME isolation must also clear PI_CODING_AGENT_DIR and
 GI_CODING_AGENT_DIR, including after login-shell environment initialisation.
+
+`internal/web/api_sessions.go` owns session collection GET/create/fork admission;
+its main-session allocation regression is in `api_sessions_test.go`. Keep this
+same-package boundary mechanical; routing composition remains in `server.go`.

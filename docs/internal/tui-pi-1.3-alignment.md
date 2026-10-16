@@ -412,3 +412,29 @@ all three sizes with exact cancellation snapshots, draft isolation and model
 restart persistence. Full TUI race tests and vet pass under Go 1.27.2.
 This resolves the concrete retention blocker recorded above. Completed probe
 captures, binaries and logs were removed after analysis.
+
+### Issue review and final shared-compliance restart
+
+Merged frontend PR #4 (`237e66dc`) and Gi PR #60 (`f1910265`) repair active
+compaction accessibility: active meters no longer advertise the idle Compact
+context action; the shared locator recognises the active measurement without
+matching Stop response. All 54 shared compaction cases pass. The first full
+shared run was interrupted after exposing these failures and is not passing
+evidence. Full 1,590-case shared compliance was restarted on the repaired tree;
+its result must be recorded separately when complete.
+
+Issues #47 and #30 were closed with merged VNC/codemode acceptance; #25 was
+closed after #30 plus integrated MCP/codemode/TUI/turn race suites passed.
+#16 is closed as a decision: offline bounded changelog, allowlisted local-only
+bug preview and explicit unsupported trust. Project MCP config remains
+ignored; a meaningful trust/enforcement system is future scope, not implied
+by this closure. Documentation's obsolete OAuth/codemode status is corrected.
+
+For #11, `04abdf54` mechanically extracts the session collection handler into
+api_sessions.go and moves its main-session allocation test alongside it.
+The declaration block was checked unchanged; all native tests and vet pass.
+Together with command/tool-text/shell-turn extractions, this establishes
+functional same-package boundaries without speculative subpackages. Broader
+shared/functional browser acceptance is still running, so #11 remains open.
+No release or deployment is implied. Active run artifacts must not be removed
+until their jobs finish and results are analysed.
