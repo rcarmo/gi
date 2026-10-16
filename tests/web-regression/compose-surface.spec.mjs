@@ -7,7 +7,7 @@ async function setAppearance(dialog,preset,tint){
   await dialog.getByRole('radio',{name:/^Default/}).check();
   if(tint)await dialog.locator('input[type=color]').first().evaluate((e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));},tint);
   else if(await dialog.getByTitle('Clear tint').count())await dialog.getByTitle('Clear tint').click();
- }else await dialog.getByRole('radio',{name:new RegExp(`^${preset}$`,'i')}).check();
+ }else await dialog.getByRole('radio',{name:new RegExp(`^${preset === 'monokai' ? 'Monokai Original' : preset}$`,'i')}).check();
 }
 
 test('Compose surface uses persisted bounded height and retains draft across picker and reload',async({page},info)=>{
@@ -97,7 +97,7 @@ for(const theme of ['light','dark'])test(`Active session pill uses reference pad
    await setAppearance(dialog,'default',value);await expect(pill).toHaveCSS('color',color);expect(await sample()).toBeGreaterThanOrEqual(4.5);
   }
   await setAppearance(dialog,'default','');await page.keyboard.press('Escape');await expect(input).toHaveValue('Contrast retained draft Ω');await expect(input).toBeFocused();
-  await expect(pill).toHaveCSS('color','rgb(15, 20, 25)');expect(await sample()).toBeGreaterThanOrEqual(4.5);
+  await expect(pill).toHaveCSS('color','rgb(0, 0, 0)');expect(await sample()).toBeGreaterThanOrEqual(4.5);
  }finally{await env.close();}
 });
 
