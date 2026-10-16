@@ -83,9 +83,13 @@ let child, cli;
 const stop = () => { cli?.kill('SIGTERM'); child?.kill('SIGTERM'); for (const socket of sockets) socket.destroy(); };
 const terminate = () => { stop(); process.exit(143); };
 process.once('SIGTERM', terminate); process.once('SIGINT', terminate);
+const fixtureEnv = { ...process.env };
+// Isolate agent configuration as well as HOME: inherited overrides leak host MCP/auth.
+delete fixtureEnv.PI_CODING_AGENT_DIR;
+delete fixtureEnv.GI_CODING_AGENT_DIR;
 try {
   child = Bun.spawn([process.env.GI_FIXTURE_BIN, '-web', '-bind', '127.0.0.1', '-port', String(port), '-db', join(state, 'state.db'), '-workspace', join(state, 'workspace')], {
-    env: { ...process.env, HOME: join(state, 'home'), FIXTURE_MODEL_URL: 'http://127.0.0.1:19999/v1',
+    env: { ...fixtureEnv, HOME: join(state, 'home'), FIXTURE_MODEL_URL: 'http://127.0.0.1:19999/v1',
       GI_WEB_VNC_TARGETS: JSON.stringify(mode === 'empty' ? [] : [{ id: 'fixture', label: 'Live RFB fixture', host: '127.0.0.1', port: rfb.address().port, readOnly: mode === 'readonly' }]),
       GI_WEB_VNC_ALLOW_DIRECT: 'false' }, stdout: 'inherit', stderr: 'inherit',
   });
@@ -97,7 +101,7 @@ try {
   }
   if (!ready) throw Error('Viewer fixture did not start');
   cli = Bun.spawn(['bash', 'scripts/run-playwright.sh', 'test', '--config', 'playwright.vnc.config.ts'], {
-    env: { ...process.env, GI_TEST_URL: `http://127.0.0.1:${port}`, GI_VNC_VIEWER_MODE: mode, GI_VNC_INPUT_COUNTER: counter },
+    env: { ...fixtureEnv, GI_TEST_URL: `http://127.0.0.1:${port}`, GI_VNC_VIEWER_MODE: mode, GI_VNC_INPUT_COUNTER: counter },
     stdout: 'inherit', stderr: 'inherit',
   });
   process.exitCode = await cli.exited;
