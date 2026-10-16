@@ -308,3 +308,28 @@ claimed. Earlier cache-backed/non-equivalent run deltas are not optimisation
 evidence. Raw captures, matching scratch, logs and fixtures were removed after
 analysis. Remaining broad browser suites, full TUI crosswalk, #11/#16 policy
 completion and final integrated release acceptance still block v0.1.2.
+
+### Theme, tool syntax and streamed-table PTYs
+
+Theme negotiation passed 13 controlling-PTY scenarios against the exact
+published Pi coding-agent 1.3.0 system-theme generator: OSC background and
+palette, fragmented replies, CSI scheme, fallbacks, explicit/paired themes,
+disabled queries and light/dark native UI. The Make target now installs its
+own exact reference under the owned test root and disposes it, rather than
+requiring a global Pi install. Package identity/version is checked.
+
+Tool-syntax PTYs passed fullscreen/regular × widths 60/100/140, including
+native read/write, keyword colour, collapse/expand, narrow resize and stored
+reopening without reading changed source. Its Make target now passes the
+actual project-owned test binary path. Theme/tool-syntax Make targets were
+rerun successfully after wiring changes; captures use GI_TEST_RUN_ROOT/tests.
+
+The six table PTYs passed streaming, Unicode grid borders, resize, retained
+draft, final cells and stored Markdown/reopening checks. Initial failures
+were fixture-auth isolation: a login shell reintroduced host agent-directory
+overrides. The table fixture now clears both overrides with test-scoped env
+restoration, and the launcher removes them. This is not a renderer assertion
+relaxation. Full TUI units and vet pass under Go 1.27.2. Completed captures,
+failed probes, reference installs, logs and matching binaries were removed
+after analysis. Remaining terminal/runtime crosswalk and integrated release
+gates are still open.

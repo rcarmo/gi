@@ -2,7 +2,8 @@
 import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),artifacts=resolve('test-results/tui-tool-syntax'),socket=`gi-tool-syntax-${process.pid}`;
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-tool-syntax'),socket=`gi-tool-syntax-${process.pid}`;
 mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',['-L',socket,'-f','/dev/null',...args]);
@@ -18,7 +19,7 @@ try { for(const mode of ['fullscreen','regular']) for(const width of [60,100,140
  const capture=()=>tmux('capture-pane','-p','-S','-','-t',pane),ansi=()=>tmux('capture-pane','-e','-p','-S','-','-t',pane);
  const keys=(...args)=>tmux('send-keys','-t',pane,...args);
  const shot=name=>{writeFileSync(join(artifacts,`${mode}-${width}-${name}.txt`),capture());writeFileSync(join(artifacts,`${mode}-${width}-${name}.ansi`),ansi());};
- const launch=()=>{tmux('new-session','-d','-s',session,'-x',String(width),'-y','40',`cd '${dir}' && GI_TOOL_SYNTAX_PTY_DIR='${dir}' GI_TOOL_SYNTAX_PTY_MODE='${mode}' TERM=xterm-256color COLORTERM=truecolor '${root}/bin/gi-tool-syntax-test' -test.run '^TestToolSyntaxPTYFixture$' 2>'${dir}/runtime.log'`);tmux('set-option','-s','exit-empty','off');tmux('set-option','-t',session,'status','off');};
+ const launch=()=>{tmux('new-session','-d','-s',session,'-x',String(width),'-y','40',`cd '${dir}' && GI_TOOL_SYNTAX_PTY_DIR='${dir}' GI_TOOL_SYNTAX_PTY_MODE='${mode}' TERM=xterm-256color COLORTERM=truecolor '${process.env.GI_TOOL_SYNTAX_TEST_BIN||root+'/bin/gi-tool-syntax-test'}' -test.run '^TestToolSyntaxPTYFixture$' 2>'${dir}/runtime.log'`);tmux('set-option','-s','exit-empty','off');tmux('set-option','-t',session,'status','off');};
  const keyword=word=>new RegExp(`\\x1b\\[[0-9;]*38;2;105;173;208[0-9;]*m${word}`).test(ansi());
  const packageCount=()=>[...ansi().matchAll(/\x1b\[[0-9;]*38;2;105;173;208[0-9;]*mpackage/g)].length;
  try {

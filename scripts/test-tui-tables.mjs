@@ -7,7 +7,8 @@ const featurePath=path.resolve('features/gi/tui/markdown-tables.feature');
 const definitions=generateMessages(await fs.readFile(featurePath,'utf8'),featurePath,SourceMediaType.TEXT_X_CUCUMBER_GHERKIN_PLAIN,{newId:IdGenerator.incrementing(),includePickles:true});
 if(definitions.some(x=>x.parseError)||definitions.filter(x=>x.pickle).length!==6)throw Error('table feature inventory changed');
 const binary=path.resolve(process.env.GI_TABLE_PTY_BIN||'bin/gi-tui-table-test');
-const root=path.resolve(`test-results/tui-tables/run-${Date.now()}`);await fs.mkdir(root,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=path.join(process.env.GI_TEST_RUN_ROOT,'tests/tui-tables');await fs.mkdir(root,{recursive:true});
 function sh(cmd,ok=false){const p=spawnSync('bash',['-lc',cmd],{encoding:'utf8',timeout:12000});if(p.status&&!ok)throw Error(p.stderr||p.stdout||cmd);return p.stdout||'';}
 const q=s=>`'${String(s).replaceAll("'","'\\''")}'`,sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function wait(f,label){for(let i=0;i<140;i++){try{if(await f())return}catch{}await sleep(60)}throw Error('timeout '+label)}
@@ -17,7 +18,7 @@ for(const {pickle} of definitions.filter(x=>x.pickle)){
  const mode=pickle.steps[0].text.includes('regular')?'regular':'fullscreen';const size=pickle.steps[0].text.match(/(\d+)x(\d+)/);if(!size)throw Error('missing table fixture size');const cols=+size[1],rows=+size[2];
  const dir=path.join(root,`${mode}-${cols}`),socket=`gi-table-${mode}-${cols}-${process.pid}`;await fs.mkdir(path.join(dir,'.pi'),{recursive:true});await fs.writeFile(path.join(dir,'.pi/settings.json'),JSON.stringify({defaultProvider:'table-local',defaultModel:'table-fixture',tui:{}}));await fs.writeFile(path.join(dir,'chunks.json'),JSON.stringify(chunks));
  const db=path.join(dir,'state.db'),sql=s=>sh(`sqlite3 ${q(db)} ${q(s)}`).trim();const tm=c=>sh(`tmux -L ${socket} ${c}`),pane=()=>tm('capture-pane -pt gi:0 -S -400').replaceAll('\u00a0',' ');
- const launch=()=>tm(`new-session -d -s gi -x ${cols} -y ${rows} "env TERM=xterm-256color GI_TABLE_PTY_DIR=${q(dir)} GI_TABLE_PTY_MODE=${mode} ${q(binary)} -test.run=^TestMarkdownTablePTYFixture$ 2>${q(path.join(dir,'stderr.log'))}"`);
+ const launch=()=>tm(`new-session -d -s gi -x ${cols} -y ${rows} "env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR TERM=xterm-256color GI_TABLE_PTY_DIR=${q(dir)} GI_TABLE_PTY_MODE=${mode} ${q(binary)} -test.run=^TestMarkdownTablePTYFixture$ 2>${q(path.join(dir,'stderr.log'))}"`);
  const type=text=>tm(`send-keys -t gi:0 -l ${q(text)}`);
  try{
   launch();await wait(()=>pane().includes('─')&&sql('select count(*) from sessions')==='1','ready');type('table response please');tm('send-keys -t gi:0 Enter');await wait(()=>sql("select count(*) from turns where status='running'")==='1','running');type('unsent table draft');

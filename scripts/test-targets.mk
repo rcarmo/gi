@@ -932,7 +932,7 @@ test-tui-tool-syntax:
 test-tui-tool-syntax-pty:
 	@mkdir -p $(BIN_DIR)
 	$(GO) test -c -o $(BIN_DIR)/gi-tool-syntax-test ./internal/tui
-	$(BUN) scripts/test-tui-tool-syntax.mjs
+	GI_TOOL_SYNTAX_TEST_BIN=$(abspath $(BIN_DIR)/gi-tool-syntax-test) $(BUN) scripts/test-tui-tool-syntax.mjs
 
 .PHONY: fmt-pi-scroll test-pi-scroll test-go-tui-runtime
 fmt-pi-scroll:
@@ -950,7 +950,11 @@ test-go-tui-runtime:
 test-tui-theme-pty:
 	mkdir -p $(BIN_DIR)
 	$(GO) test -c -o $(BIN_DIR)/gi-theme-test ./internal/tui
-	GI_THEME_TEST_BIN=$(abspath $(BIN_DIR)/gi-theme-test) $(BUN) scripts/test-tui-theme.mjs
+	@set -eu; root="$(GI_TEST_RUN_ROOT)/tests/theme-reference"; mkdir -p "$$root"; \
+	trap 'rm -rf "$$root"' EXIT; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-coding-agent":"1.3.0"}}' > "$$root/package.json"; \
+	$(BUN) install --cwd "$$root"; \
+	PI_NODE_MODULES="$$root/node_modules" GI_THEME_TEST_BIN=$(abspath $(BIN_DIR)/gi-theme-test) $(BUN) scripts/test-tui-theme.mjs
 
 # Reproducible CPU/allocation profiles; artifacts stay on disk.
 TABLE_BENCH ?= BenchmarkComplexMarkdownTable

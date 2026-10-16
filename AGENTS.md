@@ -304,3 +304,10 @@ The session/model picker PTY helper supports `GI_TUI_MODE=fullscreen|regular`
 and isolates its working directory, HOME and agent configuration. Captures
 are run-owned under `tests/tui-sessions/<mode>/`. Picker cancellation must
 preserve the primary transcript as well as draft text and editor geometry.
+
+Theme, tool-syntax and table PTY captures live beneath the resolved run root's
+`tests/` directory. Theme acceptance installs an exact Pi 1.3.0 reference
+beneath that owned run and removes it after use; no global Pi install is
+required. Use the Make targets so tool-syntax binaries resolve beneath build/.
+Fixture HOME isolation must also clear PI_CODING_AGENT_DIR and
+GI_CODING_AGENT_DIR, including after login-shell environment initialisation.
