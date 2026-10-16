@@ -2,10 +2,13 @@
 
 ## Current baseline
 
-Rui set Pi TUI 1.1.0 as the behaviour target on 8 October 2026. The first
-[alignment slice](../terminal/tui-pi-1.1.0.md) adopts Home/End line editing and
-Ctrl+Home/Ctrl+End transcript navigation. Remaining 1.1.0 gaps are listed there;
-the earlier completed iteration below is historical, not blanket parity.
+The current behaviour target is Pi TUI 1.3.0, pinned to pi-mono
+`71023aec1546d6d677a65669c5665c0927ce0dd0`. Current verification and remaining
+release gates are recorded in the [alignment acceptance note](../../internal/tui-pi-1.3-alignment.md).
+The first [1.1.0 alignment slice](../terminal/tui-pi-1.1.0.md) adopted Home/End
+line editing and Ctrl+Home/Ctrl+End transcript navigation. That slice and the
+earlier iteration below are historical, not blanket parity or current release
+acceptance.
 
 ## Earlier iteration
 
@@ -15,7 +18,7 @@ It intentionally does **not** require pixel-perfect cloning. Parity means the sa
 
 ## Current `gi -tui` command surface
 
-The slash catalogue (`piCommands` + `giCommands` in `internal/tui/chat.go`)
+The slash catalogue (`piCommands` + `giCommands` in `internal/tui/chat_commands.go`)
 lists Pi's built-ins first, in Pi's `BUILTIN_SLASH_COMMANDS` order with Pi's
 argument hints and descriptions where gi behaves the same, then gi's own
 commands (the way Pi lists extension commands after its built-ins). Aligned
