@@ -25,7 +25,7 @@ func TestAdaptiveCardSDKPinnedStaticAsset(t *testing.T) {
 			}
 			continue
 		}
-		if got := fmt.Sprintf("%x", sha256.Sum256(w.Body.Bytes())); got != "c3404b6cba966546c03ab9f81b133a2b8d9185da29806457d0adb92c107f799c" {
+		if got := fmt.Sprintf("%x", sha256.Sum256(w.Body.Bytes())); got != "21be2b5416b886d2404c99ba68abdf420369ded866a6e8b70866d5512b0918f5" {
 			t.Fatal("pinned SDK changed", got)
 		}
 	}

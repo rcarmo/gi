@@ -1,1 +1,193 @@
-{"tools":[{"name":"read","description":"Read a file.","inputSchema":{"type":"object","properties":{"path":{"type":"string","description":"File path"},"offset":{"type":"number"}},"required":["path"]},"outputSchema":{"type":"string"}},{"name":"my-tool","description":"Does things\nsecond line","inputSchema":{"type":"object","properties":{"items":{"type":"array","items":{"type":"string"}},"mode":{"enum":["a","b"]}}},"outputSchema":{"type":"string"}},{"name":"bash","description":"Run a command.","inputSchema":{"type":"object","properties":{"command":{"type":"string"}},"required":["command"]},"outputSchema":{"type":"object","properties":{"output":{"type":"string"},"exit_code":{"type":"number"},"full_output_path":{"type":"string"}},"required":["output","exit_code"]}},{"name":"mcp__hub__search_code","description":"Search code","inputSchema":{"type":"object","properties":{"text":{"type":"string"}}},"outputSchema":{"type":"object","properties":{"content":{"type":"array","items":{"type":"object"}},"isError":{"type":"boolean"},"_meta":{"type":"object"}},"required":["content"]}},{"name":"mcp__hub__upper","description":"Uppercase text","inputSchema":{"type":"object","properties":{"text":{"type":"string"}}},"outputSchema":{"type":"object","properties":{"content":{"type":"array","items":{"type":"object"}},"structuredContent":{"type":"object","properties":{"value":{"type":"string"}}},"isError":{"type":"boolean"},"_meta":{"type":"object"}},"required":["content"]}},{"name":"mcp__docs__lookup","description":"Look up docs","inputSchema":{"type":"object","properties":{}},"outputSchema":{"type":"object","properties":{"content":{"type":"array","items":{"type":"object"}},"isError":{"type":"boolean"},"_meta":{"type":"object"}},"required":["content"]}}],"full":"Run JavaScript that calls other tools. The input is raw JavaScript (not JSON, no code fence), run as an async function body in a QuickJS sandbox: top-level `await` and `return` work. No Node, file system, network, or timers.\n- `await tools.<name>({ ...args })` resolves to a string, or an object if the tool's declaration says so, and rejects with an Error on failure. Calls still running when the script ends are cancelled.\n- Optional first line: `// @options: {\"max_output_tokens\": 10000, \"timeout_ms\": 60000}`\n\nGlobals:\n- `text(value)`, `image(dataUrlOrImageBlock)`, `console.log(...)`, and top-level `return` add output; `exit()` ends the script.\n- `store(key, value)` and `load(key)` keep JSON values across codemode calls.\n- `ALL_TOOLS`, `searchTools(query, { limit?, namespace? })`, `describeTool(name)`, `describeNamespace(name)`: find unlisted tools, such as MCP tools.\n\nShared MCP Types:\n```ts\ntype Role = \"user\" | \"assistant\";\ntype MetaObject = Record<string, unknown>;\ntype Annotations = {\n  audience?: Role[];\n  priority?: number;\n  lastModified?: string;\n};\ntype Icon = {\n  src: string;\n  mimeType?: string;\n  sizes?: string[];\n  theme?: \"light\" | \"dark\";\n};\ntype TextResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  text: string;\n};\ntype BlobResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  blob: string;\n};\ntype TextContent = {\n  type: \"text\";\n  text: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ImageContent = {\n  type: \"image\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype AudioContent = {\n  type: \"audio\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ResourceLink = {\n  icons?: Icon[];\n  name: string;\n  title?: string;\n  uri: string;\n  description?: string;\n  mimeType?: string;\n  annotations?: Annotations;\n  size?: number;\n  _meta?: MetaObject;\n  type: \"resource_link\";\n};\ntype EmbeddedResource = {\n  type: \"resource\";\n  resource: TextResourceContents | BlobResourceContents;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ContentBlock =\n  | TextContent\n  | ImageContent\n  | AudioContent\n  | ResourceLink\n  | EmbeddedResource;\ntype CallToolResult<TStructured = { [key: string]: unknown }> = {\n  _meta?: MetaObject;\n  content: ContentBlock[];\n  isError?: boolean;\n  structuredContent?: TStructured;\n  [key: string]: unknown;\n};\n```\n\nNested tools:\n\n### `read`\nRead a file.\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { read(args: {\n  offset?: number;\n  // File path\n  path: string;\n}): Promise<string>; };\n```\n\n### `my_tool` (`my-tool`)\nDoes things\nsecond line\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { my_tool(args: { items?: Array<string>; mode?: \"a\" | \"b\"; }): Promise<string>; };\n```\n\n### `bash`\nRun a command.\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { bash(args: { command: string; }): Promise<{ exit_code: number; full_output_path?: string; output: string; }>; };\n```\n\n## mcp__docs\n\n### `mcp__docs__lookup`\nLook up docs\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__docs__lookup(args: { [key: string]: unknown; }): Promise<CallToolResult>; };\n```\n\n## mcp__hub\nCode hosting\n\n### `mcp__hub__search_code`\nSearch code\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__hub__search_code(args: { text?: string; }): Promise<CallToolResult>; };\n```\n\n### `mcp__hub__upper`\nUppercase text\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__hub__upper(args: { text?: string; }): Promise<CallToolResult<{ value?: string; }>>; };\n```","budget":"Run JavaScript that calls other tools. The input is raw JavaScript (not JSON, no code fence), run as an async function body in a QuickJS sandbox: top-level `await` and `return` work. No Node, file system, network, or timers.\n- `await tools.<name>({ ...args })` resolves to a string, or an object if the tool's declaration says so, and rejects with an Error on failure. Calls still running when the script ends are cancelled.\n- Optional first line: `// @options: {\"max_output_tokens\": 10000, \"timeout_ms\": 60000}`\n\nGlobals:\n- `text(value)`, `image(dataUrlOrImageBlock)`, `console.log(...)`, and top-level `return` add output; `exit()` ends the script.\n- `store(key, value)` and `load(key)` keep JSON values across codemode calls.\n- `ALL_TOOLS`, `searchTools(query, { limit?, namespace? })`, `describeTool(name)`, `describeNamespace(name)`: find unlisted tools, such as MCP tools.\n\nShared MCP Types:\n```ts\ntype Role = \"user\" | \"assistant\";\ntype MetaObject = Record<string, unknown>;\ntype Annotations = {\n  audience?: Role[];\n  priority?: number;\n  lastModified?: string;\n};\ntype Icon = {\n  src: string;\n  mimeType?: string;\n  sizes?: string[];\n  theme?: \"light\" | \"dark\";\n};\ntype TextResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  text: string;\n};\ntype BlobResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  blob: string;\n};\ntype TextContent = {\n  type: \"text\";\n  text: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ImageContent = {\n  type: \"image\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype AudioContent = {\n  type: \"audio\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ResourceLink = {\n  icons?: Icon[];\n  name: string;\n  title?: string;\n  uri: string;\n  description?: string;\n  mimeType?: string;\n  annotations?: Annotations;\n  size?: number;\n  _meta?: MetaObject;\n  type: \"resource_link\";\n};\ntype EmbeddedResource = {\n  type: \"resource\";\n  resource: TextResourceContents | BlobResourceContents;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ContentBlock =\n  | TextContent\n  | ImageContent\n  | AudioContent\n  | ResourceLink\n  | EmbeddedResource;\ntype CallToolResult<TStructured = { [key: string]: unknown }> = {\n  _meta?: MetaObject;\n  content: ContentBlock[];\n  isError?: boolean;\n  structuredContent?: TStructured;\n  [key: string]: unknown;\n};\n```\n\nNested tools:\n\n### `read`\nRead a file.\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { read(args: {\n  offset?: number;\n  // File path\n  path: string;\n}): Promise<string>; };\n```\n\n## mcp__hub (some tools not listed)\nCode hosting\n\n### `mcp__hub__search_code`\nSearch code\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__hub__search_code(args: { text?: string; }): Promise<CallToolResult>; };\n```","scriptCalls":{"read":"Read a file.\n\nCodemode: `tools.read(args)` resolves to a string.","my-tool":"Does things\nsecond line\n\nCodemode: `tools.my_tool(args)` resolves to a string.","bash":"Run a command.\n\nCodemode: `tools.bash(args)` resolves to `{ output, exit_code, full_output_path? }`.","mcp__hub__search_code":"Search code\n\nCodemode: `tools.mcp__hub__search_code(args)` resolves to `CallToolResult`.","mcp__hub__upper":"Uppercase text\n\nCodemode: `tools.mcp__hub__upper(args)` resolves to `CallToolResult<{ value?: string; }>`.","mcp__docs__lookup":"Look up docs\n\nCodemode: `tools.mcp__docs__lookup(args)` resolves to `CallToolResult`."}}
+{
+  "tools": [
+    {
+      "name": "read",
+      "description": "Read a file.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "File path"
+          },
+          "offset": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "my-tool",
+      "description": "Does things\nsecond line",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mode": {
+            "enum": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "bash",
+      "description": "Run a command.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "number"
+          },
+          "full_output_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "output",
+          "exit_code"
+        ]
+      }
+    },
+    {
+      "name": "mcp__hub__search_code",
+      "description": "Search code",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "isError": {
+            "type": "boolean"
+          },
+          "_meta": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "mcp__hub__upper",
+      "description": "Uppercase text",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "structuredContent": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          "isError": {
+            "type": "boolean"
+          },
+          "_meta": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "mcp__docs__lookup",
+      "description": "Look up docs",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "isError": {
+            "type": "boolean"
+          },
+          "_meta": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    }
+  ],
+  "full": "Run JavaScript that calls other tools. The input is raw JavaScript (not JSON, no code fence), run as an async function body in a QuickJS sandbox: top-level `await` and `return` work. No Node, file system, network, or timers.\n- `await tools.<name>({ ...args })` resolves to a string, or an object if the tool's declaration says so, and rejects with an Error on failure. A tool whose declaration returns an object resolves on failure too when it returned that object; check its fields. Calls still running when the script ends are cancelled.\n- Optional first line: `// @options: {\"max_output_tokens\": 10000, \"timeout_ms\": 60000}`\n\nGlobals:\n- `text(value)`, `image(dataUrlOrImageBlock)`, `console.log(...)`, and top-level `return` add output; `exit()` ends the script. With several text items, each starts with a `==> text N/M <==` line, and `console` lines follow the other output in one `<console_output>` block. `image()` also saves the image to a temp file and the result names its path.\n- `store(key, value)` and `load(key)` keep JSON values across codemode calls.\n- `ALL_TOOLS`, `await searchTools(query, { limit?, namespace? })`, `await describeTool(name)`, `await describeNamespace(name)`: find unlisted tools, such as MCP tools.\n\nShared MCP Types:\n```ts\ntype Role = \"user\" | \"assistant\";\ntype MetaObject = Record<string, unknown>;\ntype Annotations = {\n  audience?: Role[];\n  priority?: number;\n  lastModified?: string;\n};\ntype Icon = {\n  src: string;\n  mimeType?: string;\n  sizes?: string[];\n  theme?: \"light\" | \"dark\";\n};\ntype TextResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  text: string;\n};\ntype BlobResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  blob: string;\n};\ntype TextContent = {\n  type: \"text\";\n  text: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ImageContent = {\n  type: \"image\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype AudioContent = {\n  type: \"audio\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ResourceLink = {\n  icons?: Icon[];\n  name: string;\n  title?: string;\n  uri: string;\n  description?: string;\n  mimeType?: string;\n  annotations?: Annotations;\n  size?: number;\n  _meta?: MetaObject;\n  type: \"resource_link\";\n};\ntype EmbeddedResource = {\n  type: \"resource\";\n  resource: TextResourceContents | BlobResourceContents;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ContentBlock =\n  | TextContent\n  | ImageContent\n  | AudioContent\n  | ResourceLink\n  | EmbeddedResource;\ntype CallToolResult<TStructured = { [key: string]: unknown }> = {\n  _meta?: MetaObject;\n  content: ContentBlock[];\n  isError?: boolean;\n  structuredContent?: TStructured;\n  [key: string]: unknown;\n};\n```\n\nNested tools:\n\n### `read`\nRead a file.\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { read(args: {\n  offset?: number;\n  // File path\n  path: string;\n}): Promise<string>; };\n```\n\n### `my_tool` (`my-tool`)\nDoes things\nsecond line\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { my_tool(args: { items?: Array<string>; mode?: \"a\" | \"b\"; }): Promise<string>; };\n```\n\n### `bash`\nRun a command.\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { bash(args: { command: string; }): Promise<{ exit_code: number; full_output_path?: string; output: string; }>; };\n```\n\n## mcp__docs\n\n### `mcp__docs__lookup`\nLook up docs\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__docs__lookup(args: { [key: string]: unknown; }): Promise<CallToolResult>; };\n```\n\n## mcp__hub\nCode hosting\n\n### `mcp__hub__search_code`\nSearch code\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__hub__search_code(args: { text?: string; }): Promise<CallToolResult>; };\n```\n\n### `mcp__hub__upper`\nUppercase text\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__hub__upper(args: { text?: string; }): Promise<CallToolResult<{ value?: string; }>>; };\n```",
+  "budget": "Run JavaScript that calls other tools. The input is raw JavaScript (not JSON, no code fence), run as an async function body in a QuickJS sandbox: top-level `await` and `return` work. No Node, file system, network, or timers.\n- `await tools.<name>({ ...args })` resolves to a string, or an object if the tool's declaration says so, and rejects with an Error on failure. A tool whose declaration returns an object resolves on failure too when it returned that object; check its fields. Calls still running when the script ends are cancelled.\n- Optional first line: `// @options: {\"max_output_tokens\": 10000, \"timeout_ms\": 60000}`\n\nGlobals:\n- `text(value)`, `image(dataUrlOrImageBlock)`, `console.log(...)`, and top-level `return` add output; `exit()` ends the script. With several text items, each starts with a `==> text N/M <==` line, and `console` lines follow the other output in one `<console_output>` block. `image()` also saves the image to a temp file and the result names its path.\n- `store(key, value)` and `load(key)` keep JSON values across codemode calls.\n- `ALL_TOOLS`, `await searchTools(query, { limit?, namespace? })`, `await describeTool(name)`, `await describeNamespace(name)`: find unlisted tools, such as MCP tools.\n\nShared MCP Types:\n```ts\ntype Role = \"user\" | \"assistant\";\ntype MetaObject = Record<string, unknown>;\ntype Annotations = {\n  audience?: Role[];\n  priority?: number;\n  lastModified?: string;\n};\ntype Icon = {\n  src: string;\n  mimeType?: string;\n  sizes?: string[];\n  theme?: \"light\" | \"dark\";\n};\ntype TextResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  text: string;\n};\ntype BlobResourceContents = {\n  uri: string;\n  mimeType?: string;\n  _meta?: MetaObject;\n  blob: string;\n};\ntype TextContent = {\n  type: \"text\";\n  text: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ImageContent = {\n  type: \"image\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype AudioContent = {\n  type: \"audio\";\n  data: string;\n  mimeType: string;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ResourceLink = {\n  icons?: Icon[];\n  name: string;\n  title?: string;\n  uri: string;\n  description?: string;\n  mimeType?: string;\n  annotations?: Annotations;\n  size?: number;\n  _meta?: MetaObject;\n  type: \"resource_link\";\n};\ntype EmbeddedResource = {\n  type: \"resource\";\n  resource: TextResourceContents | BlobResourceContents;\n  annotations?: Annotations;\n  _meta?: MetaObject;\n};\ntype ContentBlock =\n  | TextContent\n  | ImageContent\n  | AudioContent\n  | ResourceLink\n  | EmbeddedResource;\ntype CallToolResult<TStructured = { [key: string]: unknown }> = {\n  _meta?: MetaObject;\n  content: ContentBlock[];\n  isError?: boolean;\n  structuredContent?: TStructured;\n  [key: string]: unknown;\n};\n```\n\nNested tools:\n\n### `read`\nRead a file.\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { read(args: {\n  offset?: number;\n  // File path\n  path: string;\n}): Promise<string>; };\n```\n\n## mcp__hub (some tools not listed)\nCode hosting\n\n### `mcp__hub__search_code`\nSearch code\n\ncodemode tool declaration:\n```ts\ndeclare const tools: { mcp__hub__search_code(args: { text?: string; }): Promise<CallToolResult>; };\n```",
+  "scriptCalls": {
+    "read": "Read a file.\n\nCodemode: `tools.read(args)` resolves to a string.",
+    "my-tool": "Does things\nsecond line\n\nCodemode: `tools.my_tool(args)` resolves to a string.",
+    "bash": "Run a command.\n\nCodemode: `tools.bash(args)` resolves to `{ output, exit_code, full_output_path? }`.",
+    "mcp__hub__search_code": "Search code\n\nCodemode: `tools.mcp__hub__search_code(args)` resolves to `CallToolResult`.",
+    "mcp__hub__upper": "Uppercase text\n\nCodemode: `tools.mcp__hub__upper(args)` resolves to `CallToolResult<{ value?: string; }>`.",
+    "mcp__docs__lookup": "Look up docs\n\nCodemode: `tools.mcp__docs__lookup(args)` resolves to `CallToolResult`."
+  }
+}

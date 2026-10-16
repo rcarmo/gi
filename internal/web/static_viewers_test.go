@@ -13,7 +13,7 @@ import (
 )
 
 func TestStaticViewerPagesMatchPinnedPolicies(t *testing.T) {
-	raw, err := os.ReadFile("../../references/fixtures-vibes/ui/classic/piclaw/viewers-3.3.0/csp.json")
+	raw, err := os.ReadFile("../../references/fixtures-vibes/ui/classic/piclaw/viewers-3.3.4/csp.json")
 	if err != nil {
 		t.Fatal(err)
 	}

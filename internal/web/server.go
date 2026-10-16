@@ -173,7 +173,11 @@ func (s *Server) routes() {
 	s.mux.Handle("/static/icon-192.png", http.StripPrefix("/static", fileServer))
 	s.mux.Handle("/static/icon-512.png", http.StripPrefix("/static", fileServer))
 	// Supplied Adaptive Card renderer's lazy SDK URL (public static asset).
-	s.mux.Handle("/static/js/vendor/adaptivecards.min.js", http.StripPrefix("/static", fileServer))
+	s.mux.Handle("/static/js/vendor/adaptivecards.min.js", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clone := r.Clone(r.Context())
+		clone.URL.Path = "/common/js/vendor/adaptivecards.min.js"
+		fileServer.ServeHTTP(w, clone)
+	}))
 	// Piclaw pane loaders use /static/dist, /static/css and /static/js.
 	// This alias serves embedded public assets only, never workspace files.
 	s.mux.Handle("/static/", http.StripPrefix("/static", fileServer))
