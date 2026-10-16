@@ -475,7 +475,7 @@ build-pane-host-fixture:
 .PHONY: test-tool-activity
 test-tool-activity:
 	$(TESTPROFILE) gotest $(RACE) -count=3 ./internal/store ./internal/web ./internal/turn -run 'ToolActivity|ToolPreview|SessionActivity|ToolTerminal'
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/tool-activity.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit
 
 .PHONY: test-ux-tool-terminal
 test-ux-tool-terminal: test-tool-activity
@@ -835,7 +835,7 @@ test-ux-model-panel: build-web
 
 .PHONY: test-ux-compose-surface test-compose-surface-helpers
 test-compose-surface-helpers:
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/compose-surface.test.ts tests/unit/accent-contrast.test.ts tests/unit/theme-text-contrast.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit
 
 test-ux-compose-surface: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN))
