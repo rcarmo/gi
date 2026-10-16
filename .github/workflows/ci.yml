@@ -42,7 +42,9 @@ jobs:
           done
 
       - name: Install web dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
 
       - name: Build web assets
         run: bun run build:web
@@ -96,7 +98,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make build-web
       - run: make fixtures-vibes
@@ -134,7 +138,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium
       - run: make test-ux-passkeys
       - name: Retain concise run measurements
@@ -219,7 +225,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - name: Verify compose surface and resize ownership
         run: make test-ux-compose-surface
@@ -262,7 +270,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - name: Verify browser voice-input ownership contract
         run: make test-ux-voice-input
@@ -301,7 +311,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make test-ux-context-meter test-ux-compaction
       - name: Retain concise run measurements
@@ -339,7 +351,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make test-ux-notifications
       - name: Retain concise run measurements
@@ -394,7 +408,6 @@ jobs:
           source scripts/project-test-env.sh
           gi_test_path "$GI_TEST_RUN_ROOT"
           rm -rf -- "$GI_TEST_RUN_ROOT"
-          if-no-files-found: ignore
 
   basic-web-send:
     name: Basic web send on HTTP and localhost
@@ -418,7 +431,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
       - run: make test-web-http-helpers test-web-basic-send test-web-basic-controls
       - name: Verify captured Stop reconnect evidence without Shared36 parity credit
@@ -436,7 +451,6 @@ jobs:
           source scripts/project-test-env.sh
           gi_test_path "$GI_TEST_RUN_ROOT"
           rm -rf -- "$GI_TEST_RUN_ROOT"
-          if-no-files-found: ignore
 
   tool-terminal-browser:
     name: Native tool terminal provenance
@@ -475,8 +489,6 @@ jobs:
           source scripts/project-test-env.sh
           gi_test_path "$GI_TEST_RUN_ROOT"
           rm -rf -- "$GI_TEST_RUN_ROOT"
-          if-no-files-found: ignore
-          retention-days: 3
 
   message-retrieval-browser:
     name: Bounded session message retrieval
@@ -515,8 +527,6 @@ jobs:
           source scripts/project-test-env.sh
           gi_test_path "$GI_TEST_RUN_ROOT"
           rm -rf -- "$GI_TEST_RUN_ROOT"
-          if-no-files-found: ignore
-          retention-days: 3
 
   thinking-browser:
     name: Session thinking provider-request ownership
@@ -540,7 +550,9 @@ jobs:
           for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
             printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
           done
-      - run: bun install --frozen-lockfile
+      - run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
       - run: make test-ux-thinking
       - name: Retain concise run measurements
@@ -556,7 +568,6 @@ jobs:
           source scripts/project-test-env.sh
           gi_test_path "$GI_TEST_RUN_ROOT"
           rm -rf -- "$GI_TEST_RUN_ROOT"
-          if-no-files-found: ignore
 
   auth-state:
     name: Auth state ${{ matrix.os }}
@@ -626,7 +637,9 @@ jobs:
           done
 
       - name: Install web dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
 
       - name: Build web assets
         run: bun run build:web
