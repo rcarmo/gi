@@ -4423,7 +4423,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		// session format; the summary content stays for display and context.
 		recordedCalls := make([]map[string]any, 0, len(toolCalls))
 		for _, tc := range toolCalls {
-			recordedCalls = append(recordedCalls, map[string]any{"id": tc.ID, "name": tc.Name, "arguments": tc.Arguments})
+			recordedCalls = append(recordedCalls, map[string]any{"id": tc.ID, "name": tc.Name, "arguments": tc.Arguments, "argumentsError": tc.ArgumentsError})
 		}
 		callsPayload := map[string]any{
 			"kind": "tool_calls", "source": "inference", "model": model,
@@ -5317,6 +5317,14 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			return outcome
 		}
 
+		if call.ArgumentsError != "" {
+			if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			continue
+		}
 		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
 			log.Printf("hook tool_call error: %v", err)
 		} else {

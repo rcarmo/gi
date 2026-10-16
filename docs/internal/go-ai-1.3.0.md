@@ -1,0 +1,16 @@
+# go-ai 1.3.0 alignment
+
+Target release: `github.com/rcarmo/go-ai v1.3.0`, tag commit `d9449bf4b102eb4303b8c60e9b0649b4bf99d08f`, upstream pi revision `71023aec1546d6d677a65669c5665c0927ce0dd0`. This branch builds on the verified, unmerged 1.2.0 candidate from Gi PR #55; frontend PR #2 also remains unmerged.
+
+## First contract slice
+
+1.3 adds `ArgumentsError` to tool calls/content blocks and preserves provider parse failures through `GetToolCalls`. Gi now rejects marked calls before tool-call/approval/result hooks and executor effects. Rejection commits an error result and fresh terminal occurrence atomically, without an execution start or invented duration. Assistant call summaries and fallback replay retain the marker.
+
+Development verification: Go1.27.1, project-owned isolated test environment with inherited agent-directory overrides unset. Focused malformed-call/replay tests pass race ×3; inference, turn and store suites pass. No 1.3 pre-release profiling, full suite or browser matrix has run yet.
+
+## Remaining audit
+
+- Ensure batch execution start/end hooks and direct/nested dispatch paths honour the upstream malformed-argument boundary; current test covers call/approval/result hooks only.
+- Preserve marker in imported/exported tool histories and verify persistence/reopen.
+- Audit remaining v1.2→v1.3 provider/catalogue/durable delta against tagged release docs, rather than assuming the dependency upgrade is sufficient.
+- Run full native/race and web acceptance, pre-release CPU/allocation analysis and disposal, then publish a review candidate. No merge or deployment authorised.

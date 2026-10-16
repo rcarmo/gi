@@ -37,13 +37,14 @@ func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID st
 			text, _ := m.Payload["display_text"].(string)
 			content := []goai.ContentBlock{{Type: "text", Text: text}}
 			var calls []struct {
-				ID        string         `json:"id"`
-				Name      string         `json:"name"`
-				Arguments map[string]any `json:"arguments"`
+				ID             string         `json:"id"`
+				Name           string         `json:"name"`
+				ArgumentsError string         `json:"argumentsError"`
+				Arguments      map[string]any `json:"arguments"`
 			}
 			if raw, err := json.Marshal(m.Payload["tool_calls"]); err == nil && json.Unmarshal(raw, &calls) == nil {
 				for _, call := range calls {
-					content = append(content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments})
+					content = append(content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments, ArgumentsError: call.ArgumentsError})
 				}
 			}
 			messages = append(messages, goai.Message{Role: goai.RoleAssistant, Content: content})
