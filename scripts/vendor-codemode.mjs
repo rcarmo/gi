@@ -24,8 +24,17 @@ const strip = (src) => src
   .replace(/^export (function|const|class) /gm, '$1 ')
   .replace(/^\/\/# sourceMappingURL=.*$/gm, '');
 const identifierSrc = strip(readFileSync(`${nm}/@earendil-works/pi-codemode/dist/identifier.js`, 'utf8'));
-const declarationsSrc = strip(readFileSync(`${nm}/@earendil-works/pi-codemode/dist/declarations.js`, 'utf8'));
-writeFileSync(`${out}/declarations.js`, `// Vendored from @earendil-works/pi-codemode ${piPkg.version} (MIT): identifier.js + declarations.js\n// as a plain script, by scripts/vendor-codemode.mjs; do not edit.\n${identifierSrc}\n${declarationsSrc}\nglobalThis.__decl = { renderToolSample, renderDeclarations, renderToolOutputType, mcpStructuredContentSchema, MCP_TYPESCRIPT_PREAMBLE, toCodemodeIdentifier };\n`);
+const mcpCompat = readFileSync(new URL('./codemode-mcp-compat.js', import.meta.url), 'utf8');
+let declarationsSrc = strip(readFileSync(`${nm}/@earendil-works/pi-codemode/dist/declarations.js`, 'utf8'));
+const outputAnchor = 'function renderToolOutputType(schema) {';
+if (declarationsSrc.split(outputAnchor).length !== 2) throw new Error('declaration output anchor changed');
+declarationsSrc = declarationsSrc.replace(outputAnchor, outputAnchor + `
+    const structured = mcpStructuredContentSchema(schema);
+    if (structured !== undefined) {
+        const type = structured === true ? "unknown" : schemaToType(structured);
+        return type === "unknown" ? "CallToolResult" : \`CallToolResult<\${type}>\`;
+    }`);
+writeFileSync(`${out}/declarations.js`, `// Vendored from @earendil-works/pi-codemode ${piPkg.version} (MIT): identifier.js + declarations.js\n// as a plain script, by scripts/vendor-codemode.mjs; do not edit.\n${identifierSrc}\n${mcpCompat}\n${declarationsSrc}\nglobalThis.__decl = { renderToolSample, renderDeclarations, renderToolOutputType, mcpStructuredContentSchema, MCP_TYPESCRIPT_PREAMBLE, toCodemodeIdentifier };\n`);
 // Model-facing codemode tool texts, from Pi's codemode extension itself: the
 // base description (intro and globals, without the models API that gi does
 // not have), the code parameter text, and the system-prompt contribution.

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Policies match the extracted Piclaw v3.3.0 viewers in the pinned UI. Tests
+// Policies match the extracted Piclaw v3.3.4 viewers in the pinned UI. Tests
 // compare these values with the upstream extraction manifest.
 var staticViewerPolicies = map[string]string{
 	"/html-viewer/":  "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'",
