@@ -30,7 +30,7 @@ async function fixture(page,request,info){
   await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();
   return turn;
  };
- const switchTo=async id=>{await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${id}"]`).getByRole('option').click();};
+ const switchTo=async id=>{await page.getByTestId('session-switcher').click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+id)}"]`).click();};
  return{main,child,input,pie,arc,measure,state,switchTo};
 }
 
