@@ -257,3 +257,17 @@ preservation and explicit trust feedback. Full TUI units pass, diagnostic/
 command/draft tests pass race ×3, and vet passes under Go 1.27.2. No release
 profiling claim is attached to these development tests. Scratch is disposed
 after analysis.
+
+### Queue restore and command PTYs
+
+At candidate `5dab97ad`, Alt+Up queue restore passed fullscreen and regular
+mode: two queued prompts and the current draft return in order, both queued
+turns become cancelled/aborted, queue counters clear and no redelivery occurs.
+Queue command acceptance passed six mode/size cases (60×18, 100×22, 140×36):
+restart persistence, exact-snapshot move, chronology/metadata preservation,
+remove/steer, stale/duplicate rejection, draft preservation, no new turns and
+no additional idle rows. Its restart now uses the documented double-Ctrl+C
+exit instead of assuming one press exits. Assertions were unchanged.
+Both helpers now place disposable captures under GI_TEST_RUN_ROOT/tests.
+Completed logs/captures/binaries were removed after analysis. This acceptance
+does not establish external-provider admission or complete Pi TUI parity.
