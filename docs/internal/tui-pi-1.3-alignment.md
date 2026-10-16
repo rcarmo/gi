@@ -597,3 +597,17 @@ listbox busy state and loading/switching guards must be reviewed and restored
 where required before release; do not merely delete these assertions. The active
 1,590-case shared run is untouched and not yet complete. Passing its overlapping
 cases will not substitute for these explicit release-CI contracts.
+
+Isolated model repair checkpoint: frontend864db3c adds busy-state/option guards,
+clear-search refocus, trigger popup semantics and response focus ownership.
+Units193/hook/build pass, but the focused phone contract still fails and this
+checkpoint is NOT integrated. Its test-only consumer clone is at
+`/workspace/tmp/gi/runs/model-contract/worktree` with server
+`/workspace/tmp/gi/runs/model-contract/server`; the clone's model spec was restored
+to source after diagnosis (no weakened focus assertions retained). Failure details
+in the current diagnosis: old `.current-model` selector; trigger `aria-expanded`
+missing; option instance IDs change across reopen; current-model selection is a
+native no-op while pending-response tests click it. Separate genuine contracts
+from stale assumptions, preserving loading/disabled/no-write/focus assertions.
+The active shared checkout remains on merged frontend58a97a42 and was not rebuilt
+with this candidate. Session acceptance change365cd6bf is local pending publish.
