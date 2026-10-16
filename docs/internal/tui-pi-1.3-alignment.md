@@ -500,3 +500,19 @@ Post-extraction PTYs passed regular transcripts (three sizes), session actions
 (three sizes). The broad 1,590-case shared suite and another profiled functional /
 race / Pi1.3 reference sequence are running. They are not yet passing evidence;
 issue #11 and v0.1.2 remain gated on their results.
+
+The post-extraction profiled functional rerun also passed 147 cases with 13
+existing skips. Race checks passed for TUI (50.867s), turn (55.196s), web (19.448s)
+and MCP (5.058s); Pi1.3 navigation/editor/hotkey goldens passed. Functional
+profiling observed 249s wall, 100s CPU and 1,368 MB peak RSS. Node exit heap samples
+are live allocations, not allocation history; repository Go allocation profiles
+were analysed separately. No measured performance improvement is claimed.
+
+Extended PTYs passed editor viewport, sessions/model restoration, search and
+reading. Tables initially could not launch because the standalone script needs
+`GI_TABLE_PTY_BIN`, not `GI_TUI_BIN`; after building the matching test binary and
+providing the documented variable, all six table cases and six source-copy cases
+passed. This was a harness invocation failure, not a masked product result.
+Completed raw profiles, failed probe fixtures and matching test binaries are
+removed after analysis; active shared-suite data is retained until its owner
+finishes. The shared suite still has no final verdict.
