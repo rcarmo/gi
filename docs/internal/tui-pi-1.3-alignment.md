@@ -393,3 +393,22 @@ invalid-layout growth changes did not fix the failure and were reverted.
 No passing regular-mode acceptance is claimed. This concrete retention bug
 still blocks release. Completed probe data and matching binaries were removed
 after diagnosis, keeping the failing test and this concise reproduction.
+
+### Regular retention root cause and fix
+
+The retained-history failure was caused by picker code calling Terminal's
+EnterAltScreen/ExitAltScreen directly while continuing to resize the inline
+App. That restored the primary screen's pixels without restoring its inline
+history geometry. Subsequent PrintAbove output used alternate-screen layout
+bookkeeping and overwrote primary retained rows. The picker now calls App's
+EnterAlternateScreen/ExitAlternateScreen, which save/restore geometry and
+pixels together. No empty history print or speculative resize workaround is
+needed. No vendored runtime changes were required.
+
+Regular acceptance passes all three sizes, including native scrollback copy,
+retention through output/resize/picker/session transitions, full tool output,
+no mouse capture, exit and reopen. Regular session/model acceptance passes
+all three sizes with exact cancellation snapshots, draft isolation and model
+restart persistence. Full TUI race tests and vet pass under Go 1.27.2.
+This resolves the concrete retention blocker recorded above. Completed probe
+captures, binaries and logs were removed after analysis.
