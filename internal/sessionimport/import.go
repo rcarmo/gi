@@ -443,7 +443,7 @@ func assistantPayload(msg map[string]any) map[string]any {
 			if args == nil {
 				args = map[string]any{}
 			}
-			calls = append(calls, map[string]any{"id": b["id"], "name": giToolName(b["name"]), "arguments": args})
+			calls = append(calls, map[string]any{"id": b["id"], "name": giToolName(b["name"]), "arguments": args, "argumentsError": b["argumentsError"]})
 		}
 	}
 	if len(calls) > 0 {

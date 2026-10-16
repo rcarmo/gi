@@ -4423,7 +4423,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		// session format; the summary content stays for display and context.
 		recordedCalls := make([]map[string]any, 0, len(toolCalls))
 		for _, tc := range toolCalls {
-			recordedCalls = append(recordedCalls, map[string]any{"id": tc.ID, "name": tc.Name, "arguments": tc.Arguments})
+			recordedCalls = append(recordedCalls, map[string]any{"id": tc.ID, "name": tc.Name, "arguments": tc.Arguments, "argumentsError": tc.ArgumentsError})
 		}
 		callsPayload := map[string]any{
 			"kind": "tool_calls", "source": "inference", "model": model,
@@ -4468,6 +4468,9 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 // executeToolWithImages also collects images the tool attaches (nil: tools
 // describe images in text instead).
 func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.ToolCall, sessionID, turnID string, onOutput func(string) error, images *toolExtras) (string, error) {
+	if call.ArgumentsError != "" {
+		return "", fmt.Errorf("Invalid tool arguments: %s", call.ArgumentsError)
+	}
 	if strings.TrimSpace(turnID) != "" {
 		turnRec, err := r.store.GetTurn(ctx, turnID)
 		if err != nil {
@@ -5305,10 +5308,18 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		lastToolFailureSig:       lastToolFailureSig,
 		repeatedToolFailureCount: repeatedToolFailureCount,
 	}
-	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": len(toolCalls)}})
-	defer func() {
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": len(toolCalls)}})
-	}()
+	executableCalls := 0
+	for _, call := range toolCalls {
+		if call.ArgumentsError == "" {
+			executableCalls++
+		}
+	}
+	if executableCalls > 0 {
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}})
+		defer func() {
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}})
+		}()
+	}
 	responsePosted := false
 	for _, call := range toolCalls {
 		if ctx.Err() != nil {
@@ -5317,6 +5328,14 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			return outcome
 		}
 
+		if call.ArgumentsError != "" {
+			if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			continue
+		}
 		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
 			log.Printf("hook tool_call error: %v", err)
 		} else {
@@ -5329,6 +5348,17 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if resp.ToolCall != nil {
 				r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
 				call = *resp.ToolCall
+				if call.Arguments == nil {
+					call.Arguments = map[string]any{}
+				}
+				if call.ArgumentsError != "" {
+					if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
+						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+						outcome.terminated = true
+						return outcome
+					}
+					continue
+				}
 			}
 			if injectedResult, ok := directToolResultFromHook(resp); ok {
 				r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
@@ -5404,6 +5434,17 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if resp.ToolCall != nil {
 				r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
 				call = *resp.ToolCall
+				if call.Arguments == nil {
+					call.Arguments = map[string]any{}
+				}
+				if call.ArgumentsError != "" {
+					if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
+						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+						outcome.terminated = true
+						return outcome
+					}
+					continue
+				}
 			}
 		}
 

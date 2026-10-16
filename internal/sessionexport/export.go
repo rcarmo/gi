@@ -22,9 +22,10 @@ import (
 type Entry map[string]any
 
 type toolCall struct {
-	ID, Name  string
-	Arguments map[string]any
-	Preview   bool // arguments reconstructed from a tool.started preview
+	ID, Name       string
+	ArgumentsError string
+	Arguments      map[string]any
+	Preview        bool // arguments reconstructed from a tool.started preview
 }
 
 // item is one exported conversation element, before serialization.
@@ -159,7 +160,8 @@ func recordedCalls(payload map[string]any) []toolCall {
 		if args == nil {
 			args = map[string]any{}
 		}
-		calls = append(calls, toolCall{ID: id, Name: name, Arguments: args})
+		marker, _ := m["argumentsError"].(string)
+		calls = append(calls, toolCall{ID: id, Name: name, Arguments: args, ArgumentsError: marker})
 	}
 	return calls
 }
@@ -326,7 +328,11 @@ func (it item) entry() Entry {
 			content = append(content, map[string]any{"type": "text", "text": it.text})
 		}
 		for _, c := range it.calls {
-			content = append(content, map[string]any{"type": "toolCall", "id": c.ID, "name": piToolName(c.Name), "arguments": c.Arguments})
+			block := map[string]any{"type": "toolCall", "id": c.ID, "name": piToolName(c.Name), "arguments": c.Arguments}
+			if c.ArgumentsError != "" {
+				block["argumentsError"] = c.ArgumentsError
+			}
+			content = append(content, block)
 		}
 		provider, model := splitModel(it.model)
 		stop, _ := it.source.Payload["stop_reason"].(string)

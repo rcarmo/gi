@@ -470,8 +470,8 @@ func (e *Engine) executeCodemode(ctx context.Context, rt tools.ToolRuntime, call
 // runNestedTool runs one script tool call through the tool hooks.
 func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id string, tool tools.RegisteredTool, rawArgs json.RawMessage) (json.RawMessage, error) {
 	args := map[string]any{}
-	if len(rawArgs) > 0 && string(rawArgs) != "null" {
-		if err := json.Unmarshal(rawArgs, &args); err != nil {
+	if len(rawArgs) > 0 {
+		if err := json.Unmarshal(rawArgs, &args); err != nil || args == nil {
 			return nil, fmt.Errorf("tool %s expects an object argument", tool.Name)
 		}
 	}
@@ -500,7 +500,13 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 			return nil, fmt.Errorf("blocked by hook: %s", reason)
 		}
 		if resp.ToolCall != nil && resp.ToolCall.Name == call.Name {
+			if resp.ToolCall.ArgumentsError != "" {
+				return nil, fmt.Errorf("Invalid tool arguments: %s", resp.ToolCall.ArgumentsError)
+			}
 			call.Arguments = resp.ToolCall.Arguments
+			if call.Arguments == nil {
+				call.Arguments = map[string]any{}
+			}
 		}
 		if hook == HookToolCall {
 			if injected, ok := directToolResultFromHook(resp); ok {

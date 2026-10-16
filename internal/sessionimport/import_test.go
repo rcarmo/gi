@@ -296,3 +296,11 @@ func TestParseRejectsNonSessions(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+func TestAssistantPayloadRetainsArgumentsError(t *testing.T) {
+	payload := assistantPayload(map[string]any{"content": []any{map[string]any{"type": "toolCall", "id": "bad", "name": "shell", "arguments": map[string]any{}, "argumentsError": "Expected object"}}})
+	calls := payload["tool_calls"].([]any)
+	if calls[0].(map[string]any)["argumentsError"] != "Expected object" {
+		t.Fatalf("parse error lost: %+v", payload)
+	}
+}

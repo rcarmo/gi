@@ -604,10 +604,14 @@ func splitModelID(id string) (string, string) {
 }
 
 func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Context, broadcast func(map[string]any), hooks *StreamHooks) (*StreamResult, error) {
+	messages, err := openAICompatMessages(convCtx)
+	if err != nil {
+		return nil, err
+	}
 	payload := map[string]any{
 		"model":    model.ID,
 		"stream":   true,
-		"messages": openAICompatMessages(convCtx),
+		"messages": messages,
 	}
 	if len(convCtx.Tools) > 0 {
 		payload["tools"] = openAICompatTools(convCtx.Tools)
@@ -647,6 +651,7 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	var fullText, fullThinking string
 	usage := &goai.Usage{}
 	toolCalls := map[int]*goai.ToolCall{}
+	argumentFragments := map[int]*strings.Builder{}
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -720,10 +725,12 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 					if call.Arguments == nil {
 						call.Arguments = map[string]any{}
 					}
-					var args map[string]any
-					if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err == nil {
-						call.Arguments = args
+					builder := argumentFragments[tc.Index]
+					if builder == nil {
+						builder = &strings.Builder{}
+						argumentFragments[tc.Index] = builder
 					}
+					builder.WriteString(tc.Function.Arguments)
 				}
 			}
 		}
@@ -740,7 +747,12 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	}
 	for _, idx := range sortedToolCallIndexes(toolCalls) {
 		call := toolCalls[idx]
-		msg.Content = append(msg.Content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments})
+		if fragments := argumentFragments[idx]; fragments != nil {
+			call.Arguments, call.ArgumentsError = completedCompatToolArguments(fragments.String())
+		} else {
+			call.Arguments, call.ArgumentsError = completedCompatToolArguments("")
+		}
+		msg.Content = append(msg.Content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments, ArgumentsError: call.ArgumentsError})
 		if broadcast != nil {
 			broadcast(map[string]any{"type": "tool_call_end", "name": call.Name, "id": call.ID})
 		}
@@ -751,7 +763,7 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	return &StreamResult{Message: msg, Usage: usage, Text: fullText}, nil
 }
 
-func openAICompatMessages(convCtx *goai.Context) []map[string]any {
+func openAICompatMessages(convCtx *goai.Context) ([]map[string]any, error) {
 	messages := make([]map[string]any, 0, len(convCtx.Messages)+1)
 	if strings.TrimSpace(convCtx.SystemPrompt) != "" {
 		messages = append(messages, map[string]any{"role": "system", "content": convCtx.SystemPrompt})
@@ -759,17 +771,69 @@ func openAICompatMessages(convCtx *goai.Context) []map[string]any {
 	for _, msg := range convCtx.Messages {
 		role := strings.ToLower(string(msg.Role))
 		content := goai.GetTextContent(&msg)
+		var imageParts []any
+		for _, block := range msg.Content {
+			if block.Type == "image" {
+				imageParts = append(imageParts, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + block.MimeType + ";base64," + block.Data}})
+			}
+		}
 		if role == "tool" || role == "toolresult" {
 			entry := map[string]any{"role": "tool", "content": content}
 			if msg.ToolCallID != "" {
 				entry["tool_call_id"] = msg.ToolCallID
 			}
+			if len(imageParts) > 0 && strings.TrimSpace(content) == "" {
+				entry["content"] = "(no tool output)"
+			}
 			messages = append(messages, entry)
+			if len(imageParts) > 0 {
+				parts := []any{map[string]any{"type": "text", "text": "Tool result image:"}}
+				parts = append(parts, imageParts...)
+				messages = append(messages, map[string]any{"role": "user", "content": parts})
+			}
 			continue
 		}
-		messages = append(messages, map[string]any{"role": role, "content": content})
+		entry := map[string]any{"role": role, "content": content}
+		if len(imageParts) > 0 {
+			if role != "user" {
+				return nil, fmt.Errorf("compatibility messages do not support images in role %q", role)
+			}
+			var parts []any
+			for _, block := range msg.Content {
+				switch block.Type {
+				case "text":
+					if block.Text != "" {
+						parts = append(parts, map[string]any{"type": "text", "text": block.Text})
+					}
+				case "image":
+					parts = append(parts, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + block.MimeType + ";base64," + block.Data}})
+				}
+			}
+			entry["content"] = parts
+		}
+		if role == "assistant" {
+			var wireCalls []any
+			for _, call := range goai.GetToolCalls(&msg) {
+				args := call.Arguments
+				if args == nil {
+					args = map[string]any{}
+				}
+				arguments, err := json.Marshal(args)
+				if err != nil {
+					return nil, fmt.Errorf("encode tool arguments for %s: %w", call.Name, err)
+				}
+				wireCalls = append(wireCalls, map[string]any{"id": call.ID, "type": "function", "function": map[string]any{"name": call.Name, "arguments": string(arguments)}})
+			}
+			if len(wireCalls) > 0 {
+				entry["tool_calls"] = wireCalls
+				if content == "" {
+					entry["content"] = nil
+				}
+			}
+		}
+		messages = append(messages, entry)
 	}
-	return messages
+	return messages, nil
 }
 
 func openAICompatTools(tools []goai.Tool) []map[string]any {
