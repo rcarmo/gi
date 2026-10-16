@@ -71,11 +71,35 @@ func (s *Store) pageMessages(ctx context.Context, sessionID, before, after strin
 	if conversation {
 		replyTo = conversationReplyToSQL("messages")
 	}
-	query := `select id,session_id,role,` + content + `,payload_json,created_at,coalesce(` + displayID + `,0),` + replyTo + ` from messages where session_id=?`
+	source, prefix := "messages", ""
+	args := []any{}
+	if conversation {
+		// Merge display-only terminal events before cursor filtering and LIMIT.
+		// Provider history and the raw message APIs never query this relation.
+		prefix = `with terminal_events as (` + terminalToolEventsSQL + `), conversation_messages as (
+ select id,session_id,role,content,payload_json,created_at from messages
+ union all
+ select 'terminal:' || turn_id || ':' || json_extract(payload_json,'$.occurrence_id'),
+ ?, 'tool_result', 'Tool execution ' || substr(event_type,6),
+ json_set(payload_json,'$.kind','tool_result','$.tool_name','codemode','$.turn_id',turn_id,
+ '$.status',case when event_type='tool.cancelled' then 'cancelled' else 'error' end,
+ '$.is_error',json('true'),'$.source','terminal_projection'),created_at
+ from terminal_events where json_extract(payload_json,'$.tool')='codemode'
+ and event_type in ('tool.cancelled','tool.aborted')
+ and json_type(payload_json,'$.occurrence_id')='text' and json_extract(payload_json,'$.occurrence_id')!=''
+ ) `
+		source = "conversation_messages as messages"
+		args = append(args, sessionID, sessionID)
+	}
+	payload := "payload_json"
+	if conversation {
+		payload = conversationPayloadSQL
+	}
+	query := prefix + `select id,session_id,role,` + content + `,` + payload + `,created_at,coalesce(` + displayID + `,0),` + replyTo + ` from ` + source + ` where session_id=?`
 	if conversation {
 		query += ` and (` + conversationVisibleSQL + `)`
 	}
-	args := []any{sessionID}
+	args = append(args, sessionID)
 	if cursor != "" {
 		query += ` and (created_at,id) ` + direction + ` (?,?)`
 		args = append(args, c.Time, c.ID)
@@ -96,6 +120,9 @@ func (s *Store) pageMessages(ctx context.Context, sessionID, before, after strin
 		m.Payload, err = unmarshalJSONMap(raw)
 		if err != nil {
 			return out, err
+		}
+		if conversation {
+			m.Payload = conversationPayload(m.Payload)
 		}
 		out.Messages = append(out.Messages, m)
 	}

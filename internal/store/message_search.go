@@ -34,11 +34,15 @@ func (s *Store) searchMessages(ctx context.Context, sessionID, query, scope stri
 	if conversation {
 		replyTo = conversationReplyToSQL("m")
 	}
+	payload := "m.payload_json"
+	if conversation {
+		payload = "json_remove(m.payload_json,'$.provider_message','$.provider_content_blocks','$.added_tool_names')"
+	}
 	rows, err := s.db.QueryContext(ctx, `with recursive
  ancestors(id,parent_session_id) as (select id,parent_session_id from sessions where id=? union select s.id,s.parent_session_id from sessions s join ancestors a on a.parent_session_id=s.id),
  roots(id) as (select id from ancestors where parent_session_id is null or not exists(select 1 from sessions p where p.id=ancestors.parent_session_id)),
  family(id) as (select id from roots union select s.id from sessions s join family f on s.parent_session_id=f.id)
- select m.id,m.session_id,m.role,`+content+`,m.payload_json,m.created_at,coalesce(`+displayID+`,0),`+replyTo+` from messages m
+ select m.id,m.session_id,m.role,`+content+`,`+payload+`,m.created_at,coalesce(`+displayID+`,0),`+replyTo+` from messages m
  where (?='all' or (?='current' and m.session_id=?) or (?='root' and m.session_id in(select id from family)))
  and (`+visible+`) and instr(lower(`+content+`),lower(?))>0
  order by m.created_at desc,m.id desc limit ? offset ?`, sessionID, scope, scope, sessionID, scope, query, limit, offset)
@@ -56,6 +60,9 @@ func (s *Store) searchMessages(ctx context.Context, sessionID, query, scope stri
 		m.Payload, err = unmarshalJSONMap(raw)
 		if err != nil {
 			return nil, err
+		}
+		if conversation {
+			m.Payload = conversationPayload(m.Payload)
 		}
 		out = append(out, m)
 	}

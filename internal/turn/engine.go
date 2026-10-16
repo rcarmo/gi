@@ -2359,6 +2359,16 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		phase = "queued"
 	}
 
+	// Apply recoverable resets without replaying interrupted tool execution.
+	for i := 0; i < 10; i++ {
+		applied, err := e.store.ApplyPendingContextReset(ctx, claim.SessionID, claim.TurnID)
+		if err != nil {
+			return fmt.Errorf("recover pending reset: %w", err)
+		}
+		if !applied {
+			break
+		}
+	}
 	payload := map[string]any{
 		"phase":                "recovery",
 		"checkpoint":           true,
@@ -4372,6 +4382,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			// both history and the visible timeline.
 			msgID := store.NowID("msg")
 			messagePayload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "agent_id": agentID, "iterations": iter}
+			messagePayload["provider_message"] = result
 			r.addResponseRecord(ctx, s, turnID, model, result, messagePayload)
 			r.addRecoveryMarker(ctx, sessionID, turnID, messagePayload)
 			if err := s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, messagePayload); err != nil {
@@ -4419,8 +4430,12 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			"turn_id": turnID, "agent_id": agentID, "display_text": strings.TrimSpace(textContent),
 			"tool_calls": recordedCalls,
 		}
+		callsPayload["provider_message"] = result
 		r.addResponseRecord(ctx, s, turnID, model, result, callsPayload)
-		logutil.WarnIfErr("add assistant tool_calls summary", s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, callsPayload))
+		if err := s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, callsPayload); err != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist assistant tool calls: "+err.Error(), "persistence_error")
+			return
+		}
 
 		outcome := r.executeToolCallsPhase(ctx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, &totalUsage)
 		if outcome.terminated {
@@ -4466,19 +4481,24 @@ func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.Too
 	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", call.Name)
 	}
+	occurrenceID := ""
+	if images != nil {
+		occurrenceID = images.occurrenceID
+	}
 	return tool.Executor(ctx, tools.ToolRuntime{
-		Store:          r.store,
-		SessionID:      sessionID,
-		TurnID:         turnID,
-		WorkspaceRoot:  r.engine.runtimeCfg.WorkspaceRoot,
-		OnOutput:       onOutput,
-		AttachImage:    images.attachFunc(),
-		AddTools:       images.addToolsFunc(),
-		ToolCallID:     call.ID,
-		SetDetails:     images.setDetailsFunc(),
-		AddUsage:       images.addUsageFunc(),
-		PublishMessage: r.engine.publishWidgetMessage,
-		PublishPlan:    r.engine.PublishPlanChanged,
+		ToolOccurrenceID: occurrenceID,
+		Store:            r.store,
+		SessionID:        sessionID,
+		TurnID:           turnID,
+		WorkspaceRoot:    r.engine.runtimeCfg.WorkspaceRoot,
+		OnOutput:         onOutput,
+		AttachImage:      images.attachFunc(),
+		AddTools:         images.addToolsFunc(),
+		ToolCallID:       call.ID,
+		SetDetails:       images.setDetailsFunc(),
+		AddUsage:         images.addUsageFunc(),
+		PublishMessage:   r.engine.publishWidgetMessage,
+		PublishPlan:      r.engine.PublishPlanChanged,
 	}, call)
 }
 
@@ -5316,22 +5336,19 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				if len(displayResult) > 100000 {
 					displayResult = displayResult[:100000] + "\n... (truncated)"
 				}
+				// Hook results have no execution boundary or measured duration.
+				hookOccurrence := store.NowID("tool")
+				if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished",
+					map[string]any{"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"},
+					store.NowID("msg"), displayResult,
+					map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "occurrence_id": hookOccurrence, "source": "hook", "hook_phase": "tool_call"}); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Hook result settlement failed: "+err.Error(), "persistence_error")
+					outcome.terminated = true
+					return outcome
+				}
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(injectedResult)})
-				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
-				logutil.WarnIfErr("append hook-responded tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
-					"phase":         "tool",
-					"tool":          call.Name,
-					"checkpoint":    true,
-					"tool_call_id":  call.ID,
-					"output_length": len(injectedResult),
-					"source":        "hook",
-					// No execution/start event: keep this synthetic result from
-					// terminating an older occurrence with a reused call ID.
-					"occurrence_id": store.NowID("tool"),
-					"hook_phase":    "tool_call",
-				}))
+				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
 				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
-				logutil.WarnIfErr("add injected tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "source": "hook", "hook_phase": "tool_call"}))
 				outcome.lastToolFailureSig = ""
 				outcome.repeatedToolFailureCount = 0
 				continue
@@ -5406,7 +5423,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		})
 
 		reportOutput := r.toolOutputReporter(turnID, sessionID, call.ID, toolOccurrenceID)
-		images := &toolExtras{}
+		images := &toolExtras{occurrenceID: toolOccurrenceID}
 		executionStart := time.Now()
 		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images)
 		durationMS := time.Since(executionStart).Milliseconds()
@@ -5432,17 +5449,22 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if errors.As(toolErr, &resultErr) {
 				errText = resultErr.Text // the complete result, e.g. shell output + exit status (Pi)
 			}
-			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
-			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output": errText}))
-			logutil.WarnIfErr("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
+			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "error": toolErr.Error(),
-			}))
+			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withReplay(map[string]any{
+				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
+			}, errText, true)); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
+			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output": errText}))
+
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 			appendToolResultWithImages(convCtx, call, errText, true, images)
-			logutil.WarnIfErr("add errored tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText+images.transcriptSuffix(), images.withDetails(map[string]any{
-				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
-			})))
+
 			outcome.lastToolFailureSig, outcome.repeatedToolFailureCount = nextRepeatedToolFailureCount(outcome.lastToolFailureSig, outcome.repeatedToolFailureCount, call, toolErr)
 			if outcome.repeatedToolFailureCount >= repeatedToolFailureLimit {
 				msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", outcome.repeatedToolFailureCount, toolErr)
@@ -5472,18 +5494,23 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if len(displayResult) > 100000 {
 				displayResult = displayResult[:100000] + "\n... (truncated)"
 			}
-			r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
-			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult}))
-			logutil.WarnIfErr("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
+			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "output_length": len(toolResult),
-			}))
+			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withReplay(map[string]any{
+				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
+			}, displayResult, false)); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
+			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult}))
+
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 			appendToolResultWithImages(convCtx, call, displayResult, false, images)
 			r.engine.declareLoadedTools(convCtx, images.added)
-			logutil.WarnIfErr("add successful tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult+images.transcriptSuffix(), images.withDetails(map[string]any{
-				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
-			})))
+
 			if tool, ok := r.engine.tools.GetRegistered(call.Name); ok && tool.CompletesTurn {
 				responsePosted = true
 			}
@@ -5503,6 +5530,16 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 	// next model turn. A message queued during one tool must not suppress later
 	// calls from the same response; the queued row stays recoverable until here.
 	if ctx.Err() == nil {
+		if reset, err := s.ApplyPendingContextReset(ctx, sessionID, turnID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+			outcome.terminated = true
+			return outcome
+		} else if reset {
+			r.persistUsage(s, turnID, sessionID, totalUsage, iter)
+			r.finishTurnOK(s, turnID, sessionID, agentID, model, iter)
+			outcome.terminated = true
+			return outcome
+		}
 		if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 			log.Printf("steering dequeue after tool batch: %v", err)
 		} else {
@@ -5514,6 +5551,19 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 func (r *sessionRunner) appendFinalSteeringCheckpoint(s *store.Store, turnID, sessionID string) {
 	bgCtx := r.engine.backgroundContext()
+	// The inbox is bounded. Drain consecutive empty resets here so no reset
+	// remains stranded after the active claim is released. A reset with text
+	// becomes ordinary follow-up work and stops this loop at the FIFO head.
+	for i := 0; i < 10; i++ {
+		applied, err := s.ApplyPendingContextReset(bgCtx, sessionID, turnID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			log.Printf("apply final context reset: %v", err)
+			return
+		}
+		if !applied {
+			break
+		}
+	}
 	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(bgCtx, sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)
 	} else if staged {

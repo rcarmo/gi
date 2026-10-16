@@ -29,7 +29,7 @@ printf '%s\n' '# Fixture workspace' '' 'Sample workspace file.' > "$FIXTURES_ROO
 # Shared compose specs reference a visible (non-root) workspace folder.
 mkdir -p "$FIXTURES_ROOT/workspace/notes"
 printf '%s\n' '# Notes' '' 'Fixture folder.' > "$FIXTURES_ROOT/workspace/notes/index.md"
-printf '%s\n' '{"defaultProvider":"fixture-vibes","defaultModel":"fixture-vibes/fixture-1","defaultThinkingLevel":"low","enabledModels":["fixture-vibes/fixture-1","fixture-vibes/fixture-2"],"maxIterations":4,"inboundWork":{"enabled":false}}' > "$FIXTURES_ROOT/workspace/.pi/settings.json"
+printf '%s\n' '{"defaultProvider":"fixture-vibes","defaultModel":"fixture-vibes/fixture-1","defaultThinkingLevel":"low","enabledModels":["fixture-vibes/fixture-1","fixture-vibes/fixture-2"],"maxIterations":4,"defaultTools":["+codemode"],"inboundWork":{"enabled":false}}' > "$FIXTURES_ROOT/workspace/.pi/settings.json"
 printf '%s\n' '{"assistant":{"assistantName":"Gi Fixture"},"user":{"userName":"Fixture User"}}' > "$FIXTURES_ROOT/workspace/.piclaw/config.json"
 printf '%s\n' '{"fixture-vibes":{"type":"api_key","apiKey":"fixture-only"}}' > "$FIXTURES_ROOT/home/.pi/agent/auth.json"
 # The Makefile builds once before Playwright starts. Replacement workers only

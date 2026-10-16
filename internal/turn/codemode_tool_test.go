@@ -27,7 +27,7 @@ func codemodeTestEngine(t *testing.T) *Engine {
 
 func runCodemode(t *testing.T, e *Engine, sessionID, code string) (string, error) {
 	t.Helper()
-	return e.executeCodemode(context.Background(), tools.ToolRuntime{Store: e.store, SessionID: sessionID, ToolCallID: "tc_cm"},
+	return e.executeCodemode(context.Background(), tools.ToolRuntime{Store: e.store, SessionID: sessionID, ToolCallID: "tc_cm", ToolOccurrenceID: "occurrence_cm"},
 		goai.ToolCall{ID: "tc_cm", Name: codemodeToolName, Arguments: map[string]any{"code": code}})
 }
 
@@ -81,6 +81,9 @@ func TestCodemodeHooksAndFailure(t *testing.T) {
 	var parents []any
 	if _, err := e.RegisterHook(HookToolCall, "test", func(_ context.Context, req HookRequest) (HookResponse, error) {
 		parents = append(parents, req.Payload["parent_tool_call_id"])
+		if req.Payload["parent_occurrence_id"] != "occurrence_cm" {
+			t.Errorf("missing parent occurrence: %#v", req.Payload)
+		}
 		if req.ToolCall != nil && req.ToolCall.Name == "greet" {
 			return HookResponse{Block: true, Reason: "no greetings"}, nil
 		}

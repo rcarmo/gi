@@ -19,11 +19,12 @@ const maxToolImageBytes = 20 << 20
 // become the result's AddedToolNames marker and are declared from the next
 // model call.
 type toolExtras struct {
-	blocks  []goai.ContentBlock
-	notes   []string       // transcript lines describing each image
-	added   []string       // tools loaded by this call
-	details map[string]any // structured result details for renderers (codemode calls)
-	usage   goai.Usage     // model usage made by the tool (codemode models.*)
+	occurrenceID string
+	blocks       []goai.ContentBlock
+	notes        []string       // transcript lines describing each image
+	added        []string       // tools loaded by this call
+	details      map[string]any // structured result details for renderers (codemode calls)
+	usage        goai.Usage     // model usage made by the tool (codemode models.*)
 }
 
 func (t *toolExtras) addUsageFunc() func(goai.Usage) {
@@ -55,6 +56,19 @@ func (t *toolExtras) setDetailsFunc() func(map[string]any) {
 		return nil
 	}
 	return func(d map[string]any) { t.details = d }
+}
+
+// withReplay preserves provider-visible result blocks separately from display text.
+func (t *toolExtras) withReplay(payload map[string]any, text string, failed bool) map[string]any {
+	blocks := []goai.ContentBlock{{Type: "text", Text: text}}
+	if t != nil {
+		blocks = append(blocks, t.blocks...)
+		if !failed && len(t.added) > 0 {
+			payload["added_tool_names"] = append([]string(nil), t.added...)
+		}
+	}
+	payload["provider_content_blocks"] = blocks
+	return t.withDetails(payload)
 }
 
 // withDetails adds the tool's details, if any, to an event or message payload.
