@@ -72,7 +72,9 @@ func TestMarkdownTablePTYFixture(t *testing.T) {
 	goai.RegisterModel(&goai.Model{ID: "table-fixture", Name: "Table fixture", Provider: "table-local", Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, MaxTokens: 4096, ContextWindow: 16384})
 	home := filepath.Join(dir, "home")
 	os.MkdirAll(filepath.Join(home, ".pi", "agent"), 0700)
-	os.Setenv("HOME", home)
+	t.Setenv("HOME", home)
+	t.Setenv("GI_CODING_AGENT_DIR", "")
+	t.Setenv("PI_CODING_AGENT_DIR", "")
 	os.WriteFile(filepath.Join(home, ".pi", "agent", "auth.json"), []byte(`{"table-local":{"type":"api_key","apiKey":"fixture"}}`), 0600)
 	cfg := config.Load(dir)
 	cfg.DefaultModel = "table-local/table-fixture"

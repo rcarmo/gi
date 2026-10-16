@@ -3,6 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	gotui "github.com/grindlemire/go-tui"
@@ -11,6 +12,8 @@ import (
 // editorKeyEvents are the key events go-tui reads for the golden's legacy
 // bytes (scripts/golden-editor-keys.mjs).
 var editorKeyEvents = map[string]gotui.KeyEvent{
+	"up":            {Key: gotui.KeyUp},
+	"down":          {Key: gotui.KeyDown},
 	"left":          {Key: gotui.KeyLeft},
 	"right":         {Key: gotui.KeyRight},
 	"ctrl+a":        {Key: gotui.KeyRune, Rune: 'a', Mod: gotui.ModCtrl},
@@ -40,6 +43,18 @@ var editorKeyEvents = map[string]gotui.KeyEvent{
 // modifiers, else the printable-rune binding for an unmodified rune.
 func pressEditorKey(t *testing.T, m *multilineInput, ev gotui.KeyEvent) {
 	t.Helper()
+	if ev.Key == gotui.KeyUp {
+		if !m.moveVertical(-1) {
+			m.moveHome()
+		}
+		return
+	}
+	if ev.Key == gotui.KeyDown {
+		if !m.moveVertical(1) {
+			m.moveEnd()
+		}
+		return
+	}
 	keys := m.KeyMap()
 	for _, b := range keys {
 		p := b.Pattern
@@ -115,5 +130,34 @@ func TestEditorKeysMatchPi(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestEditorVerticalNavigationWrappedUnicode(t *testing.T) {
+	m := newMultilineInput(12, "", nil, nil)
+	m.width = 12
+	m.SetText("first 中文🙂 e\u0301\n" + strings.Repeat("x", 40) + "\nlast")
+	original := m.Text()
+	steps := 0
+	for m.moveVertical(-1) {
+		steps++
+		if steps > 100 {
+			t.Fatal("Up stuck on a soft-wrap boundary")
+		}
+	}
+	m.moveHome()
+	if m.cursorPos != 0 || steps < 3 {
+		t.Fatalf("home=%d steps=%d", m.cursorPos, steps)
+	}
+	steps = 0
+	for m.moveVertical(1) {
+		steps++
+		if steps > 100 {
+			t.Fatal("Down stuck on a soft-wrap boundary")
+		}
+	}
+	m.moveEnd()
+	if m.cursorPos != len([]rune(original)) || m.Text() != original {
+		t.Fatalf("navigation mutated text or lost final line: cursor=%d", m.cursorPos)
 	}
 }

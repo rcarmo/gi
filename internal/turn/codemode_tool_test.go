@@ -179,6 +179,9 @@ func TestCodemodeCallDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if script, ok := details["script"].(string); !ok || !strings.Contains(script, "tools.greet") {
+		t.Fatalf("missing persisted script: %#v", details["script"])
+	}
 	calls, _ := details["calls"].([]codemodeCallRecord)
 	if len(calls) != 2 || calls[0].Name != "greet" || calls[0].Status != "ok" || calls[0].Args != `{"name":"a"}` || calls[1].Name != "mcp__fake__search_code" || calls[1].Status != "ok" {
 		t.Fatalf("calls: %+v", calls)

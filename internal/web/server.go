@@ -813,6 +813,8 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
+	// Piclaw clears drafts only after explicit admission acknowledgement.
+	result.SourceCommitted = true
 	if req.ClientRequestID != "" {
 		// Native admission already happened: receipt failure is never a reason
 		// to return rejection or retry the POST. Missing recovery stays unknown.

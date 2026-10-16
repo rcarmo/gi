@@ -2,7 +2,8 @@
 import{execFileSync}from'node:child_process';
 import{mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync}from'node:fs';
 import{tmpdir}from'node:os';import{join,resolve}from'node:path';
-const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=resolve('test-results/tui-retry-commands');mkdirSync(out,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-retry-commands');mkdirSync(out,{recursive:true});
 const run=(cmd,args)=>execFileSync(cmd,args,{encoding:'utf8',timeout:15000}),sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(v,m)=>{if(!v)throw Error(m)};
 async function wait(fn,label){for(let i=0;i<160;i++){if(fn())return;await sleep(60)}throw Error('timeout: '+label)}
 const results=[];

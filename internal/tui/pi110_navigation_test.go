@@ -10,7 +10,7 @@ import (
 
 // Fixture values come from the published pi-tui 1.1.0 keybinding definitions.
 func TestPi110NavigationDefinitions(t *testing.T) {
-	raw, err := os.ReadFile("testdata/pi-1.1.0-navigation.json")
+	raw, err := os.ReadFile("testdata/pi-1.3.0-navigation.json")
 	if err != nil {
 		t.Fatal(err)
 	}

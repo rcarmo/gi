@@ -224,6 +224,8 @@ func (c *chatTUI) refreshTranscriptSearch(width int) {
 	if c.search.width == width && c.search.viewport == c.transcriptViewportHeight() && reflect.DeepEqual(c.search.source, c.transcript) && reflect.DeepEqual(c.search.expanded, c.transcriptExpanded) {
 		return
 	}
+	oldIndex := c.search.selected
+	layoutOnly := reflect.DeepEqual(c.search.source, c.transcript) && reflect.DeepEqual(c.search.expanded, c.transcriptExpanded)
 	previous := transcriptSearchMatch{row: -1}
 	if c.search.selected >= 0 && c.search.selected < len(c.search.matches) {
 		previous = c.search.matches[c.search.selected]
@@ -237,7 +239,11 @@ func (c *chatTUI) refreshTranscriptSearch(width int) {
 		c.search.expanded[key] = value
 	}
 	c.updateTranscriptSearchQuery(c.search.query)
-	if previous.row >= 0 && len(c.search.matches) > 0 {
+	// Reflow changes wrapped coordinates, not occurrence order.
+	if layoutOnly && oldIndex >= 0 && oldIndex < len(c.search.matches) {
+		c.search.selected = oldIndex
+		c.setTranscriptPosition(c.search.matches[oldIndex].row)
+	} else if previous.row >= 0 && len(c.search.matches) > 0 {
 		for i, match := range c.search.matches {
 			if match.row > previous.row || (match.row == previous.row && match.start >= previous.start) {
 				c.search.selected = i

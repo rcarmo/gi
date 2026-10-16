@@ -6,7 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=resolve('test-results/tui-regular');mkdirSync(artifacts,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-regular');mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label);};
@@ -45,6 +46,8 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   type('newer draft');keys('Left','Left','Left');
   tmux('copy-mode','-t',pane);tmux('send-keys','-t',pane,'-X','history-top');
   await wait(()=>Number(tmux('display-message','-p','-t',pane,'#{scroll_position}'))>0,'native copy-mode history');
+  // Locate the marker: resize can leave blank scrollback above it.
+  tmux('send-keys','-t',pane,'-X','search-forward','PREEXISTING SHELL OUTPUT');
   // Host-native selection/copy works because Gi never captures mouse or switches screen.
   tmux('send-keys','-t',pane,'-X','start-of-line');tmux('send-keys','-t',pane,'-X','begin-selection');tmux('send-keys','-t',pane,'-X','end-of-line');tmux('send-keys','-t',pane,'-X','copy-selection');
   assert(tmux('show-buffer').includes('PREEXISTING SHELL OUTPUT'),'native selection copy');
@@ -60,10 +63,11 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   tmux('resize-window','-t',session,'-x','80','-y','24');await sleep(180);tmux('resize-window','-t',session,'-x',String(width),'-y',String(height));await sleep(600); // repaint after the resize burst settles
   intact('after resize');assert(capture().includes('second line'),'resize lost multiline tail');
   const lines=capture().replaceAll('▌','').split('\n');assert(lines.some((line,i)=>line.trim()==='newer draft'&&lines[i+1]?.trim()==='second line'),'multiline rows merged after resize');
-  shot('multiline-resized');keys('C-a','C-k');type('newer draft');await sleep(100);
+  shot('multiline-resized');keys('C-a','C-k','BSpace','C-a','C-k');type('newer draft');await sleep(100);
   assert(history().includes('PREEXISTING SHELL OUTPUT'),'resize lost native history');assert(capture().replaceAll('▌','').includes('newer draft'),'resize lost draft');
   intact('before selector');keys('M-m');await wait(()=>capture().includes('Ctrl+S to set as default'),'temporary selector');keys('Escape');await wait(()=>!capture().includes('Ctrl+S to set as default')&&capture().replaceAll('▌','').includes('newer draft'),'selector restores editor');
-  intact('after selector');keys('C-a','C-k');type('!!printf "regular failed outcome\\n"; exit 7');keys('Enter');await wait(()=>history().includes('(exit 7)'),'local error printed');
+  shot('after-selector');intact('after selector');keys('C-a','C-k');type('!!printf "regular failed outcome\\n"; exit 7');keys('Enter');await wait(()=>history().includes('(exit 7)'),'local error printed');
+  shot('after-local-error');intact('after local error');
   assert(ansi().includes('38;2;94;178;134'),'bashMode command color absent from native history');assert(history().includes('Gi received: Native regular 1'),'successful output absent');
   type("!!for i in $(seq 1 40); do printf 'NATIVE-LONG-%02d\\n' $i; done");keys('Enter');await wait(()=>history().includes('NATIVE-LONG-40'),'full tool output');
   assert(history().includes('NATIVE-LONG-01'),'printed collapsed/truncated preview instead of full retained tool output');

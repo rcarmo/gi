@@ -2,7 +2,8 @@
 import{execFileSync}from'node:child_process';
 import{mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync}from'node:fs';
 import{tmpdir}from'node:os';import{join,resolve}from'node:path';
-const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=resolve('test-results/tui-queue-commands');mkdirSync(out,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-queue-commands');mkdirSync(out,{recursive:true});
 const run=(cmd,args)=>execFileSync(cmd,args,{encoding:'utf8',timeout:15000}),sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(v,m)=>{if(!v)throw Error(m)};
 async function wait(fn,label){for(let i=0;i<160;i++){if(fn())return;await sleep(60)}throw Error('timeout: '+label)}
 const results=[];
@@ -21,7 +22,7 @@ for(const mode of ['fullscreen','regular'])for(const[width,height]of[[60,18],[10
   await command('/queue 2');await seen('page 2/2','second page');shot('page2');
   const chronology=sql("SELECT group_concat(id||':'||created_at||':'||updated_at||':'||metadata_json,'|') FROM turns ORDER BY id"),order=()=>sql("SELECT group_concat(id,',') FROM (SELECT id FROM turns WHERE status='queued' ORDER BY queue_position,created_at,id)");
   await command('/queue move q7 before q0');await wait(()=>order()==='q7,q0,q1,q2,q3,q4,q5,q6','move before');assert(sql("SELECT group_concat(id||':'||created_at||':'||updated_at||':'||metadata_json,'|') FROM turns ORDER BY id")===chronology,'reorder rewrote history');shot('moved');
-  keys('C-c');await wait(()=>cap().includes('EXIT'),'exit');tm('kill-session','-t','proof');launch();await wait(()=>cap().includes('test-model'),'reopen');
+  keys('C-c');keys('C-c');await wait(()=>cap().includes('EXIT'),'exit');tm('kill-session','-t','proof');launch();await wait(()=>cap().includes('test-model'),'reopen');
   await command('/queue move q7 after q6');await seen('inspect /queue','restart requires fresh snapshot');assert(order()==='q7,q0,q1,q2,q3,q4,q5,q6','restart order changed');
   await command('/queue');await seen('8 queued','restart queue');
   sql("UPDATE turns SET queue_position=0 WHERE id='q6'");const staleOrder=order();await command('/queue move q7 after q6');await seen('move failed','stale order rejected');assert(order()===staleOrder,'stale mutation changed order');

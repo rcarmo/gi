@@ -6,7 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=resolve('test-results/tui-selection'),socket=`gi-selection-${process.pid}`;mkdirSync(artifacts,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-selection'),socket=`gi-selection-${process.pid}`;mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',['-L',socket,...args]),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label);};
@@ -24,13 +25,14 @@ try{for(const [width,height] of [[60,18],[100,22],[140,36]]){
  const clip=()=>tmux('show-buffer');
  const shot=name=>{const text=capture();writeFileSync(join(artifacts,`${width}x${height}-${name}.txt`),text+'\n');writeFileSync(join(artifacts,`${width}x${height}-${name}.ansi`),ansi());return text;};
  const bars=text=>text.split('\n').map((line,i)=>/^\s*─{10,}\s*$/.test(line)?i:-1).filter(i=>i>=0);
+ const firstFixture=async()=>{keys('C-Home');await sleep(180);keys('C-Down');await wait(()=>{const screen=capture();return screen.trimStart().startsWith('SELECT-01')&&screen.includes('Gi received: SELECT-01')},'first prompt positioned at viewport top')};
  const idle=()=>sql('select count(*) from session_active_turns;')==='0';
  const drag=async(x1,y1,x2,y2)=>{mouse(0,x1,y1);await sleep(100);mouse(32,x2,y2);await sleep(100);mouse(0,x2,y2,true);};
  try{
-  tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
+  tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME='${dir}' PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
   tmux('set-option','-s','set-clipboard','on');tmux('set-option','-t',session,'status','off');await wait(()=>capture().includes('%/'),'startup');
   for(let i=1;i<=22;i++){type(`SELECT-${String(i).padStart(2,'0')} unicode 中文🙂`);keys('Enter');await wait(()=>idle()&&sql("select count(*) from turns where status='completed';")===String(i),'native history');}
-  type('newer selection draft');keys('Left','Left','Left');keys('Home');await wait(()=>capture().includes('SELECT-01'),'top');
+  type('newer selection draft');keys('Left','Left','Left');await firstFixture();
   const baseline=shot('before'),idleBars=bars(baseline),lines=baseline.split('\n'),row=lines.findIndex(l=>l.includes('SELECT-01')),col=lines[row].indexOf('SELECT-01'),secondRow=lines.findIndex(l=>l.includes('Gi received: SELECT-01'));
   // Pi spacing puts the next prompt off a small screen; drag to the reply instead.
   assert(secondRow>row,'reply must be visible for padded drag');
@@ -50,30 +52,30 @@ try{for(const [width,height] of [[60,18],[100,22],[140,36]]){
   type('X');await sleep(120);assert(capture().replaceAll('▌','').includes('selection drXaft'),'selection changed cursor');keys('BSpace');
   // User edits now intentionally jump to latest; restore the original reading
   // position before comparing a reverse drag against the earlier selection.
-  keys('Home');await wait(()=>capture().includes('SELECT-01'),'top before reverse drag');
+  await firstFixture();
   // Drag in reverse copies the same visible rows.
   await drag(col+24,secondRow,col,row);await wait(()=>capture().includes('Selection sent to terminal (OSC 52)'),'reverse copy');assert(clip()===copied,'reverse differs');keys('Escape');await sleep(120);
   // Hold below the viewport. The timer scrolls without more mouse motion.
   mouse(0,col,row+1);await sleep(100);mouse(32,col+24,idleBars[0]-1);await sleep(2400);mouse(0,col+24,idleBars[0]-1,true);
   await wait(()=>capture().includes('Selection sent to terminal (OSC 52)'),'edge copy');assert(clip().includes('SELECT-03'),'edge scroll failed to select offscreen output');shot('edge-scroll');
-  keys('Escape');await sleep(120);keys('Home');await wait(()=>capture().includes('SELECT-01'),'top before resize');
+  keys('Escape');await sleep(120);await firstFixture();
   await drag(col,row,col+12,row+1);await wait(()=>capture().includes('Selection sent to terminal (OSC 52)'),'resize selection');const beforeResize=clip();
   tmux('resize-window','-t',session,'-x','80','-y','24');await sleep(180);tmux('resize-window','-t',session,'-x',String(width),'-y',String(height));await sleep(180);
   assert(!capture().includes('Selection'),'resize retained invalid selection');assert(clip()===beforeResize,'resize copied unexpected data');
   // Current output invalidates a held selection before a delayed release.
-  keys('End','C-a','C-k');type('UX queue gate:select');keys('Enter');await wait(()=>!idle(),'gate');type('newer active draft');keys('Home');await wait(()=>capture().includes('SELECT-01'),'history during run');
+  keys('C-End','C-a','C-k');type('UX queue gate:select');keys('Enter');await wait(()=>!idle(),'gate');type('newer active draft');await firstFixture();
   mouse(0,col,row);await sleep(90);mouse(32,col+18,row+2);await sleep(90);tmux('set-buffer','no stale copy');writeFileSync(join(dir,'select'),'go');
   await wait(()=>idle(),'native completion');await sleep(250);mouse(0,col+18,row+2,true);await sleep(150);
   assert(clip()==='no stale copy','changed transcript copied stale selection');assert(!capture().includes('Selection'),'arrival retained stale selection');
   assert(capture().replaceAll('▌','').includes('newer active draft'),'arrival lost editor');
   assert(sql("select count(*) from messages where role='user';")==='23','selection submitted draft');shot('completed');
   // A normal click still expands a tool, without clipboard writes.
-  keys('End','C-a','C-k');type("!!for i in $(seq 1 24); do printf 'TOOL-%02d\\n' $i; done");keys('Enter');await wait(()=>capture().includes('to expand)'),'collapsed tool');
+  keys('C-End','C-a','C-k');type("!!for i in $(seq 1 24); do printf 'TOOL-%02d\\n' $i; done");keys('Enter');await wait(()=>capture().includes('to expand)'),'collapsed tool');
   const toolRow=capture().split('\n').findIndex(l=>l.includes('to expand)'));tmux('set-buffer','click unchanged');
   mouse(0,col+3,toolRow);await sleep(150);mouse(0,col+3,toolRow,true);await wait(()=>capture().includes('to collapse)'),'plain click expands');assert(clip()==='click unchanged','click copied text');
   // Clipboard opt-out is respected by drag release too.
   type('/copy --off --persist');keys('Enter');await wait(()=>capture().includes('clipboard unavailable'),'clipboard off');
-  keys('Home');await wait(()=>capture().includes('SELECT-01'),'top off');await drag(col,row,col+12,row+1);await wait(()=>capture().includes('Clipboard off'),'opt-out feedback');assert(clip()==='click unchanged','opt-out emitted OSC52');
+  await firstFixture();await drag(col,row,col+12,row+1);await wait(()=>capture().includes('Clipboard off'),'opt-out feedback');assert(clip()==='click unchanged','opt-out emitted OSC52');
   keys('Escape');await sleep(120);type('final unsent draft');
   // View/session transitions discard selections; returning preserves the draft.
   await drag(col,row,col+12,row+1);await wait(()=>capture().includes('Clipboard off'),'selection before picker');

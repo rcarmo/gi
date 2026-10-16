@@ -3,7 +3,8 @@ import {execFileSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=resolve('test-results/tui-editor-viewport');mkdirSync(out,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-editor-viewport');mkdirSync(out,{recursive:true});
 const run=(cmd,args)=>execFileSync(cmd,args,{encoding:'utf8',timeout:15000}),sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(x,m)=>{if(!x)throw Error(m)};
 async function wait(fn,label){for(let i=0;i<150;i++){if(fn())return;await sleep(70)}throw Error('timeout: '+label)}
 const results=[];
@@ -19,10 +20,12 @@ for(const mode of ['fullscreen','regular'])for(const [width,height]of [[60,18],[
   const lines=Array.from({length:32},(_,i)=>`DRAFT-${String(i).padStart(2,'0')} 中文🙂 e\u0301 `+'x'.repeat(width+11)),draft=lines.join('\n');
   for(let i=0;i<lines.length;i++){if(i)keys('C-j');type(lines[i])}
   await wait(()=>cap().includes('DRAFT-31'),'tail visible');assert(editorRows()<=Math.max(5,Math.floor(height*.3)),'editor took transcript');assert(!cap().includes('DRAFT-00'),'unbounded long draft');shot('tail');
-  keys('C-a');await wait(()=>cap().includes('DRAFT-00'),'home visible');type('X');await wait(()=>clean().includes('XDRAFT-00'),'home insertion');keys('BSpace');
-  keys('C-e');await wait(()=>cap().includes('DRAFT-31'),'end visible');type('Y');keys('BSpace');
+  // Pi Ctrl+A/E move within a line; Up/Down navigate the multiline document.
+  keys('C-a');type('X');await wait(()=>clean().includes('XDRAFT-31'),'line-home insertion');keys('BSpace');
+  for(let line=0;line<200;line++)keys('Up');keys('C-a');await wait(()=>cap().includes('DRAFT-00'),'first line visible');type('X');await wait(()=>clean().includes('XDRAFT-00'),'first-line insertion');keys('BSpace');
+  for(let line=0;line<200;line++)keys('Down');keys('C-e');await wait(()=>cap().includes('DRAFT-31'),'last line visible');type('Y');keys('BSpace');
   const beforeMenu=editorRows();keys('M-m');await wait(()=>cap().includes('Ctrl+S to set as default'),'picker');keys('Escape');await wait(()=>!cap().includes('Ctrl+S to set as default'),'picker close');await wait(()=>editorRows()===beforeMenu,'picker editor restored');
-  tm('resize-window','-t','proof','-x','42','-y','14');await sleep(220);keys('C-a');await wait(()=>cap().includes('DRAFT-00'),'small home');assert(editorRows()<=5,'small editor overflow');keys('C-e');await wait(()=>cap().includes('DRAFT-31'),'small end');shot('small');
+  tm('resize-window','-t','proof','-x','42','-y','14');await sleep(220);for(let line=0;line<200;line++)keys('Up');keys('C-a');await wait(()=>cap().includes('DRAFT-00'),'small first line');assert(editorRows()<=5,'small editor overflow');for(let line=0;line<200;line++)keys('Down');keys('C-e');await wait(()=>cap().includes('DRAFT-31'),'small last line');shot('small');
   tm('resize-window','-t','proof','-x',String(width),'-y',String(height));await sleep(220);assert(editorRows()<=Math.max(5,Math.floor(height*.3)),'restored viewport');
   assert(sql('select count(*) from turns;')==='0','navigation submitted draft');keys('Enter');await wait(()=>sql("select count(*) from turns where status='completed';")==='1','submit once');
   const stored=JSON.parse(sql("select json_quote(content) from messages where role='user' order by rowid desc limit 1;"));assert(stored===draft,'draft bytes changed/truncated');await wait(()=>editorRows()===1,'idle shrink');shot('submitted');

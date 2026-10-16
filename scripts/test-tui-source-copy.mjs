@@ -7,7 +7,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 
-const root=process.cwd(),binary=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=resolve('test-results/tui-source-copy');
+const root=process.cwd(),binary=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-source-copy');
 mkdirSync(artifacts,{recursive:true});
 const socket=`gi-source-copy-${process.pid}`;
 const run=(command,args)=>{const result=spawnSync(command,args,{encoding:'utf8',timeout:15000});if(result.status!==0)throw Error(`${command} ${args.join(' ')}: ${result.stderr}`);return result.stdout;};

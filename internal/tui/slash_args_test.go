@@ -52,7 +52,9 @@ func TestSlashArgumentCompletionMatchesPi(t *testing.T) {
 		for _, st := range statuses {
 			describe[st.Name] = gimcp.DescribeState(st)
 		}
-		if describe["github"] == "needs sign-in" && strings.HasPrefix(describe["local"], "connected") {
+		// Connected precedes the asynchronous tools/list refresh. Wait for
+		// the fixture's four tools so descriptions cannot change mid-replay.
+		if describe["github"] == "needs sign-in" && describe["local"] == "connected · 4 tools" {
 			break
 		}
 		if time.Now().After(deadline) {

@@ -164,3 +164,37 @@ func TestActiveCustomThemeReloads(t *testing.T) {
 		t.Fatal("watching a built-in theme")
 	}
 }
+
+// A queued reload must remain harmless after stop, even if the UI drains it later.
+func TestThemeWatcherStopFencesQueuedReload(t *testing.T) {
+	settingsThemeFixture(t)
+	path := filepath.Join(customThemeDirs()[0], "ocean.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := setPiTheme("ocean"); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{}
+	c.uiQueue = make(chan func(), 4)
+	c.watchActiveTheme()
+	t.Cleanup(func() { c.themeWatcher.stop() })
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var reload func()
+	select {
+	case reload = <-c.uiQueue:
+	case <-time.After(3 * time.Second):
+		t.Fatal("theme reload was not queued")
+	}
+	c.themeWatcher.stop()
+	c.themeWatcher.stop() // shutdown is idempotent
+	applyPiTheme("dark")
+	generation := piThemeGeneration
+	reload()
+	if piThemeGeneration != generation || piActiveTheme != "dark" {
+		t.Fatal("stopped watcher applied a queued reload")
+	}
+}

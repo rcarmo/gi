@@ -10,6 +10,13 @@ test('VNC configured policy, real frame and user-input gates', async ({ page, br
     await cpu.send('Profiler.enable'); await cpu.send('Profiler.start');
     await cpu.send('HeapProfiler.enable'); await cpu.send('HeapProfiler.startSampling', { samplingInterval: 32768 });
   }
+  const closeViewer = async () => {
+    const tab = page.getByRole('tab', { name: /vnc/i }).first();
+    await expect(tab).toBeVisible();
+    await tab.getByRole('button').click();
+    await expect(page.locator('.vnc-pane-shell')).toHaveCount(0);
+    await expect(page.locator('.compose-box textarea')).toBeVisible();
+  };
   try {
     const policy = await (await page.request.get('/vnc/session')).json();
     expect(policy.direct_connect_enabled).toBe(false);
@@ -24,6 +31,7 @@ test('VNC configured policy, real frame and user-input gates', async ({ page, br
       await expect(page.getByLabel(/^Server$/i)).toHaveCount(0);
       await expect(page.getByRole('button', { name: /^Connect$/i })).toHaveCount(0);
       await expect(page.locator('[data-display-canvas]')).toHaveCount(0);
+      await closeViewer();
       return;
     }
     await page.getByRole('button', { name: /Live RFB fixture/ }).click();
@@ -60,6 +68,7 @@ test('VNC configured policy, real frame and user-input gates', async ({ page, br
       await page.locator('[data-vnc-clipboard]').fill('clipboard control');
       const count = counter(); await send.click(); await expect.poll(counter).toBeGreaterThan(count);
     }
+    await closeViewer();
   } finally {
     if (cpu) {
       const p = await cpu.send('Profiler.stop'); const h = await cpu.send('HeapProfiler.stopSampling');

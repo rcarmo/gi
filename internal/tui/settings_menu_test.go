@@ -71,6 +71,7 @@ func TestSettingsMenuMatchesPi(t *testing.T) {
 				fmt.Sscan(w, &width)
 				settingsThemeFixture(t)
 				c := sessionTestChat(t)
+				t.Cleanup(func() { c.themeWatcher.stop() })
 				c.cfg.WorkspaceRoot = t.TempDir()
 				c.engine.SetAutoCompaction(true)
 				if name == "theme-pair" {

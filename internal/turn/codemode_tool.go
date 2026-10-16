@@ -442,7 +442,7 @@ func (e *Engine) executeCodemode(ctx context.Context, rt tools.ToolRuntime, call
 	}
 	body, fullOutputPath := e.truncateCodemodeOutput(ctx, rt.SessionID, texts, maxTokens)
 	if rt.SetDetails != nil {
-		details := map[string]any{"calls": calls.snapshot()}
+		details := map[string]any{"calls": calls.snapshot(), "script": code}
 		if fullOutputPath != "" {
 			details["fullOutputPath"] = fullOutputPath
 		}

@@ -263,8 +263,9 @@ func (m *Manager) Tools(ctx context.Context, name string) ([]*mcp.Tool, error) {
 		s.mu.Unlock()
 		return tools, nil
 	}
+	timeout := s.cfg.Timeout
 	s.mu.Unlock()
-	tools, err := listAllTools(ctx, session, s.cfg.Timeout)
+	tools, err := listAllTools(ctx, session, timeout)
 	if err != nil {
 		m.noteFailure(s, session, err)
 		return nil, fmt.Errorf("mcp %s: tools/list: %w", name, err)

@@ -28,6 +28,10 @@ func TestCursorHistoryRoundTripAndSessionPersistence(t *testing.T) {
 	c.input.SetText("draft 中文🙂")
 	c.input.cursorPos = 5
 	historyKey(c, gotui.KeyUp)
+	if c.input.Text() != "draft 中文🙂" || c.input.cursorPos != 0 {
+		t.Fatal("first Up must reach line start before history")
+	}
+	historyKey(c, gotui.KeyUp)
 	if c.input.Text() != "third prompt" {
 		t.Fatal("Up did not recall newest entry")
 	}
@@ -43,13 +47,14 @@ func TestCursorHistoryRoundTripAndSessionPersistence(t *testing.T) {
 	}
 	historyKey(c, gotui.KeyDown)
 	historyKey(c, gotui.KeyDown)
-	if c.input.Text() != "draft 中文🙂" || c.input.cursorPos != 5 {
+	if c.input.Text() != "draft 中文🙂" || c.input.cursorPos != 0 {
 		t.Fatalf("draft lost: %q cursor %d", c.input.Text(), c.input.cursorPos)
 	}
 	historyKey(c, gotui.KeyDown)
 	if c.input.Text() != "draft 中文🙂" {
 		t.Fatal("Down without history changed draft")
 	}
+	historyKey(c, gotui.KeyUp) // Down at document end moved to its end; Up reaches start.
 	historyKey(c, gotui.KeyUp)
 	c.input.insertRune(gotui.KeyEvent{Rune: '!'})
 	if c.histIdx != -1 {
@@ -60,6 +65,7 @@ func TestCursorHistoryRoundTripAndSessionPersistence(t *testing.T) {
 		t.Fatalf("edited entry replaced: %q", c.input.Text())
 	}
 	c.input.SetText("A scratch")
+	historyKey(c, gotui.KeyUp) // first line: move to start
 	historyKey(c, gotui.KeyUp)
 	if !c.switchSession("B") {
 		t.Fatal("switch B")

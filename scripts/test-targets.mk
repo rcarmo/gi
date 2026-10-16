@@ -679,7 +679,7 @@ test-tui-outcomes: build
 	$(BUN) scripts/test-tui-outcomes.mjs
 
 test-tui-reading: build
-	$(BUN) scripts/test-tui-reading.mjs
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-reading.mjs
 
 test-tui-input-history: build
 	FEATURE_FILE=$(abspath features/tui/input_history.feature) ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-input-history TEST_DIR=$(abspath $(TUI_TEST_DIR))-input-history bash scripts/test-tui-gherkin.sh
@@ -932,7 +932,7 @@ test-tui-tool-syntax:
 test-tui-tool-syntax-pty:
 	@mkdir -p $(BIN_DIR)
 	$(GO) test -c -o $(BIN_DIR)/gi-tool-syntax-test ./internal/tui
-	$(BUN) scripts/test-tui-tool-syntax.mjs
+	GI_TOOL_SYNTAX_TEST_BIN=$(abspath $(BIN_DIR)/gi-tool-syntax-test) $(BUN) scripts/test-tui-tool-syntax.mjs
 
 .PHONY: fmt-pi-scroll test-pi-scroll test-go-tui-runtime
 fmt-pi-scroll:
@@ -950,7 +950,11 @@ test-go-tui-runtime:
 test-tui-theme-pty:
 	mkdir -p $(BIN_DIR)
 	$(GO) test -c -o $(BIN_DIR)/gi-theme-test ./internal/tui
-	GI_THEME_TEST_BIN=$(abspath $(BIN_DIR)/gi-theme-test) $(BUN) scripts/test-tui-theme.mjs
+	@set -eu; root="$(GI_TEST_RUN_ROOT)/tests/theme-reference"; mkdir -p "$$root"; \
+	trap 'rm -rf "$$root"' EXIT; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-coding-agent":"1.3.0"}}' > "$$root/package.json"; \
+	$(BUN) install --cwd "$$root"; \
+	PI_NODE_MODULES="$$root/node_modules" GI_THEME_TEST_BIN=$(abspath $(BIN_DIR)/gi-theme-test) $(BUN) scripts/test-tui-theme.mjs
 
 # Reproducible CPU/allocation profiles; artifacts stay on disk.
 TABLE_BENCH ?= BenchmarkComplexMarkdownTable
@@ -1047,18 +1051,21 @@ test-program-status-reader:
 # Compare the current TUI goldens with exact published references, without
 # installing/updating Pi globally or rewriting the checked-in fixtures.
 .PHONY: test-tui-pi110-reference
-test-tui-pi110-reference:
+test-tui-pi110-reference: test-tui-pi130-reference
+
+.PHONY: test-tui-pi130-reference
+test-tui-pi130-reference:
 	$(BUN) test scripts/pi-reference.test.ts
-	@set -eu; root="$(GI_TEST_RUN_ROOT)/pi110-reference"; mkdir -p "$$root/home" "$$root/goldens"; \
+	@set -eu; root="$(GI_TEST_RUN_ROOT)/pi130-reference"; mkdir -p "$$root/home" "$$root/goldens"; \
 	trap 'rm -rf "$$root"' EXIT; \
-	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-tui":"1.1.0","@earendil-works/pi-coding-agent":"1.1.0"}}' > "$$root/package.json"; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-tui":"1.3.0","@earendil-works/pi-coding-agent":"1.3.0"}}' > "$$root/package.json"; \
 	HOME="$$root/home" BUN_INSTALL_CACHE_DIR="$$root/cache" $(BUN) install --cwd "$$root"; \
 	export PI_GOLDEN_OUTPUT_DIR="$$root/goldens" PI_CODING_AGENT_DIR="$$root/home/.pi/agent" GI_CODING_AGENT_DIR="$$root/home/.gi/agent"; \
 	$(BUN) scripts/golden-pi-navigation.mjs "$$root/node_modules/@earendil-works/pi-tui"; \
 	$(BUN) scripts/golden-editor-keys.mjs "$$root/node_modules"; \
 	$(BUN) scripts/golden-hotkeys.mjs "$$root/node_modules"; \
 	for file in "$$root"/goldens/*; do diff -u "internal/tui/testdata/$$(basename "$$file")" "$$file"; done; \
-	echo 'Pi 1.1.0 navigation/editor/hotkeys goldens match; isolated reference disposed'
+	echo 'Pi 1.3.0 navigation/editor/hotkeys goldens match; isolated reference disposed'
 
 .PHONY: tidy
 tidy:

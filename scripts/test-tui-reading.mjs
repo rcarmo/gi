@@ -6,7 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),artifacts=resolve('test-results/tui-reading');mkdirSync(artifacts,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-reading');mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',args),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label);};
@@ -23,7 +24,7 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
  const top=text=>{const lines=text.split('\n'),row=lines.findIndex(line=>line.includes('History record'));return row<0?null:JSON.stringify({row,text:lines[row].replace(/[│█]\s*$/,'').trim()});};
  const idle=()=>sql("select count(*) from session_active_turns;")==='0';
  const completed=n=>sql("select count(*) from turns where status='completed';")===String(n)&&idle();
- const launch=()=>tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${root}/bin/gi' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
+ const launch=()=>tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME='${dir}' PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${process.env.GI_TUI_BIN||root+'/bin/gi'}' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
  try{
   launch();tmux('set-option','-t',session,'status','off');await wait(()=>capture().includes('%/'),'startup');
   for(let i=1;i<=22;i++){type(`History record ${String(i).padStart(2,'0')}`);keys('Enter');await wait(()=>completed(i),`history ${i}`);}
@@ -31,16 +32,18 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   type('UX queue gate:reading');keys('Enter');await wait(()=>!idle()&&capture().includes('UX queue gate:reading'),'native provider blocked');
   keys('PageUp','PageUp');await sleep(180);const reading=shot('reading'),anchor=top(reading);assert(Boolean(anchor),'history anchor absent');
   type('newer draft');keys('Left','Left','Left');await sleep(150);
-  assert(top(capture())===anchor,'typing moved the history reader');
+  await wait(()=>!capture().includes('Jump to latest message'),'typing resumes latest');
   assert(capture().replaceAll('▌','').includes('newer draft'),'new typing lost');
+  keys('PageUp','PageUp');await sleep(180);const completionAnchor=top(capture());assert(Boolean(completionAnchor),'completion history anchor absent');
   writeFileSync(join(dir,'reading'),'release');await wait(()=>completed(23),'native provider completes');await sleep(200);
-  const done=shot('completed');assert(top(done)===anchor,'completion moved history anchor');assert(JSON.stringify(bars(done))===JSON.stringify(idleBars),'completion changed idle rows');
+  const done=shot('completed');assert(top(done)===completionAnchor,'completion moved history anchor');assert(JSON.stringify(bars(done))===JSON.stringify(idleBars),'completion changed idle rows');
   type('X');await sleep(120);assert(capture().replaceAll('▌','').includes('newer drXaft'),'completion moved cursor');keys('BSpace');
+  keys('PageUp','PageUp');await sleep(180);const resizeAnchor=top(capture());
   tmux('resize-window','-t',session,'-x','80','-y','24');await sleep(200);tmux('resize-window','-t',session,'-x',String(width),'-y',String(height));await sleep(200);
-  assert(top(capture())===anchor,'resize round trip moved history anchor');assert(JSON.stringify(bars(capture()))===JSON.stringify(idleBars),'resize added rows');
+  assert(top(capture())===resizeAnchor,'resize round trip moved history anchor');assert(JSON.stringify(bars(capture()))===JSON.stringify(idleBars),'resize added rows');
   type('X');await sleep(120);assert(capture().replaceAll('▌','').includes('newer drXaft'),'resize moved cursor');keys('BSpace');
-  keys('C-a','C-k');type('submitted while reading');keys('Enter');await wait(()=>completed(24),'submit from history');await sleep(180);
-  assert(top(capture())===anchor,'submission moved history reader');assert(sql("select count(*) from messages where role='user' and content='submitted while reading';")==='1','submission duplicated');
+  keys('C-a','C-k');type('submitted while reading');keys('PageUp','PageUp');await sleep(180);const submitAnchor=top(capture());keys('Enter');await wait(()=>completed(24),'submit from history');await sleep(180);
+  assert(top(capture())===submitAnchor,'submission moved history reader');assert(sql("select count(*) from messages where role='user' and content='submitted while reading';")==='1','submission duplicated');
   // Explicit navigation resumes following. No new button, status row or panel.
   for(let i=0;i<12;i++)keys('PageDown');await sleep(200);
   type('following newest edge');keys('Enter');await wait(()=>completed(25),'follow submission');await wait(()=>capture().includes('Gi received: following newest edge'),'newest response visible');

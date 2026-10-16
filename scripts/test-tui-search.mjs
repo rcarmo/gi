@@ -6,7 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=resolve('test-results/tui-search');mkdirSync(artifacts,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-search');mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',args),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label);};
@@ -59,8 +60,8 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   // Reopen tests the persistent component slot, not only initial construction.
   search();await wait(()=>capture().includes('Search 0/0'),'reopen empty');type('Prompt 03');await wait(()=>capture().includes('Search 1/2'),'reopened input works');search();await wait(()=>capture().replaceAll('▌','').includes('unsent editor draft'),'toggle closes');
   const visiblePrompt=n=>capture().split('\n').some(line=>line.replace(/[│█]\s*$/,'').trim()===`Prompt ${String(n).padStart(2,'0')} nebula nebula`);
-  keys('Home');await wait(()=>visiblePrompt(1),'Home before prompt jump');next();await sleep(150);assert(visiblePrompt(2),'next marked prompt');previous();await sleep(150);assert(visiblePrompt(1),'previous marked prompt');
-  keys('End','C-a','C-k');type('UX queue gate:search');keys('Enter');await wait(()=>!idle(),'gate');type('newer active draft');
+  keys('C-Home');next();await wait(()=>capture().trimStart().startsWith('Prompt 01'),'first prompt after startup');next();await sleep(150);assert(visiblePrompt(2),'next marked prompt');previous();await sleep(150);assert(visiblePrompt(1),'previous marked prompt');
+  keys('C-End','C-a','C-k');type('UX queue gate:search');keys('Enter');await wait(()=>!idle(),'gate');type('newer active draft');
   search();await wait(()=>capture().includes('Search 0/0'),'active search');type('Gi received: UX');
   writeFileSync(join(dir,'search'),'release');await wait(()=>idle(),'native completion');await wait(()=>/Search [1-9]\/[1-9]/.test(capture()),'search refreshes on native output');shot('live-match');
   keys('Escape');await wait(()=>capture().includes('newer active draft'),'active query restores newer draft');
