@@ -537,3 +537,20 @@ host adapter checks. The Makefile/test-environment helper now disable that cache
 explicitly; the gate passed again without a command-local override. No source
 assertions or vendored modules were relaxed. This is a verification-environment
 repair; the active shared browser run is untouched.
+
+### Full shared-browser verdict
+
+The six-project matrix completed: **1,519 passed, 71 capability skips, zero
+browser failures** across 1,590 cases. The upstream compliance gate, generated
+from those results without rerunning tests, reports **Gate: OK**: 310 catalogue
+scenarios, 236 passed, zero failed, three skipped and 71 with no suite test. The
+last category is explicitly not passing coverage or a blanket parity claim.
+
+The first reporting invocation failed because its relocated temporary source
+could not resolve AJV. `scripts/fixtures-report.ts` now validates and relocates
+both AJV package imports to the pinned dependency tree, just as it already did
+for local imports. Running the unchanged upstream gate on the completed results
+then succeeded. Only import paths changed; schema and acceptance logic did not.
+The original profiled make invocation therefore remains a failed invocation;
+its successful browser results and successful report regeneration are recorded
+separately. Profile analysis/disposal is still running before final cleanup.

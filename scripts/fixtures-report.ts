@@ -6,12 +6,14 @@ const run = process.env.GI_TEST_RUN_ROOT;
 if (!run || !process.env.PROJECT_TMP_ROOT || !run.startsWith(process.env.PROJECT_TMP_ROOT + '/runs/')) throw Error('Use make fixtures-vibes-report');
 const repo = resolve('references/fixtures-vibes');
 let source = await Bun.file(join(repo, 'suite/report.ts')).text();
-for (const anchor of ["const root = resolve(import.meta.dir, '..');", "const outDir = resolve(root, 'test-results');", "from './runtime'", "from './catalogue'"]) {
+for (const anchor of ["const root = resolve(import.meta.dir, '..');", "const outDir = resolve(root, 'test-results');", "from './runtime'", "from './catalogue'", "from 'ajv/dist/2020'", "from 'ajv-formats'"]) {
   if (!source.includes(anchor)) throw Error('Pinned report path anchor changed: ' + anchor);
 }
 source = source.replace("const root = resolve(import.meta.dir, '..');", `const root = ${JSON.stringify(repo)};`)
   .replace("const outDir = resolve(root, 'test-results');", `const outDir = ${JSON.stringify(join(run, 'results/fixtures'))};`)
-  .replace("from './runtime'", `from ${JSON.stringify(join(repo, 'suite/runtime.ts'))}`)
+  .replace("from 'ajv/dist/2020'", `from ${JSON.stringify(join(repo, 'node_modules/ajv/dist/2020.js'))}`)
+  .replace("from 'ajv-formats'", `from ${JSON.stringify(join(repo, 'node_modules/ajv-formats/dist/index.js'))}`)
+  .replace("from './runtime'",  `from ${JSON.stringify(join(repo, 'suite/runtime.ts'))}`)
   .replace("from './catalogue'", `from ${JSON.stringify(join(repo, 'suite/catalogue.ts'))}`)
   .replace("from '../tools/manifest'", `from ${JSON.stringify(join(repo, 'tools/manifest.ts'))}`);
 mkdirSync(join(run,'report'), {recursive:true});
