@@ -111,3 +111,29 @@ does not claim sandbox execution of the payload. The remaining 42 cases retain
 real fixture turn/lifecycle coverage. Final release profiling and broad browser
 refresh remain required for this new frontend pin. Completed/probe scratch was
 removed after diagnosis, retaining only these conclusions.
+
+### Multiline navigation and structural checkpoint
+
+Mechanical extractions `c08a3387` and `a2835061` move shell-turn execution
+and TUI tool-text formatting, with matching tests, into focused same-package
+files. Declaration blocks were checked unchanged before separating the
+behavioural fix below. This reduces large-file ownership but does not complete
+all suggested #11 boundaries.
+
+The editor viewport PTY exposed an actual gap: Up/Down always recalled history
+instead of navigating multiline drafts. They now move across wrapped editor
+rows on grapheme boundaries and fall back to history at document boundaries.
+A regression covers Unicode, long soft wraps, boundary progress and unchanged
+text. Ctrl+A/E remain line-home/end; the old PTY expected document-home/end
+and was corrected to navigate rows explicitly, retaining exact-content checks.
+
+Six real PTYs passed (fullscreen/regular × 60×18, 100×22, 140×36): bounded
+32-line Unicode editor, cursor insertion, picker restoration, 42×14 resize,
+exact stored draft, one explicit submission and idle shrink. Captures now use
+GI_TEST_RUN_ROOT/tests/tui-editor-viewport. All native packages and go vet
+passed under Go 1.27.2 after the navigation change; editor regression/golden
+keys passed race ×3. Agent-directory overrides were unset: an earlier native
+probe inherited host credential paths and failed isolation-sensitive inference
+tests; that probe is not acceptance evidence. These development checks are not
+final release profiling. Full Pi 1.3 crosswalk, broader PTY/browser refresh and
+issue #16 command policy remain open. Completed scratch was removed after use.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -1940,10 +1941,14 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.Rune('m').Alt(), func(ke gotui.KeyEvent) { c.openModelMenu() }),
 		gotui.OnPreemptStop(gotui.Rune('t').Alt(), func(ke gotui.KeyEvent) { c.cycleThinking(-1) }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
-			c.recallHistory(-1)
+			if !c.input.moveVertical(-1) {
+				c.recallHistory(-1)
+			}
 		}),
 		gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) {
-			c.recallHistory(1)
+			if !c.input.moveVertical(1) {
+				c.recallHistory(1)
+			}
 		}),
 	}
 	if !keys.windows { // Pi's app.suspend (none on Windows, where Ctrl+Z undoes)

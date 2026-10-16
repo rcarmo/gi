@@ -3,6 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	gotui "github.com/grindlemire/go-tui"
@@ -115,5 +116,34 @@ func TestEditorKeysMatchPi(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestEditorVerticalNavigationWrappedUnicode(t *testing.T) {
+	m := newMultilineInput(12, "", nil, nil)
+	m.width = 12
+	m.SetText("first 中文🙂 e\u0301\n" + strings.Repeat("x", 40) + "\nlast")
+	original := m.Text()
+	steps := 0
+	for m.moveVertical(-1) {
+		steps++
+		if steps > 100 {
+			t.Fatal("Up stuck on a soft-wrap boundary")
+		}
+	}
+	m.moveHome()
+	if m.cursorPos != 0 || steps < 3 {
+		t.Fatalf("home=%d steps=%d", m.cursorPos, steps)
+	}
+	steps = 0
+	for m.moveVertical(1) {
+		steps++
+		if steps > 100 {
+			t.Fatal("Down stuck on a soft-wrap boundary")
+		}
+	}
+	m.moveEnd()
+	if m.cursorPos != len([]rune(original)) || m.Text() != original {
+		t.Fatalf("navigation mutated text or lost final line: cursor=%d", m.cursorPos)
 	}
 }

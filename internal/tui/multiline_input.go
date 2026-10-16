@@ -583,6 +583,82 @@ func (m *multilineInput) moveRight() {
 
 // moveHome and moveEnd go to the start and end of the cursor's line (Pi's
 // cursorLineStart/cursorLineEnd).
+// moveVertical moves between wrapped editor rows. At a boundary the caller
+// may recall history instead. Cursor offsets stay on grapheme boundaries.
+func (m *multilineInput) moveVertical(delta int) bool {
+	width := m.width
+	if m.border != gotui.BorderNone {
+		width -= 2
+	}
+	width = editorLayoutWidth(width)
+	type stop struct{ position, column int }
+	var rows [][]stop
+	var logical []editorGrapheme
+	runeOffset := 0
+	flush := func() {
+		wraps := editorWordWrap(logical, width)
+		if len(wraps) == 0 {
+			wraps = [][2]int{{0, 0}}
+		}
+		for _, span := range wraps {
+			column := 0
+			stops := []stop{}
+			for i := span[0]; i < span[1]; i++ {
+				g := logical[i]
+				stops = append(stops, stop{g.runeStart, column})
+				column += min(g.width, width)
+			}
+			end := runeOffset
+			if span[1] < len(logical) {
+				end = logical[span[1]].runeStart
+			}
+			stops = append(stops, stop{end, column})
+			rows = append(rows, stops)
+		}
+		logical = nil
+	}
+	it := graphemes.FromString(m.text)
+	for it.Next() {
+		text := it.Value()
+		count := utf8.RuneCountInString(text)
+		if text == "\n" || text == "\r\n" {
+			flush()
+			runeOffset += count
+			continue
+		}
+		logical = append(logical, editorGrapheme{text: text, width: gotui.StringWidth(text), runeStart: runeOffset, runeCount: count})
+		runeOffset += count
+	}
+	flush()
+	current, column := 0, 0
+	for i, row := range rows {
+		for _, p := range row {
+			if p.position == m.cursorPos {
+				current, column = i, p.column
+			}
+		}
+	}
+	target := current + delta
+	if target < 0 || target >= len(rows) {
+		return false
+	}
+	position := rows[target][0].position
+	for _, p := range rows[target] {
+		// A soft-wrap endpoint belongs to the following row. Selecting it
+		// would leave Up on that row indefinitely at its left edge.
+		if target+1 < len(rows) && p.position == rows[target+1][0].position {
+			break
+		}
+		if p.column > column {
+			break
+		}
+		position = p.position
+	}
+	m.cursorPos = position
+	m.markDirty()
+	return true
+}
+
 func (m *multilineInput) moveHome() { m.cursorPos = m.lineStart(m.clampCursor()); m.markDirty() }
 func (m *multilineInput) moveEnd()  { m.cursorPos = m.lineEnd(m.clampCursor()); m.markDirty() }
 

@@ -292,3 +292,10 @@ input/render lifecycle and clipboard execution. Keep same-package splits
 mechanical before considering new packages. Retry/no-model PTY helpers require
 `GI_TEST_RUN_ROOT` and write disposable captures beneath its `tests/` directory.
 Clean only completed owned run directories; never active jobs or source.
+
+Focused same-package ownership: `internal/tui/tool_text.go` formats tool
+invocations/output; `internal/turn/shell_turn.go` owns bootstrap shell execution
+and its terminal lifecycle. Matching tests live alongside each. The editor
+viewport PTY helper writes only beneath `GI_TEST_RUN_ROOT/tests/` and requires
+the standard project test environment. Up/Down navigate editor visual rows
+before recalling history at document boundaries; Ctrl+A/E remain line-local.
