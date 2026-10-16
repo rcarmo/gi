@@ -582,3 +582,18 @@ compose36/36 across six projects. CPU/allocation summaries were analysed and
 completed captures disposed by the profiler. Node exit heaps describe live
 samples, not allocation history; no speedup claim follows from these runs.
 The full1,590-case matrix is running under patch13-shared; no final verdict yet.
+
+### Additional release-panel audit (patch13)
+
+Running the CI model/session/voice targets directly against the existing merged
+frontend binary found further stale selectors and missing model-picker semantics.
+Voice passed30/30. Session acceptance was updated from removed wrapper IDs to
+native option IDs and listbox active-descendant state; all12 cases pass, including
+first-frame search/navigation and backend pin persistence. No assertions skipped.
+
+Model-panel audit remains red:36 failures /6 passes across six projects. Removed
+`.current-model` markup is a stale test assumption, but trigger `aria-haspopup`,
+listbox busy state and loading/switching guards must be reviewed and restored
+where required before release; do not merely delete these assertions. The active
+1,590-case shared run is untouched and not yet complete. Passing its overlapping
+cases will not substitute for these explicit release-CI contracts.
