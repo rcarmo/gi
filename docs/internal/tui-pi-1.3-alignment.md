@@ -574,3 +574,11 @@ modal is open. Native close-button Enter bypasses session row activation.
 These are focused development results, not final integrated pre-release evidence.
 Frontend/Gi PRs, independent review, profiling and applicable final gates remain
 before a new patch tag. Preserve both failed v0.1.1 and v0.1.2 tags.
+
+Frontend PR6 merged58a97a42; Gi integration pin c3bff8f2. Integrated pre-release
+profiles and checks pass: 35 packages /2,344 tests (99s wall,52.6s CPU,791 MB RSS
+including build), vet, functional147 passed /13 existing skips, picker24/24 and
+compose36/36 across six projects. CPU/allocation summaries were analysed and
+completed captures disposed by the profiler. Node exit heaps describe live
+samples, not allocation history; no speedup claim follows from these runs.
+The full1,590-case matrix is running under patch13-shared; no final verdict yet.
