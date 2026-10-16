@@ -162,3 +162,30 @@ session/model checks were rerun, editor viewport passed all six mode/size
 cases, and the full internal/tui race suite passed under Go 1.27.2. This is
 not final release profiling or exhaustive Pi 1.3 parity. Completed scratch
 and failed-probe captures were deleted after analysis.
+
+### Native profiling and external pending-panel changes
+
+At `a2ee6531`, Go 1.27.2 profiled native acceptance completed 2,340 tests
+across 35 packages with no failures. The retained diagnostic run recorded
+82 seconds test wall time, 41.9 seconds child CPU and 769 MiB peak child RSS
+(including linking); wrapper wall time was 89 seconds. Cumulative CPU,
+alloc_space and alloc_objects were inspected before disposal. TUI allocations
+were 755 MiB: transcriptRowsAtWidth accounted for 266.6 MiB cumulative (35.3%);
+flat NewBuffer 208.4 MiB and segmentStyledRunes 96.2 MiB were substantial.
+TUI allocation objects included cloneModel 518,524 and wrapSpans 479,798.
+Scripting CPU was dominated by embedded-Joker execution (2.27 s cumulative),
+and codemode VM execution accounted for 436.1 MiB cumulative allocations.
+These are whole-test workloads, not production latency estimates. No measured
+improvement is claimed from the repeated run; no equivalent controlled tuning
+comparison was made. Final integrated revision still needs profiling.
+
+Queue-display PTYs then exposed an idle invalidation defect: externally
+removed queue items remained painted when footer data did not change. The
+existing five-second fallback now includes the read-only pending-panel
+projection in change detection, without unconditional redraw. Fullscreen and
+regular queue-display proofs pass: external add/remove, media-only display,
+session isolation, steering/follow-up order, draft preservation and drain.
+The helper now waits for supplied text and dismisses slash completion before
+command execution; captures use its owned run directory. The full TUI race
+suite passes after this fix. Raw profiles, binaries, disposable logs and
+failed probe captures were deleted after analysis.

@@ -744,7 +744,9 @@ func (c *chatTUI) Watchers() []gotui.Watcher {
 		// the session only then, or every few seconds as a fallback.
 		if c.footerCached == nil || time.Since(c.lastFooterCheck) >= footerIdlePoll {
 			c.lastFooterCheck = time.Now()
-			if footer := fmt.Sprintf("%+v", c.footerData()); footer != c.lastFooterSignature {
+			// External queue edits/removals can leave footer counters unchanged.
+			// Include the read-only panel projection in idle change detection.
+			if footer := fmt.Sprintf("%+v\n%q", c.footerData(), c.pendingQueueLines(120, 40)); footer != c.lastFooterSignature {
 				c.lastFooterSignature = footer
 				live = true
 			}
