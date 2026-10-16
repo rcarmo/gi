@@ -88,3 +88,26 @@ These results do not alone establish every requested #30 presentation detail
 (script syntax, duration/error previews and truncated-output links), which
 still require review. They are development acceptance, not final release
 profiling. Completed scratch data is removed after analysis.
+
+### Codemode presentation repair
+
+Frontend `da963f6a` adds literal-text lexical script spans, collapsible source,
+nested error previews and the stored full-output path. The path is shown as a
+copyable reference, not an unsafe arbitrary-URL link. Vendored Piclaw remains
+unchanged. Script tokenisation preserves the original text; it is not a full
+JavaScript parser. Theme colours are inherited, with weight/decoration cues.
+
+Gi now stores the executed script in tool-result details. Conversation pages
+omit intermediate assistant tool-call rows, so a parent-call lookup alone
+cannot reconstruct source on reload. Legacy results without script details
+still render output and do not invent source. The focused native
+TestCodemodeCallDetails passes. Frontend card units pass 12/12 (77 assertions).
+
+The refreshed consumer suite passes 48/48 on all six browser/layout projects,
+including real script persistence on reload and an injected presentation-only
+payload for script tokens, nested error text, full-output path and collapse.
+Injected markup remains literal text with no img/svg elements. This injection
+does not claim sandbox execution of the payload. The remaining 42 cases retain
+real fixture turn/lifecycle coverage. Final release profiling and broad browser
+refresh remain required for this new frontend pin. Completed/probe scratch was
+removed after diagnosis, retaining only these conclusions.

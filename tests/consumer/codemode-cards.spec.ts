@@ -35,6 +35,7 @@ test('Gi codemode: live nested call settles once and survives reload', async ({p
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).locator('.codemode-card-status')).toHaveText('ok');
   await expect(cards(page).locator('.codemode-card-output')).toContainText('CODEMODE_LIVE_OK');
+  await expect(cards(page).locator('.codemode-card-script')).toContainText('const r = await tools.shell');
   await expect(cards(page).locator('.codemode-card-calls')).toContainText('shell');
   const overflow = await cards(page).evaluate(el => el.getBoundingClientRect().right > window.innerWidth + 1);
   expect(overflow).toBe(false);
@@ -103,6 +104,34 @@ test('Gi codemode: legacy saved result without details still renders output on r
   await expect(cards(page).locator('.codemode-card-output')).toContainText('CODEMODE_LEGACY_OUTPUT');
   await expect(cards(page).locator('.codemode-card-calls li')).toHaveCount(0);
   expect(removed).toBeGreaterThan(0);
+});
+
+test('Gi codemode: script tokens, nested error and full-output path remain literal', async ({ page, runtime }) => {
+  const s = await runtime.newSession();
+  await page.goto(s.url); await expect(page.locator('.compose-box textarea')).toBeVisible();
+  await prompt(page, s.id, "const r = await tools.shell({command:'echo CODEMODE_STDOUT'}); return r;");
+  await expect(cards(page).locator('.codemode-card-output')).toContainText('CODEMODE_STDOUT');
+  await page.route('**/api/sessions/*/messages?*', async route => {
+    const response = await route.fetch(); const body = await response.json();
+    for (const row of body.messages || []) {
+      for (const call of row.payload?.tool_calls || []) {
+        if (call.name === 'codemode') call.arguments = { code: 'const value = "<img onerror=alert(1)>"; // literal\nawait shell({timeout: 20});' };
+      }
+      if (row.role === 'tool_result' && row.payload?.tool_name === 'codemode') {
+        row.payload.details = { ...(row.payload.details || {}), script: 'const value = "<img onerror=alert(1)>"; // literal\nawait shell({timeout: 20});', fullOutputPath: 'vfs://codemode-output/s/out.txt',
+          calls: [{ id: 'render-error-call', name: 'shell', status: 'error', error: '<svg onload=alert(1)>', durationMs: 0 }] };
+      }
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await page.reload();
+  await expect(cards(page).locator('.codemode-token-keyword').first()).toHaveText('const');
+  await expect(cards(page).locator('.codemode-token-string')).toContainText('"<img onerror=alert(1)>"');
+  await expect(cards(page).locator('.codemode-card-error')).toHaveText('<svg onload=alert(1)>');
+  await expect(cards(page).locator('.codemode-card-full-output')).toContainText('vfs://codemode-output/s/out.txt');
+  await expect(cards(page).locator('img,svg')).toHaveCount(0);
+  await cards(page).getByText('Script', { exact: true }).click();
+  await expect(cards(page).locator('.codemode-card-script')).not.toBeVisible();
 });
 
 test('Gi reset: in-place reset preserves visible history across reload', async ({page,runtime}) => {
