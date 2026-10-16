@@ -516,3 +516,9 @@ passed. This was a harness invocation failure, not a masked product result.
 Completed raw profiles, failed probe fixtures and matching test binaries are
 removed after analysis; active shared-suite data is retained until its owner
 finishes. The shared suite still has no final verdict.
+
+The remaining targeted TUI checks passed: six syntax PTYs, six tool-timing PTYs
+and 13 theme PTYs against the pinned Pi1.3 package. The successful completion
+marker is `LAST_TUI_PASS`. Temporary reference installs and matching binaries
+are disposable; no global Pi installation was changed. Shared-browser acceptance
+is still running, so this does not close #11 or authorize a release.
