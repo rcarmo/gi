@@ -471,3 +471,32 @@ latest full functional run passed 146 cases with 13 existing capability skips an
 one harness failure: a tab-centre click hit its close control. Targeting the tab
 label fixed that case; focused acceptance passed 2/2. This is not a final full-run
 pass, integrated-main acceptance, or release authorization. Issue #11 stays open.
+
+### Integrated browser and queue-boundary acceptance
+
+Frontend PR #5 merged at `34452428`; Gi PR #61 pins it. Full functional
+acceptance on that tree passed 147/147 runnable cases with 13 existing capability
+skips. The viewport-specific native editor test targets the tab label rather
+than the tab centre, which can legitimately contain its close control.
+
+Issue #11's next mechanical boundary is `a597df8d`: 299 unchanged implementation
+lines move from `engine.go` to `queue_launch.go`; three unchanged launch/conflict
+regressions move to `queue_launch_test.go`. Function/test bodies were compared
+against their pre-move source. No public renames or new sub-packages were added.
+The package composition roots deliberately remain; smaller files are not a
+reason to introduce circular ownership or hide queue invariants.
+
+Post-extraction native pre-release verification passed 35 packages / 2,344 tests,
+vet and the Bun hook check. CPU, allocation-space and allocation-object profiles
+were analysed, then raw captures and matching test binaries were disposed of by
+the profiling helper. Test workload: Go 1.27.2, wall 92s, CPU 54.1s, peak RSS 769 MB
+including build. These are observations, not a controlled speedup comparison.
+Hotspots remain interpreter calls/compilation, bounded auth-state decoding and
+transcript row projection; preserving validation and terminal semantics takes
+priority over speculative caching in this structural change.
+
+Post-extraction PTYs passed regular transcripts (three sizes), session actions
+(six fullscreen/regular cases), queue commands, queue restoration and selection
+(three sizes). The broad 1,590-case shared suite and another profiled functional /
+race / Pi1.3 reference sequence are running. They are not yet passing evidence;
+issue #11 and v0.1.2 remain gated on their results.

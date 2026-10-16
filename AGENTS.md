@@ -295,7 +295,10 @@ Clean only completed owned run directories; never active jobs or source.
 
 Focused same-package ownership: `internal/tui/tool_text.go` formats tool
 invocations/output; `internal/turn/shell_turn.go` owns bootstrap shell execution
-and its terminal lifecycle. Matching tests live alongside each. The editor
+and its terminal lifecycle; `internal/turn/queue_launch.go` owns cancellation,
+claim-conflict steering fallback and queued-turn launch. Matching tests live
+alongside each. `internal/web/api_sessions.go` owns session collection requests;
+`engine.go`, `chat.go` and `server.go` remain same-package composition roots. The editor
 viewport PTY helper writes only beneath `GI_TEST_RUN_ROOT/tests/` and requires
 the standard project test environment. Up/Down navigate editor visual rows
 before recalling history at document boundaries; Ctrl+A/E remain line-local.
