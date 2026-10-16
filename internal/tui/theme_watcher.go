@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -15,14 +16,19 @@ import (
 const themeReloadDelay = 100 * time.Millisecond
 
 type themeWatcher struct {
-	watcher *fsnotify.Watcher
-	done    chan struct{}
+	watcher  *fsnotify.Watcher
+	done     chan struct{}
+	exited   chan struct{}
+	stopOnce sync.Once
 }
 
 func (w *themeWatcher) stop() {
 	if w != nil {
-		close(w.done)
-		_ = w.watcher.Close()
+		w.stopOnce.Do(func() {
+			close(w.done)
+			_ = w.watcher.Close()
+		})
+		<-w.exited
 	}
 }
 
@@ -58,12 +64,24 @@ func (c *chatTUI) watchActiveTheme() {
 		_ = fw.Close()
 		return
 	}
-	w := &themeWatcher{watcher: fw, done: make(chan struct{})}
+	w := &themeWatcher{watcher: fw, done: make(chan struct{}), exited: make(chan struct{})}
 	c.themeWatcher = w
 	go func() {
+		defer close(w.exited)
 		var timer *time.Timer
+		var tick <-chan time.Time
+		defer func() {
+			if timer != nil {
+				timer.Stop()
+			}
+		}()
 		reload := func() {
 			c.runOnUI(func() {
+				select {
+				case <-w.done:
+					return
+				default:
+				}
 				if c.themeWatcher != w || piActiveTheme != name {
 					return // a stale timer after a theme switch
 				}
@@ -82,10 +100,10 @@ func (c *chatTUI) watchActiveTheme() {
 		for {
 			select {
 			case <-w.done:
-				if timer != nil {
-					timer.Stop()
-				}
 				return
+			case <-tick:
+				tick = nil
+				reload()
 			case ev, ok := <-fw.Events:
 				if !ok {
 					return
@@ -96,7 +114,8 @@ func (c *chatTUI) watchActiveTheme() {
 				if timer != nil {
 					timer.Stop()
 				}
-				timer = time.AfterFunc(themeReloadDelay, reload)
+				timer = time.NewTimer(themeReloadDelay)
+				tick = timer.C
 			case _, ok := <-fw.Errors:
 				if !ok {
 					return
