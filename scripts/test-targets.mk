@@ -679,7 +679,7 @@ test-tui-outcomes: build
 	$(BUN) scripts/test-tui-outcomes.mjs
 
 test-tui-reading: build
-	$(BUN) scripts/test-tui-reading.mjs
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-reading.mjs
 
 test-tui-input-history: build
 	FEATURE_FILE=$(abspath features/tui/input_history.feature) ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-input-history TEST_DIR=$(abspath $(TUI_TEST_DIR))-input-history bash scripts/test-tui-gherkin.sh

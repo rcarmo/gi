@@ -383,3 +383,23 @@ func TestTranscriptSearchWrappedWordsLinksAndCollapsedBoundaries(t *testing.T) {
 		t.Fatal("mismatched projection admitted")
 	}
 }
+
+func TestTranscriptSearchResizePreservesOccurrence(t *testing.T) {
+	c := sessionTestChat(t)
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: "resize-search", Kind: "assistant"}, []string{strings.Repeat("padding ", 30) + "needle first", strings.Repeat("padding ", 30) + "needle second"})
+	c.search.active = true
+	c.refreshTranscriptSearch(60)
+	c.updateTranscriptSearchQuery("needle")
+	if len(c.search.matches) != 2 {
+		t.Fatalf("matches=%d", len(c.search.matches))
+	}
+	for _, selected := range []int{0, 1} {
+		c.search.selected = selected
+		for _, width := range []int{140, 60, 100, 60} {
+			c.refreshTranscriptSearch(width)
+			if c.search.selected != selected {
+				t.Fatalf("width=%d selected=%d want=%d", width, c.search.selected, selected)
+			}
+		}
+	}
+}

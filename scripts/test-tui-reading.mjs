@@ -6,7 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),artifacts=resolve('test-results/tui-reading');mkdirSync(artifacts,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-reading');mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',args),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label);};
@@ -23,7 +24,7 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
  const top=text=>{const lines=text.split('\n'),row=lines.findIndex(line=>line.includes('History record'));return row<0?null:JSON.stringify({row,text:lines[row].replace(/[│█]\s*$/,'').trim()});};
  const idle=()=>sql("select count(*) from session_active_turns;")==='0';
  const completed=n=>sql("select count(*) from turns where status='completed';")===String(n)&&idle();
- const launch=()=>tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${root}/bin/gi' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
+ const launch=()=>tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME='${dir}' PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${process.env.GI_TUI_BIN||root+'/bin/gi'}' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
  try{
   launch();tmux('set-option','-t',session,'status','off');await wait(()=>capture().includes('%/'),'startup');
   for(let i=1;i<=22;i++){type(`History record ${String(i).padStart(2,'0')}`);keys('Enter');await wait(()=>completed(i),`history ${i}`);}

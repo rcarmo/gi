@@ -2,7 +2,8 @@
 import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';
-const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=resolve('test-results/tui-session-actions');mkdirSync(out,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const bin=process.env.GI_TUI_BIN||resolve('bin/gi'),out=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-session-actions');mkdirSync(out,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd}: ${r.stderr}`);return r.stdout;},sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(v,m)=>{if(!v)throw Error(m)};
 async function wait(fn,label){const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label)}
 const results=[];
@@ -15,7 +16,7 @@ for(const mode of ['fullscreen','regular'])for(const [width,height] of [[60,18],
  const open=async id=>{await wait(()=>!cap().includes('Resume Session')&&!cap().includes('Session actions'),'picker closed');keys('M-s');await wait(()=>cap().includes('Resume Session'),'picker');type(id);await wait(()=>cap().split('\n').filter(l=>/^(?:› |  )\S.* @\S+ · /.test(l)).length===1,'filtered picker');await sleep(100);keys('Right');await wait(()=>cap().includes('Session actions'),'actions');};
  mkdirSync(join(dir,'.pi'));writeFileSync(join(dir,'.pi/settings.json'),JSON.stringify({model:'test-model',enabledModels:['test-model']}));
  try{
-  tm('new-session','-d','-s','proof','-x',String(width),'-y',String(height),`cd '${dir}' && HOME='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -tui-mode ${mode} -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);tm('set-option','-t','proof','status','off');await wait(()=>cap().includes('%/'),'startup');
+  tm('new-session','-d','-s','proof','-x',String(width),'-y',String(height),`cd '${dir}' && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -tui-mode ${mode} -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);tm('set-option','-t','proof','status','off');await wait(()=>cap().includes('%/'),'startup');
   const main=sql('select id from sessions limit 1;');type('retained native history');keys('Enter');await wait(()=>sql("select count(*) from turns where status='completed';")==='1','history');
   type('/fork actions-child');keys('Enter');await wait(()=>sql('select count(*) from sessions;')==='2'&&cap().includes('@actions-child'),'fork');
   const child=sql(`select id from sessions where parent_session_id='${main}';`);assert(child,'fork not child');

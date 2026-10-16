@@ -333,3 +333,34 @@ relaxation. Full TUI units and vet pass under Go 1.27.2. Completed captures,
 failed probes, reference installs, logs and matching binaries were removed
 after analysis. Remaining terminal/runtime crosswalk and integrated release
 gates are still open.
+
+### Search reflow, session actions and timing
+
+Session-action PTYs passed six fullscreen/regular × size cases: pin/unpin,
+archive/restore, rename save/cancel/validation, root/busy gates, resize,
+draft/cursor/history preservation and stable dock geometry. Transcript search
+passed three fullscreen sizes with 96 occurrence checks, case-insensitive,
+Unicode/cross-wrap matching, precise highlights, next/previous/wrap, hidden
+and expanded tool output, live output, reopen, draft/history restoration and
+no query submissions. A real bug changed the chosen occurrence on resize:
+refresh compared old wrapped coordinates to the new layout. Layout-only
+refresh now retains occurrence index; a native regression covers both matches
+across multiple widths. Content/expansion changes retain their existing
+refresh logic. Startup-aware prompt navigation replaced stale Home assumptions
+in the harness; match-count/selection assertions were not relaxed.
+
+Tool timing passed six mode/size cases: live elapsed ticks, frozen completion
+and failure, native timestamp agreement within the existing 500 ms contract,
+resize/cursor/draft and idle geometry. Full TUI race suite and vet pass under
+Go 1.27.2. These helpers use owned tests/ capture paths and isolated HOME/
+agent overrides. The reading helper now accepts the actual binary override.
+
+Reading-position acceptance is explicitly failing at "typing moved the history
+reader": its assertion requires preserving scroll during edits, while current
+ensureInput deliberately calls scrollTranscriptToBottom on user edits (also
+assumed by selection/search acceptance). Published Pi 1.3 editor input only
+establishes immediate render here, not a directly equivalent Gi fullscreen
+historical-viewport contract. No runtime change or assertion relaxation was
+made to paper over this conflict. This remains an open release/TUI crosswalk
+gate. Completed failure captures, reference installs, logs and binaries were
+removed after diagnosis; concise limitation retained here.

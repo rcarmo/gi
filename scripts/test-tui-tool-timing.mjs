@@ -3,7 +3,8 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=resolve('test-results/tui-tool-timing');mkdirSync(artifacts,{recursive:true});
+if(!process.env.GI_TEST_RUN_ROOT)throw Error('Use make test-env and source scripts/project-test-env.sh');
+const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=join(process.env.GI_TEST_RUN_ROOT,'tests/tui-tool-timing');mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',args),sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(v,m)=>{if(!v)throw Error(m);};
 async function wait(fn,label){const end=Date.now()+16000;while(Date.now()<end){if(await fn())return;await sleep(80);}throw Error('Timed out: '+label);}
@@ -19,7 +20,7 @@ for(const mode of ['fullscreen','regular'])for(const [width,height]of [[60,18],[
  const footprint=()=>{const rows=barRows();if(mode==='fullscreen')return JSON.stringify(rows);const end=cap().trimEnd().split('\n').length;return JSON.stringify({editor:rows.at(-1)-rows.at(-2),dock:end-rows.at(-2)});};
  const line=()=>hist().split('\n').filter(l=>/^\s*(?:Elapsed|Took) \d+(?:\.\d+)?(?:ms|s)/.test(l)).at(-1)?.trim();
  try{
-  tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && HOME='${dir}' PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -tui-mode ${mode} -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);tmux('set-option','-t',session,'status','off');
+  tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME='${dir}' PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -tui-mode ${mode} -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);tmux('set-option','-t',session,'status','off');
   await wait(()=>cap().includes('%/'),'startup');const rows=barRows();assert(rows.length===2,'initial editor bands');const idleFootprint=footprint();writeFileSync(join(artifacts,`${mode}-${width}-baseline.txt`),cap());
   type('UX queue gate:timed');keys('Enter');await wait(()=>!idle()&&sql("select count(*) from turn_events where event_type='tool.started';")==='1','tool start');
   type('draft β middle');keys('Left','Left','Left');await sleep(1200);
