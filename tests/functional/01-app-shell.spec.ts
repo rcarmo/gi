@@ -80,7 +80,7 @@ test.describe('App shell', () => {
     await page.keyboard.press('Control+,');
     const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
     await dialog.getByRole('button', { name: 'Appearance', exact: true }).click();
-    await dialog.getByRole('radio', { name: /^monokai$/i }).check();
+    await dialog.getByRole('radio', { name: 'Monokai Original', exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-color-theme', 'monokai');
     await page.reload(); await waitForAppShell(page);
     await expect(page.locator('html')).toHaveAttribute('data-color-theme', 'monokai');

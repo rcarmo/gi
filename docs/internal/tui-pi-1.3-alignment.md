@@ -438,3 +438,15 @@ functional same-package boundaries without speculative subpackages. Broader
 shared/functional browser acceptance is still running, so #11 remains open.
 No release or deployment is implied. Active run artifacts must not be removed
 until their jobs finish and results are analysed.
+
+### Acceptance follow-up in progress
+
+The functional gate's first run stopped after exposing an obsolete radio
+selector (`monokai` instead of the current `Monokai Original` accessible name).
+The selector now uses the exact current name; persistence and stored theme-ID
+assertions are unchanged. Functional acceptance was restarted and its result
+is not yet established. The independent 1,590-case shared run continues on
+`f1910265` with frontend `237e66dc`; no completed result is claimed. Dependency
+symlinks and active run roots must remain until the owners finish. The later
+session API extraction is a checked pure move, but exact integrated acceptance
+must still include it before release. Do not tag based on these partial runs.
