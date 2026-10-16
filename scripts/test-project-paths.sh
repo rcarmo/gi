@@ -34,6 +34,11 @@ if gi_test_path "$PROJECT_TMP_ROOT/cache" >/dev/null 2>&1; then echo 'out-of-run
 # A second helper inherits the resolved project root, never TMPDIR/gi nesting.
 actual=$(PROJECT_TMP_ROOT="$PROJECT_TMP_ROOT" GI_TEST_RUN_ROOT="$GI_TEST_RUN_ROOT" bash -c 'source "$1"; printf "%s" "$PROJECT_TMP_ROOT"' _ "$ROOT/scripts/project-test-env.sh")
 [[ "$actual" == "$PROJECT_TMP_ROOT" ]]
+# Test helpers and Makefile exports must override stale Bun overlay caches.
+actual=$(BUN_RUNTIME_TRANSPILER_CACHE_PATH="$scratch/stale-cache" bash -c 'source "$1"; printf "%s" "$BUN_RUNTIME_TRANSPILER_CACHE_PATH"' _ "$ROOT/scripts/project-test-env.sh")
+[[ "$actual" == 0 ]]
+actual=$(BUN_RUNTIME_TRANSPILER_CACHE_PATH="$scratch/stale-cache" bash -c 'eval "$(make -s -C "$1" test-env RACE=)"; printf "%s" "$BUN_RUNTIME_TRANSPILER_CACHE_PATH"' _ "$ROOT")
+[[ "$actual" == 0 ]]
 # Fixture guard rejects outside-root and symlink paths before touching them.
 for bad in "$scratch/escape" "$scratch/link" "$scratch/../fixtures-gi-escape"; do
   if FIXTURES_ROOT="$bad" FIXTURES_RUN_ROOT="$scratch" FIXTURE_MODEL_URL=http://127.0.0.1:1 FIXTURE_MODEL_ID=fixture-1 sh "$ROOT/tests/fixtures-vibes/prepare.sh" >/dev/null 2>&1; then echo 'unsafe fixture accepted' >&2; exit 1; fi

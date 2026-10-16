@@ -87,7 +87,7 @@ test('native attachment transport displays upload then sending without blocking 
   await input.fill('functional transfer');await page.locator('.compose-box input[type=file]').setInputFiles({name:'transport.txt',mimeType:'text/plain',buffer:Buffer.from('native transfer bytes')});await input.press('Enter');
   await expect.poll(()=>held).toBe(true);await expect(page.getByRole('progressbar',{name:'Attachment upload progress'})).toBeVisible();await expect(page.locator('.gi-compose-sending')).toHaveCount(0);
   await input.fill('newer functional draft');releaseUpload();await expect.poll(()=>sending).toBe(true);
-  await expect(page.locator('.gi-compose-upload')).toHaveCount(0);await expect(page.locator('.compose-send-stack .send-btn')).toHaveAttribute('aria-busy','true');await expect(input).toHaveValue('newer functional draft');
+  await expect(page.locator('.gi-compose-upload')).toHaveCount(0);await expect(page.getByRole('button',{name:'Sending message',exact:true})).toBeDisabled();await expect(input).toHaveValue('newer functional draft');
   releaseSend();await expect(page.locator('.gi-compose-transfer')).toBeHidden();await expect(input).toHaveValue('newer functional draft');
  }finally{releaseUpload();releaseSend()}
 });
@@ -113,7 +113,7 @@ test('message copy preserves original Markdown and reports unavailable clipboard
  await post.getByRole('button',{name:'Copy message',exact:true}).click();await expect(post.getByRole('button',{name:'Copied',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>window.__copies.at(-1))).toEqual({text:stored.content.trimEnd(),trusted:true});
  await expect(post.getByRole('button',{name:'Copy message',exact:true})).toBeVisible({timeout:5000});
- await page.evaluate(()=>{document.execCommand=()=>false;Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined});});
+ await page.evaluate(()=>{document.execCommand=()=>false;Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined});Object.defineProperty(window,'clipboardData',{configurable:true,value:undefined});});
  await post.getByRole('button',{name:'Copy message',exact:true}).click();await expect(post.getByRole('button',{name:'Copy failed',exact:true})).toBeVisible();
 });
 

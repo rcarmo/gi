@@ -295,7 +295,10 @@ Clean only completed owned run directories; never active jobs or source.
 
 Focused same-package ownership: `internal/tui/tool_text.go` formats tool
 invocations/output; `internal/turn/shell_turn.go` owns bootstrap shell execution
-and its terminal lifecycle. Matching tests live alongside each. The editor
+and its terminal lifecycle; `internal/turn/queue_launch.go` owns cancellation,
+claim-conflict steering fallback and queued-turn launch. Matching tests live
+alongside each. `internal/web/api_sessions.go` owns session collection requests;
+`engine.go`, `chat.go` and `server.go` remain same-package composition roots. The editor
 viewport PTY helper writes only beneath `GI_TEST_RUN_ROOT/tests/` and requires
 the standard project test environment. Up/Down navigate editor visual rows
 before recalling history at document boundaries; Ctrl+A/E remain line-local.
@@ -311,3 +314,12 @@ beneath that owned run and removes it after use; no global Pi install is
 required. Use the Make targets so tool-syntax binaries resolve beneath build/.
 Fixture HOME isolation must also clear PI_CODING_AGENT_DIR and
 GI_CODING_AGENT_DIR, including after login-shell environment initialisation.
+
+`internal/web/api_sessions.go` owns session collection GET/create/fork admission;
+its main-session allocation regression is in `api_sessions_test.go`. Keep this
+same-package boundary mechanical; routing composition remains in `server.go`.
+
+Bun verification disables its runtime transpiler cache with
+`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`. Stale transpilation can retain module
+resolution from an older vendored Piclaw tree even after source pins advance.
+Dependency download caches remain under the project-owned cache root.

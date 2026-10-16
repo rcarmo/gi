@@ -1,6 +1,6 @@
 import {test,expect,chromium,webkit} from '@playwright/test';
 import {spawnSync} from 'node:child_process';
-import {resolve} from 'node:path';
+import {resolve, join} from 'node:path';
 import {BASE_URL} from './helpers';
 
 for(const name of ['chromium','webkit'] as const)test(`${name} conversation excludes tool internals, attributes notices and clears idle activity`,async()=>{
@@ -11,7 +11,7 @@ for(const name of ['chromium','webkit'] as const)test(`${name} conversation excl
  const quote=(s:string)=>`'${s.replaceAll("'","''")}'`;
  const values=rows.map(([key,role,content,payload],i)=>`(${quote(message(key))},${quote(id)},${quote(role)},${quote(content)},${quote(JSON.stringify(payload))},'2026-01-01T00:00:0${i}Z')`).join(',');
  // This target is run only by make test-ux, against its fresh isolated DB.
- const db=resolve(process.env.GI_TEST_DB||'.gi-test/gi.db');const seed=spawnSync('sqlite3',['-cmd','.timeout 5000',db,`insert into messages(id,session_id,role,content,payload_json,created_at) values ${values};`],{encoding:'utf8'});expect(seed.status,seed.stderr).toBe(0);
+ const db=resolve(process.env.GI_TEST_DB||join(process.env.GI_TEST_RUN_ROOT!, 'instance', 'gi.db'));const seed=spawnSync('sqlite3',['-cmd','.timeout 5000',db,`insert into messages(id,session_id,role,content,payload_json,created_at) values ${values};`],{encoding:'utf8'});expect(seed.status,seed.stderr).toBe(0);
  await page.addInitScript(s=>{localStorage.setItem('gi_session_id',s);const Native=window.EventSource;(window as any).__conversationStreams=[];window.EventSource=class extends Native{constructor(url:string|URL,options?:EventSourceInit){super(url,options);(window as any).__conversationStreams.push(this)}};},id);
  let active=false;
  await page.route(`**/api/sessions/${id}/activity`,r=>r.fulfill({json:{status:active?'running':'idle',phase:active?'running':'failed',turn_id:'fixture-turn',tool:{tool_call_id:'old',name:'shell',state:'completed',duration_ms:0}}}));

@@ -125,9 +125,9 @@ test('native assistant read-aloud toggles and clears on audio failure without su
  const accepted=await request.post(`/api/sessions/${session.id}/prompt`,{data:{prompt:'Native spoken message',model:'test-model'}});expect(accepted.status()).toBe(202);
  await expect.poll(async()=>((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns||[])[0]?.status).toBe('completed');
  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto(BASE_URL);const input=getComposeInput(page);await input.fill('unsent draft');
- await page.getByRole('button',{name:'Read aloud',exact:true}).click();await expect(page.getByRole('button',{name:'Stop reading aloud',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'Read aloud',exact:true}).click();await expect(page.getByRole('button',{name:'Stop reading aloud',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>(window as any).__utterances[0].text)).toContain('Native spoken message');await page.evaluate(()=>(window as any).__utterances[0].onerror());
- await expect(page.getByRole('button',{name:'Read aloud',exact:true})).toHaveAttribute('aria-pressed','false');await expect(input).toHaveValue('unsent draft');expect((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns).toHaveLength(1);
+ await expect(page.getByRole('button',{name:'Read aloud',exact:true})).toBeVisible();await expect(input).toHaveValue('unsent draft');expect((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns).toHaveLength(1);
 });
 
 test('native completed shell retains durable timing without a persistent activity footer',async({page,request})=>{

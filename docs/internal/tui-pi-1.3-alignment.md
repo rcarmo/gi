@@ -412,3 +412,145 @@ all three sizes with exact cancellation snapshots, draft isolation and model
 restart persistence. Full TUI race tests and vet pass under Go 1.27.2.
 This resolves the concrete retention blocker recorded above. Completed probe
 captures, binaries and logs were removed after analysis.
+
+### Issue review and final shared-compliance restart
+
+Merged frontend PR #4 (`237e66dc`) and Gi PR #60 (`f1910265`) repair active
+compaction accessibility: active meters no longer advertise the idle Compact
+context action; the shared locator recognises the active measurement without
+matching Stop response. All 54 shared compaction cases pass. The first full
+shared run was interrupted after exposing these failures and is not passing
+evidence. Full 1,590-case shared compliance was restarted on the repaired tree;
+its result must be recorded separately when complete.
+
+Issues #47 and #30 were closed with merged VNC/codemode acceptance; #25 was
+closed after #30 plus integrated MCP/codemode/TUI/turn race suites passed.
+#16 is closed as a decision: offline bounded changelog, allowlisted local-only
+bug preview and explicit unsupported trust. Project MCP config remains
+ignored; a meaningful trust/enforcement system is future scope, not implied
+by this closure. Documentation's obsolete OAuth/codemode status is corrected.
+
+For #11, `04abdf54` mechanically extracts the session collection handler into
+api_sessions.go and moves its main-session allocation test alongside it.
+The declaration block was checked unchanged; all native tests and vet pass.
+Together with command/tool-text/shell-turn extractions, this establishes
+functional same-package boundaries without speculative subpackages. Broader
+shared/functional browser acceptance is still running, so #11 remains open.
+No release or deployment is implied. Active run artifacts must not be removed
+until their jobs finish and results are analysed.
+
+### Acceptance follow-up in progress
+
+The functional gate's first run stopped after exposing an obsolete radio
+selector (`monokai` instead of the current `Monokai Original` accessible name).
+The selector now uses the exact current name; persistence and stored theme-ID
+assertions are unchanged. Functional acceptance was restarted and its result
+is not yet established. The independent 1,590-case shared run continues on
+`f1910265` with frontend `237e66dc`; no completed result is claimed. Dependency
+symlinks and active run roots must remain until the owners finish. The later
+session API extraction is a checked pure move, but exact integrated acceptance
+must still include it before release. Do not tag based on these partial runs.
+
+### Browser acceptance repairs after the stopped shared run
+
+The theme/picker matrix passed 126/126 across six projects after the stored
+appearance-command receipt (`9900bc08`) and deferred picker focus changes. Web
+race checks, native tests and vet also passed at that checkpoint.
+
+Subsequent functional diagnosis found and repaired real host integration gaps:
+mobile picker dismissal, duplicate hidden-file event ownership, expanded subtree
+refresh, clipboard guard resolution before the overlay resolver, session prefix
+matching, clean external editor refresh notifications, and mobile tab/menu overlap.
+The shared frontend checkpoint is `a45cb2da`; its units pass 193/193 and the hook
+check and build pass. Vendored Piclaw sources remain unchanged.
+
+Functional tests now use native option IDs/ARIA state, native editor tabs and
+Markdown preview, revision-conditional saves, and the project-owned fixture DB.
+The removed custom read-only tab host is not the current editor contract. The
+latest full functional run passed 146 cases with 13 existing capability skips and
+one harness failure: a tab-centre click hit its close control. Targeting the tab
+label fixed that case; focused acceptance passed 2/2. This is not a final full-run
+pass, integrated-main acceptance, or release authorization. Issue #11 stays open.
+
+### Integrated browser and queue-boundary acceptance
+
+Frontend PR #5 merged at `34452428`; Gi PR #61 pins it. Full functional
+acceptance on that tree passed 147/147 runnable cases with 13 existing capability
+skips. The viewport-specific native editor test targets the tab label rather
+than the tab centre, which can legitimately contain its close control.
+
+Issue #11's next mechanical boundary is `a597df8d`: 299 unchanged implementation
+lines move from `engine.go` to `queue_launch.go`; three unchanged launch/conflict
+regressions move to `queue_launch_test.go`. Function/test bodies were compared
+against their pre-move source. No public renames or new sub-packages were added.
+The package composition roots deliberately remain; smaller files are not a
+reason to introduce circular ownership or hide queue invariants.
+
+Post-extraction native pre-release verification passed 35 packages / 2,344 tests,
+vet and the Bun hook check. CPU, allocation-space and allocation-object profiles
+were analysed, then raw captures and matching test binaries were disposed of by
+the profiling helper. Test workload: Go 1.27.2, wall 92s, CPU 54.1s, peak RSS 769 MB
+including build. These are observations, not a controlled speedup comparison.
+Hotspots remain interpreter calls/compilation, bounded auth-state decoding and
+transcript row projection; preserving validation and terminal semantics takes
+priority over speculative caching in this structural change.
+
+Post-extraction PTYs passed regular transcripts (three sizes), session actions
+(six fullscreen/regular cases), queue commands, queue restoration and selection
+(three sizes). The broad 1,590-case shared suite and another profiled functional /
+race / Pi1.3 reference sequence are running. They are not yet passing evidence;
+issue #11 and v0.1.2 remain gated on their results.
+
+The post-extraction profiled functional rerun also passed 147 cases with 13
+existing skips. Race checks passed for TUI (50.867s), turn (55.196s), web (19.448s)
+and MCP (5.058s); Pi1.3 navigation/editor/hotkey goldens passed. Functional
+profiling observed 249s wall, 100s CPU and 1,368 MB peak RSS. Node exit heap samples
+are live allocations, not allocation history; repository Go allocation profiles
+were analysed separately. No measured performance improvement is claimed.
+
+Extended PTYs passed editor viewport, sessions/model restoration, search and
+reading. Tables initially could not launch because the standalone script needs
+`GI_TABLE_PTY_BIN`, not `GI_TUI_BIN`; after building the matching test binary and
+providing the documented variable, all six table cases and six source-copy cases
+passed. This was a harness invocation failure, not a masked product result.
+Completed raw profiles, failed probe fixtures and matching test binaries are
+removed after analysis; active shared-suite data is retained until its owner
+finishes. The shared suite still has no final verdict.
+
+The remaining targeted TUI checks passed: six syntax PTYs, six tool-timing PTYs
+and 13 theme PTYs against the pinned Pi1.3 package. The successful completion
+marker is `LAST_TUI_PASS`. Temporary reference installs and matching binaries
+are disposable; no global Pi installation was changed. Shared-browser acceptance
+is still running, so this does not close #11 or authorize a release.
+
+Cross-compilation passed for Linux/amd64, Linux/arm64, Darwin/amd64,
+Darwin/arm64 and Windows/amd64 through `check-cross-build`. Windows/arm64 was
+built separately to cover the sixth release matrix target and also passed.
+These are build checks, not runtime tests on those operating systems. Disposable
+cross-build outputs were removed at completion. The shared-browser suite remains
+active and has no final verdict.
+
+The integrated web-adapter gate exposed stale Bun transpiler entries resolving
+Piclaw3.3.0 imports after the pin moved to3.3.4. Repeating the unchanged tests
+with `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` passed 193/193 frontend units and the
+host adapter checks. The Makefile/test-environment helper now disable that cache
+explicitly; the gate passed again without a command-local override. No source
+assertions or vendored modules were relaxed. This is a verification-environment
+repair; the active shared browser run is untouched.
+
+### Full shared-browser verdict
+
+The six-project matrix completed: **1,519 passed, 71 capability skips, zero
+browser failures** across 1,590 cases. The upstream compliance gate, generated
+from those results without rerunning tests, reports **Gate: OK**: 310 catalogue
+scenarios, 236 passed, zero failed, three skipped and 71 with no suite test. The
+last category is explicitly not passing coverage or a blanket parity claim.
+
+The first reporting invocation failed because its relocated temporary source
+could not resolve AJV. `scripts/fixtures-report.ts` now validates and relocates
+both AJV package imports to the pinned dependency tree, just as it already did
+for local imports. Running the unchanged upstream gate on the completed results
+then succeeded. Only import paths changed; schema and acceptance logic did not.
+The original profiled make invocation therefore remains a failed invocation;
+its successful browser results and successful report regeneration are recorded
+separately. Profile analysis/disposal is still running before final cleanup.

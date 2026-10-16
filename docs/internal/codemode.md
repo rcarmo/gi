@@ -123,7 +123,7 @@ The web UI shows tool calls only while they run (its status panel), so it has no
 
 ## Models API (`internal/turn/codemode_models.go`)
 
-`models.*` is a port of Pi's `createModelGlobals`. The typed catalogs come from go-ai v1.0.1 (`internal/inference/models_api.go`).
+`models.*` is a port of Pi's `createModelGlobals`. The typed catalogs come from go-ai v1.3.0 (`internal/inference/models_api.go`).
 
 - **`getModelsOfType(type, provider?)`, `getModelOfType(type, provider, id)`:** chat, image and classifier entries, without `headers`.
 - **`getAvailableOfType(type, provider?)`:** keeps only models whose provider has credentials. For chat that is the model picker's authenticated models; for the others, an auth.json entry or the provider's environment variable.

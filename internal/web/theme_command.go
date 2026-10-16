@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -189,7 +188,10 @@ func (s *Server) handleThemeCommand(w http.ResponseWriter, r *http.Request, sess
 		writeJSON(w, 404, map[string]any{"error": err.Error()})
 		return true
 	}
-	_, _ = s.turns.PostSystemMessage(context.Background(), sessionID, result.Message, map[string]any{"kind": "ui_theme", "command": prompt})
-	writeJSON(w, 200, map[string]any{"thread_id": nil, "ui_only": true, "command": result})
+	if _, err := s.turns.PostSystemMessage(r.Context(), sessionID, result.Message, map[string]any{"kind": "ui_theme", "command": prompt}); err != nil {
+		writeJSON(w, 500, map[string]any{"error": "Could not persist appearance command result"})
+		return true
+	}
+	writeJSON(w, 200, map[string]any{"thread_id": nil, "ui_only": true, "source_committed": true, "command": result})
 	return true
 }

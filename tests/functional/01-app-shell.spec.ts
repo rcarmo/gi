@@ -80,7 +80,7 @@ test.describe('App shell', () => {
     await page.keyboard.press('Control+,');
     const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
     await dialog.getByRole('button', { name: 'Appearance', exact: true }).click();
-    await dialog.getByRole('radio', { name: /^monokai$/i }).check();
+    await dialog.getByRole('radio', { name: 'Monokai Original', exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-color-theme', 'monokai');
     await page.reload(); await waitForAppShell(page);
     await expect(page.locator('html')).toHaveAttribute('data-color-theme', 'monokai');
@@ -208,7 +208,7 @@ test('rapid reverse timeline swipe restores its originating session draft', asyn
   await page.goto(BASE_URL); await waitForAppShell(page);
   const input = page.getByRole('textbox', { name: 'Message (Enter to send, Shift+Enter for newline)...', exact: true }); await input.fill('functional rapid draft');
   await page.getByRole('button', { name: /Manage sessions for/ }).last().click();
-  await expect(page.locator(`.compose-session-popup [data-session-jid="gi:${b}"]`)).toBeVisible(); await page.keyboard.press('Escape');
+  await expect(page.locator(`[id="compose-session-option-gi%3A${b}"]`)).toBeVisible(); await page.keyboard.press('Escape');
   const visits = await page.evaluate(async () => {
     const result: string[] = [];
     for(const delta of [-105,105]) {
@@ -235,7 +235,7 @@ test('active status-panel fixture shares session swipe navigation without submit
   await page.route(`**/api/sessions/${a}/activity`,r=>r.fulfill({json:{status:'running',phase:'inference',turn_id:'swipe-fixture'}}));
   await page.goto(BASE_URL); await waitForAppShell(page);
   const input = page.locator('.compose-box textarea'); await input.fill('unsent status draft');
-  await page.getByRole('button', { name: /Manage sessions for/ }).last().click(); await expect(page.locator(`.compose-session-popup [data-session-jid="gi:${b}"]`)).toBeVisible(); await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /Manage sessions for/ }).last().click(); await expect(page.locator(`[id="compose-session-option-gi%3A${b}"]`)).toBeVisible(); await page.keyboard.press('Escape');
   const panel = page.locator('.agent-status-panel'); await expect(panel).toBeVisible();
   await expect(page.locator('link[href^="/css/gi-status.css"]')).toHaveCount(1);
   await expect(panel).toHaveCSS('max-height', '40%'); await expect(panel).toHaveCSS('overflow-y','auto');
@@ -258,9 +258,9 @@ test('native timeline controls and modal fields receive their own keyboard event
   await copy.evaluate(el=>{(window as any).__functionalKeys=[];el.addEventListener('keydown',e=>(window as any).__functionalKeys.push(e.key));});
   await copy.press('q');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q']);await expect(page.locator('.timeline-quick-actions')).toHaveCount(0);
   await page.getByRole('button',{name:'Open model picker',exact:true}).click();const popup=page.getByRole('listbox',{name:'Models',exact:true});await expect(popup).toBeVisible();
-  const active=await popup.locator('.active').textContent();await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog',{name:'Settings',exact:true}),name=dialog.getByLabel('Assistant display name',{exact:true});await name.focus();
+  const active=await popup.locator('[aria-selected="true"]').textContent();await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog',{name:'Settings',exact:true}),name=dialog.getByLabel('Assistant display name',{exact:true});await name.focus();
   await name.evaluate(el=>{(window as any).__functionalKeys=[];el.addEventListener('keydown',e=>(window as any).__functionalKeys.push(e.key));});
-  await name.press('q');await name.press('ArrowDown');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q','ArrowDown']);expect(await popup.locator('.active').textContent()).toBe(active);
+  await name.press('q');await name.press('ArrowDown');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q','ArrowDown']);expect(await popup.locator('[aria-selected="true"]').textContent()).toBe(active);
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(popup).toBeVisible();await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);
   expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns).toHaveLength(1);
 });
@@ -273,7 +273,7 @@ test('Quick Actions dismissal restores Conversation without submitting the draft
  await page.keyboard.press('q');await expect(query).toHaveValue('q');await expect(query).toBeFocused();const b=await page.getByRole('button',{name:'Send message',exact:true}).boundingBox();await page.mouse.click(b!.x+b!.width/2,b!.y+b!.height/2);await expect(palette).toHaveCount(0);await expect(conversation).toBeFocused();await expect(input).toHaveValue('functional dismissal draft');expect((await(await request.get(`/api/sessions/${id}/turns`)).json()).turns||[]).toEqual([]);
 });
 
-test('session typeahead moves native focus from a substring to a prefix without sending',async({page,request})=>{
+test('session typeahead moves native active descendant from a substring to a prefix without sending',async({page,request})=>{
  const token=`functional-typeahead-${Date.now()}`;
  const create=async(title:string)=>{const r=await request.post('/api/sessions',{data:{agent_id:title,title}});expect(r.status()).toBe(201);return r.json();};
  const main=await create(token),substring=await create(`z-alpha-${token}`),prefix=await create(`alpha-${token}`);
@@ -281,7 +281,7 @@ test('session typeahead moves native focus from a substring to a prefix without 
  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto(BASE_URL);await waitForAppShell(page);
  const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('functional typeahead draft');
  const trigger=page.getByRole('button',{name:/Manage sessions for/}).last();await trigger.click();const search=page.getByRole('searchbox',{name:'Search sessions',exact:true});await search.fill(token);
- const row=(id:string)=>page.locator(`.compose-session-popup [data-session-jid="gi:${id}"]`).getByRole('option');await row(substring.id).focus();await row(substring.id).press('a');await expect(row(prefix.id)).toBeFocused();await expect(row(prefix.id)).toHaveClass(/active/);await expect(search).toHaveValue(token);
+ const row=(id:string)=>page.locator(`[id="compose-session-option-gi%3A${id}"]`);await row(substring.id).focus();await row(substring.id).press('a');await expect(page.getByRole('listbox',{name:'Sessions and agents',exact:true})).toHaveAttribute('aria-activedescendant',`compose-session-option-gi%3A${prefix.id}`);await expect(row(prefix.id)).toHaveAttribute('aria-selected','true');await expect(search).toHaveValue(token);
  await page.keyboard.press('Enter');await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(prefix.id);await expect(input).toHaveValue('');await trigger.click();await row(main.id).click();await expect(input).toHaveValue('functional typeahead draft');expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[]).toEqual([]);
 });
 

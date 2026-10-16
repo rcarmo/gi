@@ -62,7 +62,7 @@ test.describe('System meters', () => {
     await waitForAppShell(page);
     const hud = page.locator('.system-meters-hud');
     await expect(hud).toBeVisible();
-    await expect(hud.getByRole('button', { name: /System meters/i })).toHaveAttribute('aria-expanded', 'true');
+    await expect(hud.getByRole('button', { name: /System meters/i }).filter({hasText:/^CPU/})).toHaveAttribute('aria-expanded', 'true');
     await expect(hud.locator('.system-meters-row.cpu')).toContainText('CPU');
     await expect(hud.locator('.system-meters-row.ram')).toContainText('RAM');
     await expect(hud.locator('.system-meters-row.cpu .system-meters-value')).toContainText('%');
