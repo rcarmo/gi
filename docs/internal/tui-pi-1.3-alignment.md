@@ -189,3 +189,35 @@ The helper now waits for supplied text and dismisses slash completion before
 command execution; captures use its owned run directory. The full TUI race
 suite passes after this fix. Raw profiles, binaries, disposable logs and
 failed probe captures were deleted after analysis.
+
+### Published Pi 1.3 reference and selection checkpoint
+
+The exact published @earendil-works/pi-tui and pi-coding-agent 1.3.0 packages
+now drive `make test-tui-pi130-reference` (the old pi110 target is an alias).
+Navigation defaults, existing editor scenarios and all four platform hotkey
+fixtures match. A new upstream-generated vertical-column scenario verifies
+column restoration across short lines. Pi keeps a preferred visual column;
+Gi now does so too, resetting it on edits and horizontal/line navigation.
+Up at the first visual row moves to line start before entering history;
+Down at the last row moves to line end unless already browsing history.
+History ownership tests reflect these measured Pi semantics. README now states
+Go 1.27.2, go-ai v1.3.0 and the in-progress Pi TUI 1.3.0 target, not old pins.
+
+Real fullscreen selection/copy PTYs passed at 60×18, 100×22 and 140×36:
+SGR double-word/triple-line and reverse-word selection, forward/reverse drag,
+OSC52 release/Ctrl-C/Ctrl-X copy, opt-out, highlight/Escape/editor preservation,
+held-edge autoscroll, resize/output invalidation and no added idle rows.
+The harness isolates HOME and agent overrides, navigates with Ctrl+Home and
+Ctrl+Down to the first prompt rather than assuming plain Home or page offsets,
+and puts captures under GI_TEST_RUN_ROOT/tests/tui-selection. One refreshed
+run timed out at the 140×36 double-click check; an unchanged rerun passed all
+three sizes. This remains a timing/flakiness limitation, not deterministic
+release evidence. No assertion was relaxed to obtain the rerun.
+
+After preferred-column changes, viewport PTYs pass six mode/size cases, full
+TUI race tests pass, and all native packages plus vet pass under Go 1.27.2.
+Reference regeneration passes its 1.3.0 package/version guards and all three
+Bun unit tests. Only these reference surfaces are proven; exhaustive TUI
+crosswalk, browser refresh and final integrated release profiling remain open.
+Completed reference installs, raw captures, binaries and probe logs were
+removed after analysis; source goldens and these conclusions remain.

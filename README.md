@@ -12,11 +12,11 @@ So this was the result. If you like `pi`, you should feel very much at home. If 
 
 ## Status
 
-Gi runs a terminal UI (the default) and a web UI (`gi -web`) from one pure-Go binary, with embedded web assets and SQLite-backed sessions, messages and turns. Builds use Go 1.27.1. Bun is needed to build the browser assets; there is no Node or Bun runtime dependency.
+Gi runs a terminal UI (the default) and a web UI (`gi -web`) from one pure-Go binary, with embedded web assets and SQLite-backed sessions, messages and turns. Builds use Go 1.27.2. Bun is needed to build the browser assets; there is no Node or Bun runtime dependency.
 
-The terminal targets Pi 1.1.0 workflows and keybindings; [verified alignment and remaining gaps](docs/implementation/terminal/tui-pi-1.1.0.md) are recorded separately. The committed browser baseline follows Piclaw 3.3.0. Gi reuses pinned Piclaw web components and implements its own backend, adapters and host UI, so the applications are not interchangeable. Browser behaviour is measured against the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite; the [feature and parity matrix][parity] has the latest results, the known differences and the open issues.
+The terminal targets Pi TUI 1.3.0 workflows and keybindings, with alignment acceptance in progress; [verified slices and remaining gaps](docs/internal/tui-pi-1.3-alignment.md) are recorded separately. The committed browser baseline follows Piclaw 3.3.0. Gi reuses pinned Piclaw web components and implements its own backend, adapters and host UI, so the applications are not interchangeable. Browser behaviour is measured against the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite; the [feature and parity matrix][parity] has the latest results, the known differences and the open issues.
 
-Model inference uses go-ai's **1.1.0 upstream baseline**, pinned to `e8fe159110e2` (`v1.1.1-0.20261009233122-e8fe159110e2`), including the Codex 4 MiB WebSocket message-limit fix. This is a post-release revision, not a new stable release.
+Model inference uses [`go-ai`](https://github.com/rcarmo/go-ai) **v1.3.0**, as recorded in `go.mod`. Integration evidence and limitations are in [the upgrade notes](docs/internal/go-ai-1.3.0.md).
 
 ## Features
 
@@ -74,7 +74,7 @@ A change that adds or materially changes an internal tool, scripting bridge capa
 
 ### Prerequisites
 
-* Go 1.27.1 or newer, as declared in `go.mod`
+* Go 1.27.2 or newer, as declared in `go.mod`
 * Bun (build-time only, not runtime)
 * Playwright with Chromium for functional tests; Chromium and WebKit for the six-project fixtures-vibes matrix
 * tmux for the terminal acceptance scripts
@@ -120,7 +120,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make check-cross-build` | Optional local pure-Go builds for Linux/macOS amd64/arm64 and Windows amd64; release CI also builds Windows amd64/arm64 (built, not tested) |
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
-| `make test-tui-pi110-reference` | Compare navigation/editor/hotkeys goldens with isolated published Pi 1.1.0 packages |
+| `make test-tui-pi130-reference` | Compare navigation/editor/hotkeys goldens with isolated published Pi 1.3.0 packages |
 | `make test-upstream-alignment` | Three-repeat native dependency/TUI/transport/retry regressions; add `PROFILING=1` for release verification |
 | `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |
 | `make test-tui-search` | Three-size fullscreen search, prompt-jump, draft/cursor and live-output checks |

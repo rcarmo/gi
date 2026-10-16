@@ -4,18 +4,19 @@
 //   bun scripts/golden-editor-keys.mjs [node_modules dir]
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { requirePi110, goldenPath } from './pi-reference.mjs';
+import { requirePi130, goldenPath } from './pi-reference.mjs';
 
 const candidates = [process.argv[2], `${homedir()}/.bun/install/global/node_modules`, "/workspace/.cache/pi-ref/node_modules"];
 const root = candidates.find((dir) => dir && existsSync(`${dir}/@earendil-works/pi-tui/dist/index.js`));
 if (!root) throw new Error("pi-tui not found");
-requirePi110(root, ['@earendil-works/pi-tui']);
+requirePi130(root, ['@earendil-works/pi-tui']);
 const tui = await import(`${root}/@earendil-works/pi-tui/dist/index.js`);
 
 const identity = (s) => s;
 const theme = new Proxy({}, { get: (_, key) => (key === "selectList" ? new Proxy({}, { get: () => identity }) : identity) });
 // Legacy terminal bytes for the key names the Go test replays.
 const keys = {
+	up: "\x1b[A", down: "\x1b[B",
 	left: "\x1b[D", right: "\x1b[C", "ctrl+a": "\x01", "ctrl+e": "\x05", "ctrl+b": "\x02", "ctrl+f": "\x06",
 	"alt+b": "\x1bb", "alt+f": "\x1bf", "alt+left": "\x1b[1;3D", "alt+right": "\x1b[1;3C", "ctrl+left": "\x1b[1;5D", "ctrl+right": "\x1b[1;5C",
 	backspace: "\x7f", "ctrl+w": "\x17", "alt+backspace": "\x1b\x7f", "alt+d": "\x1bd", "ctrl+u": "\x15", "ctrl+k": "\x0b",
@@ -25,6 +26,7 @@ const keys = {
 // text] (one key per character), ["paste", text] (bracketed paste) or a
 // key name.
 const scenarios = {
+	verticalColumn: [["set", "abcdefgh\nx\nabcdefgh"], "up", "up", "down", "down", "ctrl+a", "up", "up"],
 	word_moves_punctuation: [["set", "foo.bar(baz)  qux_1 é"], "alt+b", "alt+b", "alt+b", "alt+b", "alt+b", "alt+b", "alt+b", "ctrl+left", "ctrl+left", "alt+f", "alt+f", "ctrl+right", "alt+right", "alt+f", "alt+f", "alt+f"],
 	word_moves_across_lines: [["set", "one two\nthree"], "alt+b", "alt+b", "alt+b", "alt+f", "alt+f", "alt+left"],
 	kills_accumulate: [["set", "one two three four"], "ctrl+w", "alt+backspace", "ctrl+y", "ctrl+-", "ctrl+-", "ctrl+-"],

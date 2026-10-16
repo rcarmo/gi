@@ -33,11 +33,14 @@ type multilineInput struct {
 	onComplete       func(string, int) (string, int, bool)
 	// interceptKey lets an open autocomplete list take Tab/Enter/Escape
 	// before the editor's own bindings (Pi's Editor autocomplete mode).
-	interceptKey func(gotui.Key) bool
-	onChange     func(string)
-	onEdit       func()
-	text         string
-	cursorPos    int
+	interceptKey    func(gotui.Key) bool
+	onChange        func(string)
+	onEdit          func()
+	text            string
+	cursorPos       int
+	preferredColumn int
+	verticalMove    bool
+	verticalCursor  int
 	// Pi's undo stack: undoText/undoCursor/undoPastes/undoCounter are the
 	// newest snapshot (hasUndo), undoOlder the older ones, oldest first.
 	undoText    string
@@ -561,6 +564,7 @@ func (m *multilineInput) delete() {
 }
 
 func (m *multilineInput) moveLeft() {
+	m.verticalMove = false
 	if pos := m.clampCursor(); pos > 0 {
 		if start, ok := m.markerEndingAt(pos); ok {
 			m.cursorPos = start
@@ -571,6 +575,7 @@ func (m *multilineInput) moveLeft() {
 	}
 }
 func (m *multilineInput) moveRight() {
+	m.verticalMove = false
 	if pos := m.clampCursor(); pos < utf8.RuneCountInString(m.text) {
 		if end, ok := m.markerStartingAt(pos); ok {
 			m.cursorPos = end
@@ -638,6 +643,10 @@ func (m *multilineInput) moveVertical(delta int) bool {
 			}
 		}
 	}
+	if !m.verticalMove || m.verticalCursor != m.cursorPos {
+		m.preferredColumn = column
+	}
+	column = m.preferredColumn
 	target := current + delta
 	if target < 0 || target >= len(rows) {
 		return false
@@ -655,12 +664,17 @@ func (m *multilineInput) moveVertical(delta int) bool {
 		position = p.position
 	}
 	m.cursorPos = position
+	m.verticalMove, m.verticalCursor = true, position
 	m.markDirty()
 	return true
 }
 
-func (m *multilineInput) moveHome() { m.cursorPos = m.lineStart(m.clampCursor()); m.markDirty() }
-func (m *multilineInput) moveEnd()  { m.cursorPos = m.lineEnd(m.clampCursor()); m.markDirty() }
+func (m *multilineInput) moveHome() {
+	m.verticalMove = false
+	m.cursorPos = m.lineStart(m.clampCursor())
+	m.markDirty()
+}
+func (m *multilineInput) moveEnd() { m.cursorPos = m.lineEnd(m.clampCursor()); m.markDirty() }
 
 func (m *multilineInput) lineStart(pos int) int {
 	runes := []rune(m.text)
@@ -1037,6 +1051,7 @@ func (m *multilineInput) notifyEdited() {
 }
 
 func (m *multilineInput) notifyChanged() {
+	m.verticalMove = false
 	if m.onChange != nil {
 		m.onChange(m.text)
 	}

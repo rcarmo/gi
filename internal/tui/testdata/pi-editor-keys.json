@@ -1,4 +1,61 @@
 {
+ "verticalColumn": {
+  "steps": [
+   [
+    "set",
+    "abcdefgh\nx\nabcdefgh"
+   ],
+   "up",
+   "up",
+   "down",
+   "down",
+   "ctrl+a",
+   "up",
+   "up"
+  ],
+  "states": [
+   {
+    "step": "set:abcdefgh\nx\nabcdefgh",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 19
+   },
+   {
+    "step": "up",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 10
+   },
+   {
+    "step": "up",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 8
+   },
+   {
+    "step": "down",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 10
+   },
+   {
+    "step": "down",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 19
+   },
+   {
+    "step": "ctrl+a",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 11
+   },
+   {
+    "step": "up",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 9
+   },
+   {
+    "step": "up",
+    "text": "abcdefgh\nx\nabcdefgh",
+    "cursor": 0
+   }
+  ]
+ },
  "word_moves_punctuation": {
   "steps": [
    [

@@ -1943,13 +1943,25 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.Rune('m').Alt(), func(ke gotui.KeyEvent) { c.openModelMenu() }),
 		gotui.OnPreemptStop(gotui.Rune('t').Alt(), func(ke gotui.KeyEvent) { c.cycleThinking(-1) }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
-			if !c.input.moveVertical(-1) {
+			if c.histIdx >= 0 {
 				c.recallHistory(-1)
+				return
+			}
+			if !c.input.moveVertical(-1) {
+				if c.input.cursorPos > 0 {
+					c.input.moveHome()
+				} else {
+					c.recallHistory(-1)
+				}
 			}
 		}),
 		gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) {
-			if !c.input.moveVertical(1) {
+			if c.histIdx >= 0 {
 				c.recallHistory(1)
+				return
+			}
+			if !c.input.moveVertical(1) {
+				c.input.moveEnd()
 			}
 		}),
 	}
