@@ -19,7 +19,7 @@ Gi uses go-ai's provider APIs, model catalogue and OAuth support. Gi owns its tu
 
 ## Review status
 
-Security follow-up adds a transactional turn/session ownership check to settlement: foreign keys alone validated the IDs independently. Cross-session rejection/rollback and reset HTTPS/loopback, cross-origin, content-type and oversized-body tests pass race ×3. Full store/turn/web/sessionimport suites pass after the check. No release, merge or deployment has occurred; draft PRs remain under review.
+Security follow-up adds a transactional turn/session ownership check to settlement: foreign keys alone validated the IDs independently. Cross-session rejection/rollback and reset HTTPS/loopback, cross-origin, content-type and oversized-body tests pass race ×3. Full store/turn/web/sessionimport suites pass after the check. Final production-code HEAD 1b4678cf: full profiled native suite passes 2,312 tests / 35 packages, exit0 (101.22s wall / 52.41s CPU); CPU/alloc_space/alloc_objects reports analysed and raw disposed automatically. Vet/CGO-disabled build pass. Rebuilt fixture481204f consumer matrix passes 42/42, zero retries, including ownership-check code. Both PRs are ready for review; no release, merge or deployment has occurred. Historical broad editor acceptance remains separate/open.
 
 No storage replacement has been selected. Backward compatibility is not required. A replacement must preserve provider transcript correctness, cancellation, occurrence identity and working web live/reload behaviour.
 
