@@ -522,3 +522,10 @@ and 13 theme PTYs against the pinned Pi1.3 package. The successful completion
 marker is `LAST_TUI_PASS`. Temporary reference installs and matching binaries
 are disposable; no global Pi installation was changed. Shared-browser acceptance
 is still running, so this does not close #11 or authorize a release.
+
+Cross-compilation passed for Linux/amd64, Linux/arm64, Darwin/amd64,
+Darwin/arm64 and Windows/amd64 through `check-cross-build`. Windows/arm64 was
+built separately to cover the sixth release matrix target and also passed.
+These are build checks, not runtime tests on those operating systems. Disposable
+cross-build outputs were removed at completion. The shared-browser suite remains
+active and has no final verdict.
