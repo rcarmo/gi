@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -78,5 +79,79 @@ func TestResetContextRollback(t *testing.T) {
 	messages, err := s.ListMessages(ctx, "s")
 	if err != nil || len(messages) != 0 {
 		t.Fatalf("partial reset: %+v %v", messages, err)
+	}
+}
+
+func TestResetRejectsStaleCompactionBoundary(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "reset-compaction.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "s", "t", "test", "claim"); err != nil || !ok {
+		t.Fatalf("claim: %t %v", ok, err)
+	}
+	if err := s.AddMessage(ctx, "old", "s", "user", "pre-reset secret", nil); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundary, err := PrepareContextBoundary(snapshot, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seq, err := s.BeginCompaction(ctx, "s", "t", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ResetContext(ctx, "s", "reset-marker", "fresh context"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.FinishCompactionWithBoundary(ctx, "s", "t", seq, "completed", "obsolete summary", nil, boundary); !errors.Is(err, ErrContextChanged) {
+		t.Fatalf("stale compaction accepted after reset: %v", err)
+	}
+	after, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Version != 1 || after.Summary != "" || len(after.Messages) != 1 || after.Messages[0].Content != "fresh context" {
+		t.Fatalf("old context resurrected: %+v", after)
+	}
+}
+
+func TestResetHeadUsesInsertionBoundaryForBackdatedMessages(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "reset-backdated.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(ctx, "old", "s", "user", "old", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ResetContext(ctx, "s", "marker", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddImportedMessages(ctx, "s", []ImportedMessage{{ID: "backdated", Role: "user", Content: "new import", CreatedAt: "2000-01-01T00:00:00Z"}}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Messages) != 1 || snapshot.Messages[0].ID != "backdated" {
+		t.Fatalf("backdated new row excluded: %+v", snapshot)
 	}
 }
