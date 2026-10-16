@@ -283,3 +283,28 @@ WORKSPACE output line, not the echoed printf command. This keeps the exact
 workspace-execution requirement without requiring one symlink spelling.
 It does not replace terminal dock/tab/popout UI acceptance. Completed probe
 artifacts and the owned server were removed after analysis.
+
+### Current browser/native refresh at 2ed15afe
+
+With frontend `da963f6a`, session-thinking passed 36/36 and the separate
+composer/voice/notifications/startup matrix passed 132/132 across all six
+projects (9.6 minutes). The first invocation enabled multiple single-suite
+flags, so conditional testMatch selected thinking only; the remaining specs
+were then explicitly selected with GI_WEB_REGRESSION_LIST_ALL. No combined
+coverage was inferred from the first run. Recognition and notifications use
+mocked browser events; physical microphone quality is not established.
+
+Profiled native verification passed 2,342 tests across 35 packages; vet and
+nested go-tui tests also exited zero under Go 1.27.2. Test wall 87 seconds,
+child CPU 50.5 seconds, peak child RSS 782 MiB including builds; wrapper wall
+94 seconds. Cumulative CPU, alloc_space and alloc_objects were inspected:
+TUI database/sql retry paths accounted for 26.2% cumulative CPU, fixture
+session setup 24.0%, SQLite prepare 23.6%; transcriptRowsAtWidth allocated
+278.5 MiB cumulative (37.5%), go-tui.NewBuffer 211.0 MiB flat (28.4%).
+Wrapped-spans/height work accounted for 1,269,090 cumulative objects (29.0%);
+renderTranscriptRows 1,040,778 (23.8%). Profiles are whole-suite diagnostics,
+not production-latency measurements. No controlled tuning improvement is
+claimed. Earlier cache-backed/non-equivalent run deltas are not optimisation
+evidence. Raw captures, matching scratch, logs and fixtures were removed after
+analysis. Remaining broad browser suites, full TUI crosswalk, #11/#16 policy
+completion and final integrated release acceptance still block v0.1.2.
