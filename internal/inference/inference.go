@@ -771,15 +771,46 @@ func openAICompatMessages(convCtx *goai.Context) ([]map[string]any, error) {
 	for _, msg := range convCtx.Messages {
 		role := strings.ToLower(string(msg.Role))
 		content := goai.GetTextContent(&msg)
+		var imageParts []any
+		for _, block := range msg.Content {
+			if block.Type == "image" {
+				imageParts = append(imageParts, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + block.MimeType + ";base64," + block.Data}})
+			}
+		}
 		if role == "tool" || role == "toolresult" {
 			entry := map[string]any{"role": "tool", "content": content}
 			if msg.ToolCallID != "" {
 				entry["tool_call_id"] = msg.ToolCallID
 			}
+			if len(imageParts) > 0 && strings.TrimSpace(content) == "" {
+				entry["content"] = "(no tool output)"
+			}
 			messages = append(messages, entry)
+			if len(imageParts) > 0 {
+				parts := []any{map[string]any{"type": "text", "text": "Tool result image:"}}
+				parts = append(parts, imageParts...)
+				messages = append(messages, map[string]any{"role": "user", "content": parts})
+			}
 			continue
 		}
 		entry := map[string]any{"role": role, "content": content}
+		if len(imageParts) > 0 {
+			if role != "user" {
+				return nil, fmt.Errorf("compatibility messages do not support images in role %q", role)
+			}
+			var parts []any
+			for _, block := range msg.Content {
+				switch block.Type {
+				case "text":
+					if block.Text != "" {
+						parts = append(parts, map[string]any{"type": "text", "text": block.Text})
+					}
+				case "image":
+					parts = append(parts, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + block.MimeType + ";base64," + block.Data}})
+				}
+			}
+			entry["content"] = parts
+		}
 		if role == "assistant" {
 			var wireCalls []any
 			for _, call := range goai.GetToolCalls(&msg) {

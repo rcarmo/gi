@@ -99,3 +99,36 @@ func TestCompatMessagesPreserveToolExchangeAndFailClosed(t *testing.T) {
 		t.Fatal("unserializable arguments silently replaced")
 	}
 }
+
+func TestCompatMultimodalUserAndToolResult(t *testing.T) {
+	image := goai.ContentBlock{Type: "image", MimeType: "image/png", Data: "ZmFrZQ=="}
+	conv := &goai.Context{Messages: []goai.Message{
+		{Role: goai.RoleUser, Content: []goai.ContentBlock{{Type: "text", Text: "before"}, image, {Type: "text", Text: "after"}}},
+		{Role: goai.RoleToolResult, ToolCallID: "image-call", Content: []goai.ContentBlock{image}},
+	}}
+	messages, err := openAICompatMessages(conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("image followup missing: %+v", messages)
+	}
+	parts := messages[0]["content"].([]any)
+	if len(parts) != 3 || parts[0].(map[string]any)["text"] != "before" || parts[2].(map[string]any)["text"] != "after" {
+		t.Fatalf("ordered content lost: %+v", parts)
+	}
+	if parts[1].(map[string]any)["image_url"].(map[string]any)["url"] != "data:image/png;base64,ZmFrZQ==" {
+		t.Fatalf("image lost: %+v", parts)
+	}
+	if messages[1]["role"] != "tool" || messages[1]["tool_call_id"] != "image-call" || messages[1]["content"] != "(no tool output)" {
+		t.Fatalf("tool pairing lost: %+v", messages)
+	}
+	follow := messages[2]["content"].([]any)
+	if messages[2]["role"] != "user" || follow[0].(map[string]any)["text"] != "Tool result image:" || len(follow) != 2 {
+		t.Fatalf("image followup wrong: %+v", messages)
+	}
+	conv.Messages = []goai.Message{{Role: goai.RoleAssistant, Content: []goai.ContentBlock{image}}}
+	if _, err := openAICompatMessages(conv); err == nil {
+		t.Fatal("unsupported assistant image silently dropped")
+	}
+}
