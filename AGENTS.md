@@ -283,3 +283,12 @@ Tests live in `tests/functional/` and are numbered by feature area:
 - Inference errors surface as system messages, not silent failures
 - Turn failures preserve partial output, set status to `failed`
 - Cache busters prevent stale bundles from causing ghost errors
+
+### TUI command ownership
+
+`internal/tui/chat_commands.go` owns built-in dispatch, command palette,
+help/status lines and copy-mode argument parsing; `chat.go` owns the shell,
+input/render lifecycle and clipboard execution. Keep same-package splits
+mechanical before considering new packages. Retry/no-model PTY helpers require
+`GI_TEST_RUN_ROOT` and write disposable captures beneath its `tests/` directory.
+Clean only completed owned run directories; never active jobs or source.
