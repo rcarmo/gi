@@ -6,7 +6,7 @@ Target release: `github.com/rcarmo/go-ai v1.3.0`, tag commit `d9449bf4b102eb4303
 
 1.3 adds `ArgumentsError` to tool calls/content blocks and preserves provider parse failures through `GetToolCalls`. Gi now rejects marked calls before tool-call/approval/result hooks and executor effects. Rejection commits an error result and fresh terminal occurrence atomically, without an execution start or invented duration. Assistant call summaries and fallback replay retain the marker.
 
-Development verification: Go1.27.1, project-owned isolated test environment with inherited agent-directory overrides unset. Focused malformed-call/replay tests pass race ×3; inference, turn and store suites pass. No 1.3 pre-release profiling, full suite or browser matrix has run yet.
+Development verification: Go1.27.1, project-owned isolated test environment with inherited agent-directory overrides unset. Focused malformed-call/replay tests pass race ×3; inference, turn and store suites pass. At production-code dcc846f3, full pre-release native profiling passes 2,330 tests / 35 packages (race disabled for this profiling run), approximately 115s wall / 67s CPU / 785MB peak RSS. The helper inspected cumulative CPU, alloc_space and alloc_objects and disposed raw profiles/matching binaries automatically; scratch absence verified. Turn allocations include bounded image replay fixture construction (~40MB) and decodeReplayValue (~80MB); these exercise retention limits, not evidence of a measured regression or speedup. Vet and CGO-disabled build pass. Focused changed-path race tests passed separately. The 1.3 browser matrix remains pending.
 
 ## Remaining audit
 
