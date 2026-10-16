@@ -814,7 +814,11 @@ func openAICompatMessages(convCtx *goai.Context) ([]map[string]any, error) {
 		if role == "assistant" {
 			var wireCalls []any
 			for _, call := range goai.GetToolCalls(&msg) {
-				arguments, err := json.Marshal(call.Arguments)
+				args := call.Arguments
+				if args == nil {
+					args = map[string]any{}
+				}
+				arguments, err := json.Marshal(args)
 				if err != nil {
 					return nil, fmt.Errorf("encode tool arguments for %s: %w", call.Name, err)
 				}

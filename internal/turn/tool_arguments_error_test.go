@@ -239,3 +239,29 @@ func TestNestedHookModifiedArgumentsError(t *testing.T) {
 		})
 	}
 }
+
+func TestHookNilArgumentsNormalizeToObject(t *testing.T) {
+	for _, phase := range []string{HookToolCall, HookApproveTool} {
+		t.Run(phase, func(t *testing.T) {
+			e := New(nil)
+			effects := 0
+			if _, err := e.RegisterHook(phase, "empty", func(_ context.Context, r HookRequest) (HookResponse, error) {
+				c := *r.ToolCall
+				c.Arguments = nil
+				return HookResponse{Action: "modify", ToolCall: &c}, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			tool := tools.RegisteredTool{Name: "fixture", Executor: func(_ context.Context, _ tools.ToolRuntime, c goai.ToolCall) (string, error) {
+				if c.Arguments == nil {
+					t.Fatal("nil args reached executor")
+				}
+				effects++
+				return "ok", nil
+			}}
+			if _, err := e.runNestedTool(context.Background(), tools.ToolRuntime{}, "nested", tool, json.RawMessage(`{}`)); err != nil || effects != 1 {
+				t.Fatalf("effects=%d err=%v", effects, err)
+			}
+		})
+	}
+}

@@ -132,3 +132,15 @@ func TestCompatMultimodalUserAndToolResult(t *testing.T) {
 		t.Fatal("unsupported assistant image silently dropped")
 	}
 }
+
+func TestCompatNilArgumentsNormalizeToObject(t *testing.T) {
+	conv := &goai.Context{Messages: []goai.Message{{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "toolCall", ID: "empty", Name: "fixture"}}}}}
+	messages, err := openAICompatMessages(conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := messages[0]["tool_calls"].([]any)
+	if got := calls[0].(map[string]any)["function"].(map[string]any)["arguments"]; got != "{}" {
+		t.Fatalf("nil arguments emitted %v", got)
+	}
+}

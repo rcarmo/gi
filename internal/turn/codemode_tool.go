@@ -504,6 +504,9 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 				return nil, fmt.Errorf("Invalid tool arguments: %s", resp.ToolCall.ArgumentsError)
 			}
 			call.Arguments = resp.ToolCall.Arguments
+			if call.Arguments == nil {
+				call.Arguments = map[string]any{}
+			}
 		}
 		if hook == HookToolCall {
 			if injected, ok := directToolResultFromHook(resp); ok {
