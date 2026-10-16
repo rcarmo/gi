@@ -136,3 +136,106 @@ func TestNestedInvalidArgumentsRejectBeforeHooksAndEffects(t *testing.T) {
 		t.Fatalf("nested parse reached host: hooks=%d effects=%d", hooks, effects)
 	}
 }
+
+func TestMixedAndHookModifiedInvalidCalls(t *testing.T) {
+	for _, phase := range []string{HookToolCall, HookApproveTool} {
+		t.Run(phase, func(t *testing.T) {
+			ctx := context.Background()
+			s, err := store.Open(filepath.Join(t.TempDir(), "mixed.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			e := New(s)
+			defer e.Close()
+			if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+				t.Fatal(err)
+			}
+			effects := 0
+			approvalIDs := []string{}
+			counts := []int{}
+			if err := e.RegisterTool(tools.RegisteredTool{Name: "fixture", Executor: func(context.Context, tools.ToolRuntime, goai.ToolCall) (string, error) { effects++; return "ok", nil }}); err != nil {
+				t.Fatal(err)
+			}
+			for _, hook := range []string{HookToolExecutionStart, HookToolExecutionEnd} {
+				if _, err := e.RegisterHook(hook, "counts", func(_ context.Context, r HookRequest) (HookResponse, error) {
+					counts = append(counts, r.Payload["count"].(int))
+					return HookResponse{}, nil
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := e.RegisterHook(HookApproveTool, "approval", func(_ context.Context, r HookRequest) (HookResponse, error) {
+				approvalIDs = append(approvalIDs, r.ToolCall.ID)
+				return HookResponse{}, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.RegisterHook(phase, "mark", func(_ context.Context, r HookRequest) (HookResponse, error) {
+				if r.ToolCall.ID != "modified" {
+					return HookResponse{}, nil
+				}
+				c := *r.ToolCall
+				c.ArgumentsError = "hook introduced failure"
+				return HookResponse{Action: "modify", ToolCall: &c}, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			conv := &goai.Context{}
+			out := e.runner("s").executeToolCallsPhase(ctx, s, "t", "s", "fixture", "agent", 1, conv, []goai.ToolCall{
+				{ID: "invalid", Name: "fixture", ArgumentsError: "parser failure"},
+				{ID: "modified", Name: "fixture", Arguments: map[string]any{}},
+				{ID: "valid", Name: "fixture", Arguments: map[string]any{}},
+			}, nil, "", 0, &goai.Usage{})
+			if out.terminated || effects != 1 {
+				t.Fatalf("effects=%d outcome=%+v", effects, out)
+			}
+			if len(counts) != 2 || counts[0] != 2 || counts[1] != 2 {
+				t.Fatalf("batch counts %+v", counts)
+			}
+			if len(conv.Messages) != 3 || !conv.Messages[0].IsError || !conv.Messages[1].IsError || conv.Messages[2].IsError {
+				t.Fatalf("result order %+v", conv.Messages)
+			}
+			for _, id := range approvalIDs {
+				if id == "invalid" || (phase == HookToolCall && id == "modified") {
+					t.Fatalf("invalid reached approval %+v", approvalIDs)
+				}
+			}
+			events, err := s.ListTurnEvents(ctx, "t")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, ev := range events {
+				if ev.Type == "tool.started" && ev.Payload["tool_call_id"] != "valid" {
+					t.Fatalf("invalid started %+v", ev)
+				}
+			}
+		})
+	}
+}
+
+func TestNestedHookModifiedArgumentsError(t *testing.T) {
+	for _, phase := range []string{HookToolCall, HookApproveTool} {
+		t.Run(phase, func(t *testing.T) {
+			e := New(nil)
+			effects := 0
+			if _, err := e.RegisterHook(phase, "mark", func(_ context.Context, r HookRequest) (HookResponse, error) {
+				c := *r.ToolCall
+				c.ArgumentsError = "invalid mutation"
+				return HookResponse{Action: "modify", ToolCall: &c}, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			tool := tools.RegisteredTool{Name: "fixture", Executor: func(context.Context, tools.ToolRuntime, goai.ToolCall) (string, error) {
+				effects++
+				return "unexpected", nil
+			}}
+			if _, err := e.runNestedTool(context.Background(), tools.ToolRuntime{}, "nested", tool, json.RawMessage(`{}`)); err == nil || effects != 0 {
+				t.Fatalf("effects=%d err=%v", effects, err)
+			}
+		})
+	}
+}

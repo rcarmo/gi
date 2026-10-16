@@ -500,6 +500,9 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 			return nil, fmt.Errorf("blocked by hook: %s", reason)
 		}
 		if resp.ToolCall != nil && resp.ToolCall.Name == call.Name {
+			if resp.ToolCall.ArgumentsError != "" {
+				return nil, fmt.Errorf("Invalid tool arguments: %s", resp.ToolCall.ArgumentsError)
+			}
 			call.Arguments = resp.ToolCall.Arguments
 		}
 		if hook == HookToolCall {
