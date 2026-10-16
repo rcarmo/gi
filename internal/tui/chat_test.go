@@ -2746,3 +2746,40 @@ func TestToolFailedShowsResultOnce(t *testing.T) {
 		t.Fatal("bare error not shown when there is no result text")
 	}
 }
+
+func TestKeyboardOnlyOverlayAllowsUnhandledTranscriptWheel(t *testing.T) {
+	for _, kind := range []string{"session-rename", "workspace"} {
+		t.Run(kind, func(t *testing.T) {
+			c := &chatTUI{cfg: config.RuntimeConfig{TUIMode: "fullscreen"}}
+			c.ensureInput()
+			lines := make([]string, 100)
+			for i := range lines {
+				lines[i] = "transcript"
+			}
+			c.transcript = lines
+			c.outputHeight = 10
+			c.transcriptScroll = 20
+			c.stickToBottom = false
+			c.input.SetText("draft unchanged")
+			if kind == "session-rename" {
+				c.modelMenuOpen = true
+				c.modelMenuKind = kind
+			} else {
+				c.workspaceIndex.active = true
+			}
+			if !c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseWheelUp, Action: gotui.MousePress}) || c.transcriptScroll >= 20 {
+				t.Fatalf("overlay swallowed wheel: scroll=%d", c.transcriptScroll)
+			}
+			before := c.transcriptScroll
+			if !c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseWheelDown, Action: gotui.MousePress}) || c.transcriptScroll <= before {
+				t.Fatalf("overlay swallowed reverse wheel: scroll=%d", c.transcriptScroll)
+			}
+			if c.input.Text() != "draft unchanged" {
+				t.Fatal("wheel changed draft")
+			}
+			if kind == "session-rename" && !c.modelMenuOpen || kind == "workspace" && !c.workspaceIndex.active {
+				t.Fatal("wheel closed overlay")
+			}
+		})
+	}
+}

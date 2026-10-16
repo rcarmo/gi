@@ -2719,10 +2719,14 @@ func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
 		c.selectionClicks = transcriptClickSequence{}
 		c.selectionClickSnapshot = transcriptSelection{}
 	}
-	if c.modelMenuOpen && c.modelMenuKind == "session-rename" {
-		return true
-	}
-	if c.workspaceIndex.active {
+	if (c.modelMenuOpen && c.modelMenuKind == "session-rename") || c.workspaceIndex.active {
+		// Pi 1.3: keyboard-only overlays do not own unhandled wheel input.
+		// Preserve their focus/draft while allowing the transcript underneath to scroll.
+		if me.Button == gotui.MouseWheelUp || me.Button == gotui.MouseWheelDown {
+			if c.handleTranscriptScrollEvent(me) {
+				return true
+			}
+		}
 		return true
 	}
 	if c.handleJumpToLatestClick(me) {
