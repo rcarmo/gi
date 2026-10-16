@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -32,7 +33,7 @@ func TestInvalidToolArgumentsRejectBeforeCallHooksAndEffects(t *testing.T) {
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{HookToolCall, HookApproveTool, HookToolResult} {
+	for _, name := range []string{HookToolExecutionStart, HookToolExecutionEnd, HookToolCall, HookApproveTool, HookToolResult} {
 		if _, err := e.RegisterHook(name, "invalid-args-fixture", func(context.Context, HookRequest) (HookResponse, error) { hooks++; return HookResponse{}, nil }); err != nil {
 			t.Fatal(err)
 		}
@@ -66,5 +67,72 @@ func TestDirectToolDispatchRejectsArgumentsErrorBeforeLookup(t *testing.T) {
 	_, err := e.runner("unused").executeToolWithImages(context.Background(), goai.ToolCall{Name: "not_registered", ArgumentsError: "bad JSON"}, "unused", "unused", nil, nil)
 	if err == nil || err.Error() != "Invalid tool arguments: bad JSON" {
 		t.Fatalf("marker ignored: %v", err)
+	}
+}
+
+func TestInvalidArgumentsSurviveDatabaseReopen(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "invalid-reopen.db")
+	s, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateSession(ctx, "s", "s", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	call := goai.ToolCall{ID: "bad", Name: "shell", Arguments: map[string]any{}, ArgumentsError: "Expected object"}
+	if err := s.AddMessage(ctx, "call-row", "s", "assistant", "", map[string]any{"kind": "tool_calls", "tool_calls": []any{map[string]any{"id": call.ID, "name": call.Name, "arguments": call.Arguments, "argumentsError": call.ArgumentsError}}}); err != nil {
+		t.Fatal(err)
+	}
+	e := New(s)
+	if err := e.runner("s").rejectInvalidToolArguments(ctx, s, "s", "t", "agent", 1, &goai.Context{}, call); err != nil {
+		t.Fatal(err)
+	}
+	e.Close()
+	s.Close()
+	s, err = store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	snapshot, err := s.ContextSnapshot(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	messages := (&sessionRunner{}).projectContextSnapshot(ctx, "s", snapshot)
+	if len(messages) != 2 {
+		t.Fatalf("replay pair missing: %+v", messages)
+	}
+	calls := goai.GetToolCalls(&messages[0])
+	if len(calls) != 1 || calls[0].ArgumentsError != "Expected object" {
+		t.Fatalf("replayed call became valid: %+v", calls)
+	}
+	if messages[1].ToolCallID != "bad" || !messages[1].IsError {
+		t.Fatalf("replayed error unpaired: %+v", messages[1])
+	}
+}
+
+func TestNestedInvalidArgumentsRejectBeforeHooksAndEffects(t *testing.T) {
+	e := New(nil)
+	hooks, effects := 0, 0
+	for _, name := range []string{HookToolCall, HookApproveTool, HookToolResult} {
+		if _, err := e.RegisterHook(name, "invalid-nested", func(context.Context, HookRequest) (HookResponse, error) { hooks++; return HookResponse{}, nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tool := tools.RegisteredTool{Name: "fixture", Executor: func(context.Context, tools.ToolRuntime, goai.ToolCall) (string, error) {
+		effects++
+		return "unexpected", nil
+	}}
+	for _, raw := range []string{"null", "[]", `{"x":`, "42"} {
+		if _, err := e.runNestedTool(context.Background(), tools.ToolRuntime{}, "nested", tool, json.RawMessage(raw)); err == nil {
+			t.Fatalf("accepted %s", raw)
+		}
+	}
+	if hooks != 0 || effects != 0 {
+		t.Fatalf("nested parse reached host: hooks=%d effects=%d", hooks, effects)
 	}
 }

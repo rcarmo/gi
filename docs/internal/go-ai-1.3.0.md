@@ -10,8 +10,9 @@ Development verification: Go1.27.1, project-owned isolated test environment with
 
 ## Remaining audit
 
-- Ensure batch execution start/end hooks and direct/nested dispatch paths honour the upstream malformed-argument boundary; current test covers call/approval/result hooks only.
-- Direct dispatch rejects the marker before lookup; import/export preserves argumentsError. Focused direct/import/export/malformed-call tests pass race ×3. Persistence/reopen and batch-hook coverage remain.
+- Malformed-only batches now skip execution start/end hooks; mixed batches count executable calls only. Direct/nested guards run before lookup/hooks/effects. Nested null/array/scalar/truncated inputs reject; marked call/error-result pairing survives database reopen. Focused tests race ×3 and full turn/inference/import/export suites pass. Hook-mutated invalid calls and mixed-batch ordering need final review.
+- Direct dispatch rejects the marker before lookup; import/export preserves argumentsError. Focused direct/import/export/malformed-call/reopen and batch-hook tests pass race ×3.
+- Removed AssistantMessageFrame/encoder/reducer API: no Gi source references found; regular SSE/provider MessageEvent paths remain in use.
 - Compatibility SSE now accumulates argument fragments by index and validates completed object JSON, preserving ArgumentsError into the emitted content block. HTTP fixture tests cover split/interleaved valid objects, array/null/truncated failures and empty arguments; race ×3 plus full inference/turn suites pass. Completed-call repair now follows the tagged go-ai v1.3.0 internal helper for invalid escapes/control characters (MIT attribution in source); tests verify repaired values and reject truncated/non-object/trailing data. Focused race ×3 passes.
 - Compatibility request serializer now emits typed assistant function calls alongside matching tool results; empty call-only assistant content uses null. Unserializable arguments fail closed instead of becoming empty objects. Focused pairing/fail-closed tests pass race ×3; inference/turn/import/export suites pass. Image/multimodal compatibility wire formatting remains unaudited; no complete provider transcript parity claim.
 - Audit remaining v1.2→v1.3 provider/catalogue/durable delta against tagged release docs, rather than assuming the dependency upgrade is sufficient.

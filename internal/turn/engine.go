@@ -5308,10 +5308,18 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		lastToolFailureSig:       lastToolFailureSig,
 		repeatedToolFailureCount: repeatedToolFailureCount,
 	}
-	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": len(toolCalls)}})
-	defer func() {
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": len(toolCalls)}})
-	}()
+	executableCalls := 0
+	for _, call := range toolCalls {
+		if call.ArgumentsError == "" {
+			executableCalls++
+		}
+	}
+	if executableCalls > 0 {
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}})
+		defer func() {
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}})
+		}()
+	}
 	responsePosted := false
 	for _, call := range toolCalls {
 		if ctx.Err() != nil {

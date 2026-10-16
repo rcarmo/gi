@@ -470,8 +470,8 @@ func (e *Engine) executeCodemode(ctx context.Context, rt tools.ToolRuntime, call
 // runNestedTool runs one script tool call through the tool hooks.
 func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id string, tool tools.RegisteredTool, rawArgs json.RawMessage) (json.RawMessage, error) {
 	args := map[string]any{}
-	if len(rawArgs) > 0 && string(rawArgs) != "null" {
-		if err := json.Unmarshal(rawArgs, &args); err != nil {
+	if len(rawArgs) > 0 {
+		if err := json.Unmarshal(rawArgs, &args); err != nil || args == nil {
 			return nil, fmt.Errorf("tool %s expects an object argument", tool.Name)
 		}
 	}
