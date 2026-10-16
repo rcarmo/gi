@@ -6,17 +6,20 @@ Gi's upgrade branch pins `github.com/rcarmo/go-ai v1.2.0`, release commit `a9274
 
 Gi uses go-ai's provider APIs, model catalogue and OAuth support. Gi owns its turn loop, tool hooks, compaction, SQLite store and web projections. Updating the module does not automatically adopt go-ai/durable's runtime contracts.
 
-| Area | Current result | Remaining verification or implementation |
+| Area | Verified candidate | Limits |
 | --- | --- | --- |
-| Provider API upgrade | Inference, store and turn packages compile and pass their tests with v1.2.0 | Full suite and provider request/replay regressions; no paid-provider acceptance yet |
-| Session append atomicity | Message insert plus session timestamp, and event insert plus turn timestamp, now share transactions | Pre-release CPU/allocations and concurrent-write verification |
-| Failed append semantics | SQLite trigger tests prove a failed parent update leaves no inserted row; retry succeeds once | Cancellation admission/commit boundary needs an explicit contract audit |
-| Tool cancellation/reload | Cancelled/aborted codemode events join the conversation relation before cursor filtering; raw/provider history unchanged. Store paging regressions and six-project browser checks pass | Pre-release profiling and committed frontend-pin verification remain |
-| Normal and hook-supplied tool result | Replay result, terminal boundary and parent timestamps commit in one transaction before completion publication/provider continuation. Hook results use a fresh shared occurrence with no measured duration | Final committed-pin acceptance and broader replay audit remain |
-| Settlement cancellation | Nil, expired and cancelled contexts are rejected at admission; admitted writes use a cancellation-detached context and settle atomically. Context values survive admission | SQLite scalar-function barrier now injects cancellation during the result insert; both admitted rows commit, race ×3 |
-| Branch/session history | Context snapshots now include saved tool results and reconstruct typed assistant calls plus result identity/error/details. Fork/reopen tests retain pairing and fresh row IDs; source terminal events stay isolated. Compaction cannot split a call batch from its results | Image blocks/tool-loadout replay, malformed/orphaned and interrupted batches, reused IDs across turns and upstream reset equivalence still need coverage |
-| Images and model calls | Saved tool results now retain content blocks and successful added-tool names. Assistant responses retain typed provider messages including thinking/call signatures. Image-bearing tool results cannot be hidden by a text-only checkpoint | Valid PNG above 100 KB survives failed-result settlement, reopen and fork; numerical pixel checks and conversation privacy pass race ×3. Exactly 20 MiB is retained; 20 MiB+1 becomes a text placeholder with no image bytes (boundary regression passes). Broader retention policy and final committed-pin acceptance remain |
-| Web frontend | Candidate F3 wiring with v1.2.0 passes 30/30 checks across Chromium/WebKit phone/tablet/desktop, zero retries, including cancellation reload as cancelled | Candidate assets are uncommitted; final-pin verification and profiling remain |
+| Provider API | go-ai v1.2.0; merged full native suite 2,306 tests / 35 packages passes; vet/CGO0 build pass | No paid-provider acceptance; these are fixture/native contracts |
+| Append/settlement | Transactional append timestamps; normal/hook result plus terminal boundary atomically settled before publication; turn/session owner checked | Does not provide exactly-once external side effects |
+| Cancellation | Cancelled admission rejected; admitted settlement completes despite cancellation injected inside SQLite | SQLite busy timeout applies; no global transaction deadline introduced |
+| Replay/forks | Typed calls/results, provider signatures, tool images/loadout, fork/reopen and orphan repair tests pass; compaction cannot split exchanges | Old imported data cannot recover provider metadata it never stored |
+| Reset | Durable history head, queued batch/final placement, FIFO acknowledgement, stale-claim hold and pending-steering coverage | HTTP API only; no new reset menu or TUI command; upstream scheduler implementation remains Go-native adaptation |
+| Privacy | Conversation page/search SQL removes private replay fields; raw export/model snapshot intentionally retains them | Existing explicit thinking-panel metadata policy unchanged |
+| Images | Failed-tool PNG reopen/fork and exact 20 MiB/+1-byte bounds pass | Retained inline in SQLite; external blob deduplication/retention service not added |
+| Web | Published fixtures481204f; seven cases × six projects = 42/42, zero retries; full root26 + Classic180 units pass | Missing-details case is HTTP compatibility injection; WebKit functional only; old broad F1 acceptance separate |
+
+## Review status
+
+Security follow-up adds a transactional turn/session ownership check to settlement: foreign keys alone validated the IDs independently. Cross-session rejection/rollback and reset HTTPS/loopback, cross-origin, content-type and oversized-body tests pass race ×3. Full store/turn/web/sessionimport suites pass after the check. No release, merge or deployment has occurred; draft PRs remain under review.
 
 No storage replacement has been selected. Backward compatibility is not required. A replacement must preserve provider transcript correctness, cancellation, occurrence identity and working web live/reload behaviour.
 

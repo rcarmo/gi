@@ -74,3 +74,32 @@ func TestToolSettlementAtomicReopen(t *testing.T) {
 		})
 	}
 }
+
+func TestToolSettlementRejectsCrossSessionTurn(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "settlement-owner.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	for _, id := range []string{"owner", "foreign"} {
+		if _, err := s.CreateSession(ctx, id, id, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.CreateTurn(ctx, "owned-turn", "owner", "prompt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SettleToolResult(ctx, "owned-turn", "foreign", "tool.finished", nil, "foreign-result", "secret", nil); err == nil {
+		t.Fatal("cross-session settlement accepted")
+	}
+	for _, table := range []string{"turn_events", "messages"} {
+		var count int
+		if err := s.db.QueryRow(`select count(*) from ` + table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Fatalf("cross-session partial write: %s", table)
+		}
+	}
+}

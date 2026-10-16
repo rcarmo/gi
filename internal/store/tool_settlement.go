@@ -30,6 +30,14 @@ func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventTy
 		return err
 	}
 	defer tx.Rollback()
+	// Foreign keys validate each ID separately, not their ownership relation.
+	var owner string
+	if err := tx.QueryRowContext(ctx, `select session_id from turns where id=?`, turnID).Scan(&owner); err != nil {
+		return err
+	}
+	if owner != sessionID {
+		return fmt.Errorf("tool settlement session does not own turn")
+	}
 	if _, err = tx.ExecContext(ctx, `insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(?,?,coalesce((select max(seq)+1 from turn_events where turn_id=?),1),?,?,`+defaultNow+`)`, turnID, sessionID, turnID, eventType, eventJSON); err != nil {
 		return err
 	}
