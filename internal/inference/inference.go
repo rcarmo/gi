@@ -604,10 +604,14 @@ func splitModelID(id string) (string, string) {
 }
 
 func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Context, broadcast func(map[string]any), hooks *StreamHooks) (*StreamResult, error) {
+	messages, err := openAICompatMessages(convCtx)
+	if err != nil {
+		return nil, err
+	}
 	payload := map[string]any{
 		"model":    model.ID,
 		"stream":   true,
-		"messages": openAICompatMessages(convCtx),
+		"messages": messages,
 	}
 	if len(convCtx.Tools) > 0 {
 		payload["tools"] = openAICompatTools(convCtx.Tools)
@@ -759,7 +763,7 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	return &StreamResult{Message: msg, Usage: usage, Text: fullText}, nil
 }
 
-func openAICompatMessages(convCtx *goai.Context) []map[string]any {
+func openAICompatMessages(convCtx *goai.Context) ([]map[string]any, error) {
 	messages := make([]map[string]any, 0, len(convCtx.Messages)+1)
 	if strings.TrimSpace(convCtx.SystemPrompt) != "" {
 		messages = append(messages, map[string]any{"role": "system", "content": convCtx.SystemPrompt})
@@ -775,9 +779,26 @@ func openAICompatMessages(convCtx *goai.Context) []map[string]any {
 			messages = append(messages, entry)
 			continue
 		}
-		messages = append(messages, map[string]any{"role": role, "content": content})
+		entry := map[string]any{"role": role, "content": content}
+		if role == "assistant" {
+			var wireCalls []any
+			for _, call := range goai.GetToolCalls(&msg) {
+				arguments, err := json.Marshal(call.Arguments)
+				if err != nil {
+					return nil, fmt.Errorf("encode tool arguments for %s: %w", call.Name, err)
+				}
+				wireCalls = append(wireCalls, map[string]any{"id": call.ID, "type": "function", "function": map[string]any{"name": call.Name, "arguments": string(arguments)}})
+			}
+			if len(wireCalls) > 0 {
+				entry["tool_calls"] = wireCalls
+				if content == "" {
+					entry["content"] = nil
+				}
+			}
+		}
+		messages = append(messages, entry)
 	}
-	return messages
+	return messages, nil
 }
 
 func openAICompatTools(tools []goai.Tool) []map[string]any {

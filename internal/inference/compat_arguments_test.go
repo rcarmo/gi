@@ -51,3 +51,51 @@ func TestCompatStreamAccumulatesArgumentsAndMarksInvalidCalls(t *testing.T) {
 		t.Fatalf("empty valid call: %+v", calls[4])
 	}
 }
+
+func TestCompatCompletedArgumentRepair(t *testing.T) {
+	for _, tc := range []struct{ raw, want string }{
+		{`{"path":"C:\Users\docs"}`, `C:\Users\docs`},
+		{"{\"text\":\"line\nbreak\"}", "line\nbreak"},
+	} {
+		parsed, marker := completedCompatToolArguments(tc.raw)
+		if marker != "" {
+			t.Fatalf("repair rejected %q: %s", tc.raw, marker)
+		}
+		value := parsed["path"]
+		if value == nil {
+			value = parsed["text"]
+		}
+		if value != tc.want {
+			t.Fatalf("repair changed value: %#v want %q", value, tc.want)
+		}
+	}
+	for _, raw := range []string{`{"x":`, `[]`, `null`, `{"x":1} trailing`} {
+		if _, marker := completedCompatToolArguments(raw); marker == "" {
+			t.Fatalf("invalid accepted %q", raw)
+		}
+	}
+}
+
+func TestCompatMessagesPreserveToolExchangeAndFailClosed(t *testing.T) {
+	conv := &goai.Context{SystemPrompt: "system", Messages: []goai.Message{
+		goai.UserMessage("request"),
+		{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "toolCall", ID: "call", Name: "shell", Arguments: map[string]any{"command": "echo safe"}}}},
+		{Role: goai.RoleToolResult, ToolCallID: "call", Content: []goai.ContentBlock{{Type: "text", Text: "safe"}}},
+	}}
+	messages, err := openAICompatMessages(conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := messages[2]["tool_calls"].([]any)
+	wire := calls[0].(map[string]any)
+	if wire["id"] != "call" || wire["function"].(map[string]any)["arguments"] != `{"command":"echo safe"}` || messages[2]["content"] != nil {
+		t.Fatalf("call missing: %+v", messages)
+	}
+	if messages[3]["tool_call_id"] != "call" || messages[3]["role"] != "tool" {
+		t.Fatalf("result unpaired: %+v", messages)
+	}
+	conv.Messages[1].Content[0].Arguments["bad"] = make(chan int)
+	if _, err := openAICompatMessages(conv); err == nil {
+		t.Fatal("unserializable arguments silently replaced")
+	}
+}
