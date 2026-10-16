@@ -25,7 +25,7 @@ try{for(const [width,height] of [[60,18],[100,22],[140,36]]){
  const clip=()=>tmux('show-buffer');
  const shot=name=>{const text=capture();writeFileSync(join(artifacts,`${width}x${height}-${name}.txt`),text+'\n');writeFileSync(join(artifacts,`${width}x${height}-${name}.ansi`),ansi());return text;};
  const bars=text=>text.split('\n').map((line,i)=>/^\s*─{10,}\s*$/.test(line)?i:-1).filter(i=>i>=0);
- const firstFixture=async()=>{keys('C-Home');await sleep(180);keys('C-Down');await wait(()=>capture().includes('SELECT-01')&&capture().includes('Gi received: SELECT-01'),'first prompt and reply')};
+ const firstFixture=async()=>{keys('C-Home');await sleep(180);keys('C-Down');await wait(()=>{const screen=capture();return screen.trimStart().startsWith('SELECT-01')&&screen.includes('Gi received: SELECT-01')},'first prompt positioned at viewport top')};
  const idle=()=>sql('select count(*) from session_active_turns;')==='0';
  const drag=async(x1,y1,x2,y2)=>{mouse(0,x1,y1);await sleep(100);mouse(32,x2,y2);await sleep(100);mouse(0,x2,y2,true);};
  try{

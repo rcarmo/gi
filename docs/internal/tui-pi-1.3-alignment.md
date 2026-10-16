@@ -221,3 +221,17 @@ Bun unit tests. Only these reference surfaces are proven; exhaustive TUI
 crosswalk, browser refresh and final integrated release profiling remain open.
 Completed reference installs, raw captures, binaries and probe logs were
 removed after analysis; source goldens and these conclusions remain.
+
+### Selection timing diagnosis
+
+The earlier 140×36 double-click timeout reproduced before any selection code
+change. The harness waited only for prompt/reply text to be visible after
+Ctrl+Down; at the largest viewport both were visible before the navigation
+render finished. Click coordinates were calculated from that old viewport.
+The failure diff showed the startup header disappearing between the recorded
+baseline and clicks. The wait now also requires SELECT-01 at the viewport top,
+confirming prompt navigation actually finished. No runtime click threshold,
+selection assertion or clipboard check changed, and no click retry was added.
+The complete three-size suite then passed three consecutive runs (nine PTYs).
+This resolves the observed race; it is not a claim about all terminal timing.
+Completed probe captures, binaries and logs were removed after diagnosis.
