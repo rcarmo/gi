@@ -7,7 +7,7 @@ async function setup(page,info){
  const read=async path=>(await(await page.request.get(env.origin+path)).json());
  const model=()=>read(`/api/sessions/${id}/model`);
  const open=async()=>{await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Models',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh models',exact:true})).toBeEnabled()};
- const close=()=>page.getByRole('button',{name:'Close settings',exact:true}).click();
+ const close=async()=>{await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(input).toBeFocused();};
  return{...env,input,id,read,model,open,closeSettings:close};
 }
 
@@ -96,7 +96,7 @@ test('late origin thinking acknowledgement cannot update a different selected se
   await page.request.patch(h.origin+`/api/sessions/${h.id}/model`,{data:{model:'ux-local/reasoner'}});await page.reload();await h.input.fill('origin thinking draft');await h.open();const select=page.getByRole('combobox',{name:'Session thinking level',exact:true});await expect(select).toBeEnabled();await select.selectOption('high');
   await page.route(`**/api/sessions/${h.id}/model`,async r=>{if(r.request().method()!=='PATCH')return r.continue();const response=await r.fetch();expect(response.status()).toBe(200);held=true;await gate;await r.fulfill({response})});
   await page.getByRole('button',{name:'Apply thinking',exact:true}).click();await expect.poll(()=>held).toBe(true);await h.closeSettings();
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${other.id}"]`).getByRole('option').click();await h.input.fill('other thinking draft');release();await page.unrouteAll({behavior:'wait'});
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-${encodeURIComponent('gi:'+other.id)}"]`).click();await h.input.fill('other thinking draft');release();await page.unrouteAll({behavior:'wait'});
   await h.open();await expect(page.getByTestId('settings-current-model')).toHaveText(before.current);await expect(select).toHaveCount(0);expect(await h.read(`/api/sessions/${other.id}/model`)).toEqual(before);expect((await h.model()).thinking_level).toBe('high');await h.closeSettings();await expect(h.input).toHaveValue('other thinking draft');
   expect((await h.read(`/api/sessions/${h.id}/turns`)).turns||[]).toHaveLength(0);expect((await h.read(`/api/sessions/${other.id}/turns`)).turns||[]).toHaveLength(0);
  }finally{release();await page.unrouteAll({behavior:'wait'});await h.close()}
