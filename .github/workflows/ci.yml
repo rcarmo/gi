@@ -255,7 +255,7 @@ jobs:
   compose-browser:
     name: Compose surfaces and panels
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
@@ -460,7 +460,7 @@ jobs:
   basic-web-send:
     name: Basic web send on HTTP and localhost
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -503,7 +503,7 @@ jobs:
   tool-terminal-browser:
     name: Native tool terminal provenance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:

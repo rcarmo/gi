@@ -946,3 +946,9 @@ Consumerstepfailedbeforetests:sharedPlaywrightCLInotinstalledinjourneyjob.
 Installsharedsuitefrozenlockdependenciesandmatchingbrowserrevisionbefore
 nativeeditorconsumerstep. Setup-onlycorrection;no runtime/assertionchange.
 Workflowlintpass;no duplicateapplication/localfullmatrixrunneeded.
+
+v0.1.10CIjourneyPASS. Threejobs cancelledonjobbudgetwithoutassertionfailure:
+toolterminal12/12startedat9m15;HTTP32pass/controls46of48at10min;
+compose36pass4m48+model42pass5m6+session9of12at15min,plussetup/build.
+Adjustonlymeasuredwholejobbudgets:compose25min,HTTP20,toolterminal20;
+assertiontimeout/retrycountsunchanged. Workflowlintpass;no runtime/testchanges.
