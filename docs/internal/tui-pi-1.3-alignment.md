@@ -665,3 +665,12 @@ in six projects, after repeated Chromium colour27/27. Added cleanup-order unit
 coverage; frontend194units and hook pass. FrontendPR8 merges this repair; source
 shared run remains unchanged on58a97a42 until completion. Timed-parent restoration
 was not accepted as sufficient; cleanup now signals only after releasing inert.
+
+Old-pin patch13 shared run finished1518passed/71skipped/1failed in1.8h. The
+single failure is the documented ERR_NETWORK_CHANGED app-loading incident;
+exact-assertion repeat6/6 remains diagnostic only. Profile analysis completed
+(105m28swall,83m49sCPU,1387MBpeakRSS) and owned captures/results removed. No
+passing full matrix claimed. Final frontendcf94dc95 is now integrated only after
+the owning job ended. Next full run must start no earlier than03:27UTC to respect
+the four-hour full-matrix limit; final integrated native/functional/focused gates
+can run meanwhile. Preserve immutable failed tagsv0.1.1/v0.1.2.
