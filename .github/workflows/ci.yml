@@ -106,6 +106,8 @@ jobs:
           bun install --frozen-lockfile
           cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
+      - name: Install shared suite browser revision
+        run: cd references/fixtures-vibes && bun x playwright install --with-deps chromium webkit
       - run: make build-web
       - run: make fixtures-vibes-focused FIXTURES_SPEC_ARGS="--project=${{ matrix.project }}"
         env:

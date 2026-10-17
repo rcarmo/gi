@@ -907,3 +907,12 @@ thenexecutesunchangedsharedcomplianceaccounting. Buildnowrequiresaggregate
 sharedgate(previousbuildneedsomittedsharedcompliance). actionlint,mergeunit
 checks and real6projectPlaywrightreport split/merge pass. No scenarios/assertions
 removed; no newfullmatrix run forworkflowdiagnosis. v0.1.4failedreload retained.
+
+v0.1.5CI39071663104failedquickly(~15min):sharedshardinstalledrootPlaywright
+browsersbutsharedsuiteexpectsrevision1248;fixinstallfromsharedsuitecwd.
+HTTPWebKitlocalhostreloadagainreportedold-documentstatefetchaccess-control
+errors. FrontendPR15addsdocumentrequestAbortControllerpagehide/pageshow,
+combinescallersignal;normalfailure/sendunknownrecoveryretained. Candidate
+475b48a202units/hook/build/32HTTPdelivery/48HTTPcontrolsPASS,noretries.
+Noerrorfiltering/assertionweakening. OriginalCIerrorstillhistoricalfailure;
+newcompleteCIrequired. No full localmatrix or performancework repeated.
