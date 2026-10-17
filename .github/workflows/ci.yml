@@ -132,11 +132,16 @@ jobs:
   classic-report:
     name: Shared Classic coverage report
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: classic-compliance
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
       - uses: oven-sh/setup-bun@v2
       - name: Resolve scratch
         run: |
