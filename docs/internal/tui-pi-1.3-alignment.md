@@ -932,3 +932,11 @@ suitealreadycoverstabkeyboard/MRU/pin/closecontracts. Oldviewerdiagnosticfile
 retainedhistoricallybutnotreleasegate;noclaimobsoleteUIpasses. Thinkingjob
 progressed23/36testsafter5m30sbuild/setupwithin10mintotal; budget15minbasedon
 observedsetup+execution,notchangingassertiontimeoutorretries. Workflowlintpass.
+
+v0.1.8journeyCIstartup42/picker24/slash72PASS;nativeMarkdownpreview setup
+waitedexplorerEditbeforeeditorassertions. Simplifyonlysetup:dispatchsupported
+piclaw-extension-ui:request(custom options.open_workspace_file,targettab).
+Preview/renderedcode/externalrefresh/draft/focus assertions unchanged;focused
+checkpasses2.8s. Explorerselection/editcontrolsremainsharedsuitecoverage.
+Initialdiagnosticpayloadincorrectandfailed;correctnativeenvelopeverified.
+No runtimechange/retries/newfullmatrix. ThinkingCIpasseswithmeasured15minbudget.
