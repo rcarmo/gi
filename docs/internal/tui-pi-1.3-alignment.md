@@ -887,3 +887,13 @@ CPU/alloc_space/objects/browser/node analyzed by harness/disposed;96m56swall,
 private loopback then drops privilege to caller, explicit test env only; no
 external credentials/access. Both affected scenarios diagnostic12/12pass;
 fullisolatedacceptance required. No retries or assertion changes.
+
+FINAL release acceptance365105f2/frontende3698d8d:1519passed/71existing
+skips/0failures,zero retries,private loopback network;98m8swall/83m34sCPU/
+1340MBpeak. External link fixture exactURL+loadedcontent/security6/6preflight.
+All6runtimeCPU/alloc_space/alloc_objects/browser/node summaries analyzed and
+capturesdisposedbyharness. First runtime cachedecode0.37%CPU/0.045%allocation;
+writeJSON27.27%CPU/58.92%allocation,otherunmarshal19.96%CPU/23.18%allocation.
+Measured cache improvements retained; remaining serialization non-blocking per
+Rui release-priority direction. No new performance work or fullmatrix required.
+Previous failed/aborted runs remain historical failures, not retroactivepasses.
