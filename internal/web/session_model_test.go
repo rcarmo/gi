@@ -52,7 +52,10 @@ func TestSessionModelCommandsAreValidatedLocalAndDoNotCreateTurns(t *testing.T) 
 	}
 	call("POST", "/api/sessions/A/prompt", `{"prompt":"/model unknown"}`, 400)
 	call("POST", "/api/sessions/A/prompt", `{"prompt":"/model test/bootstrap"}`, 200)
-	call("POST", "/api/sessions/A/prompt", `{"prompt":"/model"}`, 200)
+	receipt := call("POST", "/api/sessions/A/prompt", `{"prompt":"/model"}`, 200)
+	if receipt["source_committed"] != true {
+		t.Fatalf("model command missing committed acknowledgement: %+v", receipt)
+	}
 	for _, id := range []string{"A", "B"} {
 		turns, _ := s.ListTurns(ctx, id)
 		if len(turns) != 0 {

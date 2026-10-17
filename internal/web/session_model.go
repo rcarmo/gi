@@ -132,6 +132,6 @@ func (s *Server) handleModelCommand(w http.ResponseWriter, r *http.Request, sess
 		writeJSON(w, 400, map[string]any{"error": err.Error()})
 		return true
 	}
-	writeJSON(w, 200, map[string]any{"command": map[string]any{"model_label": payload["current"], "thinking_level": payload["thinking_level"], "supports_thinking": payload["supports_thinking"], "context_window": payload["context_window"], "context_usage": payload["context_usage"], "message": "Current model: " + payload["current"].(string)}})
+	writeJSON(w, 200, map[string]any{"source_committed": true, "command": map[string]any{"model_label": payload["current"], "thinking_level": payload["thinking_level"], "supports_thinking": payload["supports_thinking"], "context_window": payload["context_window"], "context_usage": payload["context_usage"], "message": "Current model: " + payload["current"].(string)}})
 	return true
 }

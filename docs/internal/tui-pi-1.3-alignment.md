@@ -793,3 +793,31 @@ allocation histories. Full-state session polling/JSON remains workload hotspot;
 previous controlled splitwrite probe did not reduceB/op and was reverted.
 No speedup claim. CPU/alloc_space/alloc_objects analyzed; all rawcaptures,
 matching fixtures/binary and disposable run data deleted after use.
+
+### v0.1.3 CI follow-up / v0.1.4 candidate
+
+Immutable v0.1.3/d4e766f4 CI39017624126 failed basicHTTP WebKitlocalhost
+reload(pageerrors:cancelled/access-control fetches), startup slash ownership,
+and WebKitphone message retrieval30stimeout; no release waiver. Slash exposed
+real omissions: model-command200 lacked native source acknowledgement;
+native composer fell back to bundled slash catalogue and global slash stole
+palette focus. Fixed explicit source_committed receipt (no turn created),
+validated/failclosed catalogue with unavailable status/current-mode refresh,
+and consumed-key/palette focus ownership. FrontendPR13 mergedd5928f1a.
+Candidatec55ddde+receipt passes72slash/32HTTP/6retrieval locally; HTTP/retrieval
+CI-only failures remain unexplained, not erased by localpasses. New releaseCI
+must pass those unchanged assertions. Integrateda260c2b0:2345native/35packages,
+vet,200frontend,147functional+13existing skips pass. ProfileCPU/alloc_space/
+objects analyzed/disposed:82s nativewall/43.5sCPU/773MBinclbuild;functional
+189swall/96sCPU/1383MB. No controlled speedup claim. Fullshared pending.
+
+v0.1.4 full shared cd8b59e1/d5928f1a PASSED1519/71existing skips/0failures,
+no retries;96m50swall/82m56sCPU/1384MBpeak. Harness analyzed all6runtimeCPU,
+alloc_space and alloc_objects plus browser/Node summaries, disposed captures.
+First runtime:CPUunmarshalJSONMap28.06%,writeJSON21.98%,ListSessions9.33%;
+alloc_space writeJSON53.65%,unmarshal31.95%,ListSessions10.89%;alloc_objects
+unmarshal44.44%,ListSessions23.87%. Same full-state serialization hotspot;
+no new claimed tuning benefit. Live browser heaps not allocation histories.
+v0.1.3CI39017624126 finalizedfailure;sharedjobcancelled,notaccepted.
+LocalcleanfullandfocusedpassesdonotwaiveoriginalHTTP/retrievalCI failures;
+next immutablepatchCI must succeed before release acceptance. No deployment.
