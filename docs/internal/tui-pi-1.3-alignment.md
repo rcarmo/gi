@@ -703,3 +703,9 @@ New units exercise receipt ordering, edit fencing and retry/newer-edit retention
 frontend197units/hook/build pass. Browser18/18 passed on92c6a8f; exact284fb04
 rerun is underway. Candidate NOT integrated/published pending final result and
 cross-contract checks. Native default behavior remains fallback without Gi hook.
+
+Exact queue candidate284fb04 passes18/18 queue-return,36/36 compose,42/42 model,
+197frontend units/hook/build. FrontendPR9 merged after these checks; integrated
+only with no active source build/test owner. All recovery/error/storage/selection
+assertions retained; no default-native capability removed. Final integrated
+profiling and03:28UTC fullshared remain mandatory before PR62merge/tag.
