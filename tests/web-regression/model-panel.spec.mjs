@@ -10,7 +10,7 @@ test('Native model panel search, metadata, clear and Models-settings handoff pre
   const trigger=page.getByRole('button',{name:'Open model picker',exact:true});await trigger.click();
   const panel=page.locator('.compose-model-catalogue'),search=panel.getByRole('combobox',{name:'Search models',exact:true});await expect(search).toBeFocused();
   await expect(panel.locator('.compose-model-catalogue-section-heading').first()).toContainText('Current');
-  await expect(panel.locator('.current-model')).toHaveCount(1);await expect(panel.locator('.compose-model-catalogue-option-name').first()).not.toHaveText('');
+  await expect(panel.getByRole('option',{selected:true})).toHaveCount(1);await expect(panel.locator('.compose-model-catalogue-option-name').first()).not.toHaveText('');
   await search.fill('does-not-exist');await expect(panel.getByRole('listbox',{name:'Models',exact:true}).getByRole('option')).toHaveCount(0);await expect(panel.locator('.compose-model-catalogue-summary')).toContainText('0 models');
   await panel.getByRole('button',{name:'Clear model search',exact:true}).click();await expect(search).toBeFocused();await expect(panel.getByRole('listbox',{name:'Models',exact:true}).getByRole('option').first()).toBeVisible();
   await search.fill(before.current);await expect(panel.getByRole('listbox',{name:'Models',exact:true}).getByRole('option')).toHaveCount(1);await expect(panel.getByRole('listbox',{name:'Models',exact:true}).getByRole('option')).toContainText(before.current);
@@ -18,8 +18,8 @@ test('Native model panel search, metadata, clear and Models-settings handoff pre
   const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();await expect(dialog.locator('.settings-nav-item.active')).toHaveText('Models');await expect(dialog.getByRole('searchbox',{name:'Filter models',exact:true})).toBeVisible();
   await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(trigger).toBeFocused();await expect(input).toHaveValue('Panel handoff draft Ω');
   await trigger.click();await expect(search).toBeFocused();await expect(panel.locator('.compose-model-catalogue-summary')).not.toContainText('Refreshing');
-  const initial=await panel.locator('[data-model-index].active').getAttribute('data-model-index');
-  await search.press('ArrowDown');await expect(search).toBeFocused();await expect(panel.locator('[data-model-index].active')).not.toHaveAttribute('data-model-index',initial);
+  const initial=await search.getAttribute('aria-activedescendant');
+  await search.press('ArrowDown');await expect(search).toBeFocused();await expect(search).not.toHaveAttribute('aria-activedescendant',initial);
   await page.keyboard.press('Escape');await expect(trigger).toBeFocused();expect(writes).toEqual([]);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);
  }finally{await env.close();}
 });
@@ -44,7 +44,7 @@ test('Model combobox owns a stable listbox descendant without confusing active a
   const box=page.getByRole('combobox',{name:'Search models',exact:true}),list=page.getByRole('listbox',{name:'Models',exact:true});await expect(box).toBeFocused();await expect(list).toHaveAttribute('aria-busy','false');await expect(box).toHaveAttribute('aria-expanded','true');await expect(box).toHaveAttribute('aria-autocomplete','list');
   const listId=await list.getAttribute('id');await expect(box).toHaveAttribute('aria-controls',listId);await expect(trigger).toHaveAttribute('aria-controls',listId);
   const ids=await list.getByRole('option').evaluateAll(nodes=>nodes.map(n=>n.id));expect(new Set(ids).size).toBe(ids.length);expect(ids.every(Boolean)).toBe(true);expect(ids.length).toBeGreaterThan(1);
-  await expect(list.getByRole('option',{selected:true})).toHaveCount(1);await expect(list.getByRole('option',{selected:true})).toHaveAttribute('aria-label',new RegExp(before.current.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  await expect(list.getByRole('option',{selected:true})).toHaveCount(1);await expect(list.getByRole('option',{selected:true})).toContainText(new RegExp(before.current.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   const currentId=await list.getByRole('option',{selected:true}).getAttribute('id');await expect(box).toHaveAttribute('aria-activedescendant',currentId);
   await box.press('ArrowDown');await expect(box).toBeFocused();await expect(box).not.toHaveAttribute('aria-activedescendant',currentId);await expect(list.getByRole('option',{selected:true})).toHaveAttribute('id',currentId);
   const linked=await box.getAttribute('aria-activedescendant');expect(await list.getByRole('option').evaluateAll((nodes,id)=>nodes.some(n=>n.id===id&&n.getAttribute('aria-disabled')==='false'),linked)).toBe(true);
@@ -64,9 +64,9 @@ test('Refreshing and switching models remove stale descendants and cannot activa
   const trigger=page.getByRole('button',{name:'Open model picker',exact:true}),box=page.getByRole('combobox',{name:'Search models',exact:true}),list=page.getByRole('listbox',{name:'Models',exact:true});
   await trigger.click();await expect(list).toHaveAttribute('aria-busy','false');const currentId=await list.getByRole('option',{selected:true}).getAttribute('id');await box.press('Escape');
   const getGate=new Promise(resolve=>{releaseGet=resolve;}),patchGate=new Promise(resolve=>{releasePatch=resolve;});let patches=0;
-  await page.route('**/api/sessions/*/model',async route=>{
+  await page.route('**/api/sessions/*/{model,prompt}',async route=>{
    if(route.request().method()==='GET'){await getGate;return route.continue();}
-   if(route.request().method()==='PATCH'){patches++;await patchGate;return route.continue();}
+   if(route.request().method()==='POST'){patches++;await patchGate;if(patches===2)return route.fulfill({status:200,json:{ui_only:true,command:{status:'success',message:'Model retained'}}});return route.fulfill({status:400,json:{error:'model unavailable or lacks credentials'}});}
    return route.continue();
   });
   await trigger.click();await expect(list).toHaveAttribute('aria-busy','true');await expect(list.getByRole('option')).toHaveCount(0);await expect(box).toBeFocused();await expect(box).not.toHaveAttribute('aria-activedescendant',/.+/);
@@ -77,7 +77,7 @@ test('Refreshing and switching models remove stale descendants and cannot activa
   await expect.poll(()=>patches).toBe(1);await expect(box).toBeFocused();await expect(box).not.toHaveAttribute('aria-activedescendant',/.+/);
   expect(await list.getByRole('option').evaluateAll(nodes=>nodes.every(n=>n.disabled&&n.getAttribute('aria-disabled')==='true'))).toBe(true);
   await box.press('ArrowDown');await box.press('Enter');expect(patches).toBe(1);releasePatch();
-  // The journey fixture lists bootstrap without credentials: rejection keeps the picker usable.
+  // Explicit native command rejection keeps the picker usable; success is separately exercised below.
   await expect(page.getByRole('alert')).toContainText('unavailable or lacks credentials');await expect(box).toBeFocused();await expect(box).toHaveAttribute('aria-activedescendant',currentId);await expect(list.getByRole('option',{selected:true})).toBeEnabled();
   await list.getByRole('option',{selected:true}).click();await expect.poll(()=>patches).toBe(2);await expect(list).toHaveCount(0);await expect(trigger).toBeFocused();await expect(input).toHaveValue('Loading model draft');
  }finally{releaseGet?.();releasePatch?.();await env.close();}
@@ -89,7 +89,7 @@ for(const owner of ['composer','Settings'])test(`Accepted model response does no
   await page.goto(env.origin);const input=page.locator('.compose-box textarea');await expect(input).toBeFocused();await input.fill('Keep response focus');
   await page.getByRole('button',{name:'Open model picker',exact:true}).click();const list=page.getByRole('listbox',{name:'Models',exact:true});await expect(list).toHaveAttribute('aria-busy','false');
   const gate=new Promise(resolve=>{release=resolve;});let pending=false;
-  await page.route('**/api/sessions/*/model',async route=>{if(route.request().method()==='PATCH'){pending=true;await gate;}await route.continue();});
+  await page.route('**/api/sessions/*/prompt',async route=>{if(route.request().method()==='POST'){pending=true;await gate;return route.fulfill({status:200,json:{ui_only:true,command:{status:'success',message:'Model retained'}}});}await route.continue();});
   await list.getByRole('option',{selected:true}).click();await expect.poll(()=>pending).toBe(true);
   if(owner==='Settings'){await page.keyboard.press('Control+,');await expect(page.getByRole('dialog')).toBeVisible();}
   else await input.focus();
@@ -102,13 +102,14 @@ for(const owner of ['composer','Settings'])test(`Accepted model response does no
 });
 
 test('Overflowing model list stays out of Tab order beside unavailable thinking',async({page},info)=>{
- const env=await journeyEnvironment(info);
+ const env=await journeyEnvironment(info);let catalogueCount=0;
  try{
   const writes=[];
   await page.route('**/api/sessions/*/model',async route=>{
    if(route.request().method()!=='GET'){writes.push(route.request().method());return route.abort();}
    const response=await route.fetch(),state=await response.json();
    const extra=Array.from({length:40},(_,i)=>({label:`ux-local/scroll-${i}`,id:`scroll-${i}`,name:`Scroll model ${i}`,provider:'ux-local',context_window:32000}));
+   catalogueCount=state.model_options.length+extra.length;
    await route.fulfill({response,json:{...state,supports_thinking:true,thinking_level:'high',model_options:[...state.model_options,...extra]}});
   });
   await page.goto(env.origin);const input=page.locator('.compose-box textarea');await expect(input).toBeFocused();await input.fill('Long catalogue draft');
@@ -116,6 +117,6 @@ test('Overflowing model list stays out of Tab order beside unavailable thinking'
   await expect(list).toHaveAttribute('aria-busy','false');await expect(panel.getByRole('combobox',{name:'Thinking level',exact:true})).toBeDisabled();await expect.poll(()=>list.evaluate(e=>e.scrollHeight>e.clientHeight)).toBe(true);
   await expect(box).toBeFocused();await box.press('ArrowDown');await expect(box).toBeFocused();await box.press('Tab');await expect(settings).toBeFocused();await settings.press('Shift+Tab');await expect(box).toBeFocused();
   await box.fill('no-such-model');await expect(list.getByRole('option')).toHaveCount(0);await expect(box).not.toHaveAttribute('aria-activedescendant',/.+/);await box.press('Tab');await expect(panel.getByRole('button',{name:'Clear model search',exact:true})).toBeFocused();await page.keyboard.press('Tab');await expect(settings).toBeFocused();
-  await panel.getByRole('button',{name:'Clear model search',exact:true}).click();await expect(box).toBeFocused();await expect(list.getByRole('option')).toHaveCount(43);await box.press('Tab');await expect(settings).toBeFocused();await page.keyboard.press('Escape');await expect(input).toHaveValue('Long catalogue draft');expect(writes).toEqual([]);
+  await panel.getByRole('button',{name:'Clear model search',exact:true}).click();await expect(box).toBeFocused();await expect(list.getByRole('option')).toHaveCount(catalogueCount);await box.press('Tab');await expect(settings).toBeFocused();await page.keyboard.press('Escape');await expect(input).toHaveValue('Long catalogue draft');expect(writes).toEqual([]);
  }finally{await env.close();}
 });

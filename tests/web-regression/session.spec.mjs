@@ -263,7 +263,7 @@ test('@ux-session-002 Group picker entries using current native session metadata
   const other=await create(`${token}-other`);
   const mutation=async(id,body)=>{const response=await request.patch(`/api/sessions/${id}`,{data:body});expect(response.status()).toBe(200);};
   await mutation(pinned,{action:'pin',pinned:true});await mutation(archived,{action:'archive'});
-  const gate=resolve('test-results/ux-parity/queue-gates',`${token}-busy`);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const gate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,`${token}-busy`);mkdirSync(resolve(gate,'..'),{recursive:true});
   const run=await request.post(`/api/sessions/${active}/prompt`,{data:{prompt:`UX queue gate:${token}-busy`,model:'test-model'}});
   expect(run.status()).toBe(202);const {turn_id}=await run.json();
   const stored=async id=>(await(await request.get(`/api/sessions/${id}`)).json());
@@ -305,7 +305,7 @@ test('@ux-session-005 Touch swipe keeps native carousel order and target/selecti
   const read=await request.post(`/api/sessions/${current}/prompt`,{data:{prompt:`Swipe selectable text ${token}`,model:'test-model'}});
   expect(read.status()).toBe(202);
   await expect.poll(async()=>((await(await request.get(`/api/sessions/${current}/messages`)).json()).messages||[]).some(message=>message.role==='assistant')).toBe(true);
-  const gate=resolve('test-results/ux-parity/queue-gates',`${token}-busy`);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const gate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,`${token}-busy`);mkdirSync(resolve(gate,'..'),{recursive:true});
   const run=await request.post(`/api/sessions/${next}/prompt`,{data:{prompt:`UX queue gate:${token}-busy`,model:'test-model'}});
   expect(run.status()).toBe(202);const {turn_id}=await run.json();
   const selected=()=>page.evaluate(()=>localStorage.getItem('gi_session_id'));
@@ -651,7 +651,7 @@ test('@ux-mobile-004 Native pinned and active overlap yields one stable active-f
   }, delta);
   try {
     for (const [index, id] of [activeA, activeB].entries()) {
-      const key = `${token}-gate-${index}`, gate = resolve('test-results/ux-parity/queue-gates', key); mkdirSync(resolve(gate, '..'), { recursive: true });
+      const key = `${token}-gate-${index}`, gate = resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`, key); mkdirSync(resolve(gate, '..'), { recursive: true });
       const response = await request.post(`/api/sessions/${id}/prompt`, { data: { prompt: `UX queue gate:${key}`, model: 'test-model' } });
       expect(response.status()).toBe(202); runs.push({ id, gate, turn: (await response.json()).turn_id });
       await expect.poll(async () => (await (await request.get(`/api/sessions/${id}`)).json()).state.status).toBe('running');

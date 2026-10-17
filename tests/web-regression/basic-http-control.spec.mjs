@@ -69,7 +69,7 @@ test('HTTP model selection governs actual provider requests after reload; reject
  try{
   const trigger=page.getByRole('button',{name:'Open model picker',exact:true});const option=id=>page.getByRole('listbox',{name:'Models',exact:true}).getByRole('option').filter({hasText:id});
   const draft=`model choice ${info.project.name} 中文🙂`;await h.input.fill(draft);
-  const selected=page.waitForResponse(r=>r.request().method()==='PATCH'&&r.url().endsWith(`/api/sessions/${h.id}/model`));
+  const selected=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));
   await trigger.click();await option('ux-local/alternate').click();expect((await selected).status()).toBe(200);await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(draft);
   expect((await h.read(`/api/sessions/${h.id}/turns`)).turns||[]).toHaveLength(0);await page.reload();await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(draft);
   async function sendAndAssert(text,model){
@@ -80,9 +80,9 @@ test('HTTP model selection governs actual provider requests after reload; reject
   }
   await sendAndAssert(draft,'alternate');
   const next='keep draft after model failure';await h.input.fill(next);
-  await page.route(`**/api/sessions/${h.id}/model`,r=>r.request().method()==='PATCH'?r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Model selection unavailable'})}):r.continue());
+  await page.route(`**/api/sessions/${h.id}/prompt`,r=>r.request().method()==='POST'?r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Model selection unavailable'})}):r.continue());
   await trigger.click();await option('ux-local/gate').click();await expect(page.getByRole('alert')).toContainText('Model selection unavailable');await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(next);expect((await h.read(`/api/sessions/${h.id}/model`)).current).toBe('ux-local/alternate');
-  await page.unroute(`**/api/sessions/${h.id}/model`);await page.reload();await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(next);await sendAndAssert(next,'alternate');
+  await page.unroute(`**/api/sessions/${h.id}/prompt`);await page.reload();await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(next);await sendAndAssert(next,'alternate');
   await trigger.click();await option('ux-local/gate').click();await expect(trigger).toHaveText('ux-local/gate');await sendAndAssert('send after changing model again','gate');
   const turns=(await h.read(`/api/sessions/${h.id}/turns`)).turns;expect(turns).toHaveLength(3);expect(new Set(turns.map(t=>t.id)).size).toBe(3);expect(errors).toEqual([]);
  }finally{await h.close()}

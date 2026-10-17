@@ -590,7 +590,7 @@ test-pi-preparation-steer:
 .PHONY: test-ux-queue-return
 
 test-ux-queue-return:
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/drafts.test.ts tests/unit/queue-return.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/
 	$(MAKE) test-ux-parity-regression UX_PARITY_ARGS='tests/web-regression/queue-return.spec.mjs'
 
 .PHONY: diagnose-webkit-unload
@@ -601,8 +601,8 @@ test-ux-parity-regression:
 	@mkdir -p $(TEST_RESULTS)/ux-parity/queue-gates
 	PATH="$(abspath tests/ux/shell):$$PATH" GI_UX_QUEUE_GATES="$(abspath $(TEST_RESULTS)/ux-parity/queue-gates)" $(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=$(GI_TEST_RUN_ROOT)/ux-parity TEST_ENABLED_MODELS='["test-model","bootstrap","test/unavailable-model"]'
 	@trap '$(MAKE) --no-print-directory test-instance-stop TEST_DIR=$(GI_TEST_RUN_ROOT)/ux-parity' EXIT; \
-		$(MAKE) --no-print-directory build-pane-host-fixture || exit 1; \
-		GI_TEST_URL=http://127.0.0.1:$(UX_PARITY_PORT) $(PLAYWRIGHT) test -c playwright.web-regression.config.mjs $(UX_PARITY_ARGS)
+		case '$(UX_PARITY_ARGS)' in ''|*pane-host.spec.mjs*) $(MAKE) --no-print-directory build-pane-host-fixture || exit 1;; esac; \
+		GI_UX_QUEUE_GATES="$(abspath $(TEST_RESULTS)/ux-parity/queue-gates)" GI_TEST_URL=http://127.0.0.1:$(UX_PARITY_PORT) $(PLAYWRIGHT) test -c playwright.web-regression.config.mjs $(UX_PARITY_ARGS)
 
 test-tui-compaction:
 	@mkdir -p bin
@@ -796,7 +796,7 @@ test-ux-notifications: build-web
 
 .PHONY: test-voice-input-helpers test-ux-voice-input
 test-voice-input-helpers:
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/voice-input.test.ts tests/unit/voice-adapter.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/
 
 test-ux-voice-input: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN))
@@ -805,7 +805,7 @@ test-ux-voice-input: build-web
 
 .PHONY: test-ux-session-panel test-session-panel-helpers
 test-session-panel-helpers:
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/session-panel.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/
 
 test-ux-session-panel: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN))
@@ -814,7 +814,7 @@ test-ux-session-panel: build-web
 
 .PHONY: test-ux-model-panel test-model-panel-helpers
 test-model-panel-helpers:
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/model-panel.test.ts tests/unit/model-picker.test.ts tests/unit/model-accessibility.test.ts tests/unit/model-thinking.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/
 
 .PHONY: test-ux-compose-escape
 

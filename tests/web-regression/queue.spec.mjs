@@ -8,7 +8,7 @@ async function setup(page,request,info){
  const token=`${info.project.name}-${Date.now()}`;
  const main=await(await request.post('/api/sessions',{data:{agent_id:token,title:`@${token}`}})).json();
  const child=(await(await request.post(`/api/sessions/${main.id}/fork`,{data:{agent_id:`${token}-child`,title:`${token}-child`}})).json()).branch.chat_jid.slice(3);
- const gate=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(gate,'..'),{recursive:true});
+ const gate=resolve(process.env.GI_UX_QUEUE_GATES || `${process.env.GI_TEST_RUN_ROOT}/results/ux-parity/queue-gates`,token);mkdirSync(resolve(gate,'..'),{recursive:true});
  const release=()=>writeFileSync(gate,'release');
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
  await page.goto('/');
