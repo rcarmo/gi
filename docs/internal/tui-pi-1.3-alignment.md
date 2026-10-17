@@ -835,3 +835,14 @@ counts, not per-work improvement evidence. Profiles/binaries disposed after use.
 Race checks pass cache ownership/nested edits, freshness after DB updates,
 invalid-map rejection, bounded/oversizedcache and concurrentreads. Fullsuite
 and frontend functional failure diagnosis still pending; no release claim.
+
+Cache candidate c43a0645 verification:2348native/35packages,vet,
+147functional passes/13existing skips. Native102swall/65sCPU/777MBpeak;
+functional201swall/100sCPU/1386MBpeak. CPU/alloc_space/alloc_objects and
+browser/Node summaries analyzed/disposed. Prior exact-main PWA failed4asset
+ERR_NETWORK_CHANGED; workspace subtree API correctly returned hiddenchild,
+but visible expansion failed, cause not proven. Six focused repetitions pass;
+these are diagnostics, not waiver/replacement of final acceptance. No weakened
+assertions or retries configured for full matrices. Cache remains bounded,
+transaction reads fresh, nested maps caller-owned; measured benefit applies
+only to documented equivalent warm repeated-state response workload.
