@@ -757,3 +757,13 @@ internal goto reproduced on tablet. Remove redundant initial navigation, retain
 explicit reload for keyboard persistence and await modal teardown; debounce18/18,
 core18/18 pass. Root26/frontend200unit checks pass. These focused runs do NOT
 supersede failed full1517/71/2; next full eligible07:28UTC.
+
+Response-allocation probe (Go1.27.2,1.125MBrepresentative session JSON,3x2s):
+newline split-write candidate measured~678us vs~935us, but remained~1.132MB/op
+and increased8→9allocs/op. CPU profiles dominated JSON quoting; alloc_space
+bytes.Clone~99.7% (json.Marshal copies its buffer). No established payload-copy
+saving; candidate REVERTED rather than keeping speculative tuning. Preserve
+marshal-before-header/error contract; regression benchmark/tests added. Raw
+baseline/candidate CPU,alloc_space,alloc_objects captures/binaries disposed.
+Session response allocation reflects full state JSON contract, not fixed by
+newline changes; changing/list-filtering state requires separate API design.
