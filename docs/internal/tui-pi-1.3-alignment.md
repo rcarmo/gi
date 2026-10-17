@@ -864,3 +864,15 @@ skips pass. Native97swall/67sCPU/785MBpeak;functional194swall/99sCPU/1387MB.
 CPU/alloc_space/objects and browser/node analyzed; rawcaptures disposed. No
 additional optimization claimed from unrelated fullsuite timing differences.
 Finalsharedverification of this exact runtime still required before release.
+
+FinalGetSessioncache381586a4 fullmatrix FAILED1518/71existing skips/1failure;
+97m28swall/82m40sCPU/1395MBpeak. Chromiumtablet shared023 never reached
+reconnect assertions: LoadingGi only; app.bundle.js and beautiful-mermaid.js
+failednet::ERR_NETWORK_CHANGED. No retries/waiver. Freshcleanfull required.
+Harness analyzed all runtimeCPU/alloc_space/alloc_objects/browser/node and
+disposed rawprofiles. First runtime cachedecode0.41%CPU/0.033%alloc/0.008%
+objects;writeJSON25.46%CPU/58.61%alloc; unmarshal19.64%CPU/22.39%alloc
+remains across other state consumers. Per Rui14:28 direction, no further
+optimization unless majorperformanceproblem: remaining serialization workload
+is a non-blocking follow-up, measuredcache gains retained; finishrelease.
+Guidance allows small quantified secondary regressions for larger net benefit.
