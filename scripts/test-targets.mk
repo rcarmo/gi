@@ -590,7 +590,7 @@ test-pi-preparation-steer:
 .PHONY: test-ux-queue-return
 
 test-ux-queue-return:
-	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/drafts.test.ts tests/unit/queue-return.test.ts
+	$(MAKE) -s -C $(GI_UI) deps && cd $(GI_UI) && $(BUN) test tests/unit/
 	$(MAKE) test-ux-parity-regression UX_PARITY_ARGS='tests/web-regression/queue-return.spec.mjs'
 
 .PHONY: diagnose-webkit-unload

@@ -15,7 +15,7 @@ async function fixture(page,request,info){
  const media=await(await request.post(`/api/sessions/${main.id}/media`,{multipart:{file:file('queued.txt')}})).json();
  const prompt=`queued origin\n\nFiles:\n- folder/\n- queued-file.txt\n\nReferenced messages:\n- message:source-message\n\nAttachments:\n- attachment:${media.media.id} (queued.txt)`;
  const queued=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt,intent:'queue',model:'test-model',media:[media.ref]}})).json();
- const row=page.locator(`[data-queue-id="${queued.turn_id}"]`);await expect(row).toBeVisible();
+ const row=page.getByTestId('queue-item').filter({hasText:'queued origin'});await expect(row).toBeVisible();
  const stored=async()=>page.evaluate(async id=>{
   const db=await new Promise((resolve,reject)=>{const req=indexedDB.open('gi-session-drafts');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly');const req=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const row=req.result;resolve({text:row?.draft.text,media:row?.draft.media.map(x=>x.name),fileRefs:row?.draft.fileRefs,messageRefs:row?.draft.messageRefs,recovery:row?.queueReturns});};tx.onerror=()=>reject(tx.error);});
@@ -91,11 +91,11 @@ test('Gi queue return after selection changes recovers only the origin',async({p
  await page.route(`**/api/sessions/${main.id}/media/${media.media.id}`,async route=>{const response=await route.fetch();held=true;await gate;await route.fulfill({response});});
  try{
   await input.fill('origin draft');await row.getByRole('button',{name:'Return queued message to editor'}).click();await expect.poll(()=>held).toBe(true);
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('option').click();
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-gi%3A${child}"]`).click();
   await input.fill('target draft');unblock();
   await expect.poll(async()=> (await stored()).recovery?.[queued.turn_id]?.state).toBe('removed');
   await expect(input).toHaveValue('target draft');await expect(page.getByRole('alert')).toHaveCount(0);
-  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('option').click();
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[id="compose-session-option-gi%3A${main.id}"]`).click();
   await expect(input).toHaveValue('queued origin');await expect(page.locator('.compose-file-pill[title="queued.txt"]')).toBeVisible();
  }finally{unblock();release();}
 });

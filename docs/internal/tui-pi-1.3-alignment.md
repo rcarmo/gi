@@ -689,3 +689,17 @@ and functional147passed/13existing skips (`PATCH13_FINAL_NATIVE_FUNCTIONAL_PASS`
 The first PTY resize failure remains disclosed; clean rerun does not establish
 its cause. No assertions changed. Final fullshared and successful releaseCI are
 still mandatory. Completed rerun profiles analysed/disposed by helper.
+
+### Queue-return entry-point audit
+
+Cooldown audit found `test-ux-queue-return` still named a removed unit file and
+its browser test used removed queue/session wrappers. Updating selectors exposed
+a real missing host integration: native return bypassed Gi durable recovery.
+Isolated frontend284fb04 restores capture-before-attachment-fetch, origin-scoped
+media recovery, prepared persistence receipt before DELETE, once-only retry,
+current-session-only editor application and retained incomplete recovery errors.
+The policy consumes the existing native parser without importing the renderer.
+New units exercise receipt ordering, edit fencing and retry/newer-edit retention;
+frontend197units/hook/build pass. Browser18/18 passed on92c6a8f; exact284fb04
+rerun is underway. Candidate NOT integrated/published pending final result and
+cross-contract checks. Native default behavior remains fallback without Gi hook.
