@@ -747,3 +747,13 @@ Browser/Node summaries analyzed; live heap samples are not allocation histories.
 Session polling/serialization dominates this matrix and warrants investigation
 before the next gate; no measured improvement claimed. Raw profiles disposed
 immediately after analysis. Acceptance remains failed; no merge/tag authorized.
+
+Shared PR12 fixes diagnosed acceptance boundaries, not runtime behavior:
+workspace treeRow previously counted selected preview title before metadata path
+rendered; isolated diagnostic reproduced1/3failure with hidden setting false.
+Scope detection to .workspace-tree.18/18six-project toggles/reloads pass unchanged.
+Settings core helper redundantly navigated immediately after beforeEach; WebKit
+internal goto reproduced on tablet. Remove redundant initial navigation, retain
+explicit reload for keyboard persistence and await modal teardown; debounce18/18,
+core18/18 pass. Root26/frontend200unit checks pass. These focused runs do NOT
+supersede failed full1517/71/2; next full eligible07:28UTC.
