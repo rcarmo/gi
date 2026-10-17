@@ -821,3 +821,17 @@ no new claimed tuning benefit. Live browser heaps not allocation histories.
 v0.1.3CI39017624126 finalizedfailure;sharedjobcancelled,notaccepted.
 LocalcleanfullandfocusedpassesdonotwaiveoriginalHTTP/retrievalCI failures;
 next immutablepatchCI must succeed before release acceptance. No deployment.
+
+Measured session-state decode outlier fix (Go1.27.2): cache only decoded JSON,
+keyed by session ID and exact state read from each listing transaction. Never
+cache database reads/responses; deep-copy maps/arrays to preserve caller ownership.
+Bound256entries/32MiBestimated retained cost, oversizedstatesbypasscache.
+Equivalent20sessions×64KiBstate response workload,3×2s:baseline4.49–4.70ms,
+10.76–10.93MB/op,1299–1300allocs;candidate1.64–1.65ms,4.40–4.52MB/op,
+1138–1139allocs (~64%latency/~59%bytes/~12%objects reduction). CPU/alloc_space/
+alloc_objects inspected: repeated unmarshal leaves dominant allocation sites;
+remaining JSON encoding remains. Aggregate profiles contain different iteration
+counts, not per-work improvement evidence. Profiles/binaries disposed after use.
+Race checks pass cache ownership/nested edits, freshness after DB updates,
+invalid-map rejection, bounded/oversizedcache and concurrentreads. Fullsuite
+and frontend functional failure diagnosis still pending; no release claim.
