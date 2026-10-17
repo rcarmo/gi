@@ -50,7 +50,7 @@ jobs:
         run: bun run build:web
 
       - name: Pixel evidence helper tests
-        run: make test-pixel-helpers test-compose-surface-helpers test-model-panel-helpers test-session-panel-helpers test-voice-input-helpers test-notification-helpers test-context-control-helpers
+        run: make bun-checks test-web-adapters
 
       - name: Go test with CPU and allocation analysis
         run: make test
@@ -78,9 +78,13 @@ jobs:
           rm -rf -- "$GI_TEST_RUN_ROOT"
 
   classic-compliance:
-    name: Shared Classic compliance
+    name: Shared Classic / ${{ matrix.project }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 35
+    strategy:
+      fail-fast: true
+      matrix:
+        project: [chromium-phone, chromium-tablet, chromium-desktop, webkit-phone, webkit-tablet, webkit-desktop]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -103,12 +107,21 @@ jobs:
           cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make build-web
-      - run: make fixtures-vibes
+      - run: make fixtures-vibes-focused FIXTURES_SPEC_ARGS="--project=${{ matrix.project }}"
+        env:
+          GI_TEST_KEEP_RESULTS: "1"
+      - name: Upload shard results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shared-results-${{ matrix.project }}
+          path: ${{ env.GI_TEST_RUN_ROOT }}/results/fixtures/results.json
+          if-no-files-found: error
       - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: shared-classic-compliance-measurements
+          name: shared-classic-${{ matrix.project }}-measurements
           path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
       - name: Dispose owned diagnostics after analysis
@@ -117,6 +130,34 @@ jobs:
           source scripts/project-test-env.sh
           gi_test_path "$GI_TEST_RUN_ROOT"
           rm -rf -- "$GI_TEST_RUN_ROOT"
+
+  classic-report:
+    name: Shared Classic coverage report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: classic-compliance
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: oven-sh/setup-bun@v2
+      - name: Resolve scratch
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for name in PROJECT_TMP_ROOT GI_TEST_RUN_ROOT TMPDIR TMP TEMP BUN_INSTALL_CACHE_DIR BUN_RUNTIME_TRANSPILER_CACHE_PATH; do printf '%s=%s\n' "$name" "${!name}" >> "$GITHUB_ENV"; done
+      - run: cd references/fixtures-vibes && bun install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: shared-results-*
+          path: ${{ env.GI_TEST_RUN_ROOT }}/shards
+      - name: Validate all six shards and complete coverage
+        run: |
+          bun scripts/merge-fixture-results.ts "$GI_TEST_RUN_ROOT/shards" "$GI_TEST_RUN_ROOT/results/fixtures/results.json"
+          make fixtures-vibes-report
 
   passkey-browser:
     name: Native passkey browser integration
@@ -435,7 +476,7 @@ jobs:
           bun install --frozen-lockfile
           cd references/fixtures-vibes && bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
-      - run: make test-web-http-helpers test-web-basic-send test-web-basic-controls
+      - run: make test-web-basic-send test-web-basic-controls
       - name: Verify captured Stop reconnect evidence without Shared36 parity credit
         run: make test-ux-reconnect UX_PARITY_ARGS='--grep "Gi Stop reconnect retains draft"'
       - name: Retain concise run measurements
@@ -592,7 +633,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry, basic-web-send, thinking-browser, message-retrieval-browser, tool-terminal-browser]
+    needs: [test, classic-report, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry, basic-web-send, thinking-browser, message-retrieval-browser, tool-terminal-browser]
     strategy:
       fail-fast: false
       matrix:

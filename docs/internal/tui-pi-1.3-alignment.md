@@ -897,3 +897,13 @@ writeJSON27.27%CPU/58.92%allocation,otherunmarshal19.96%CPU/23.18%allocation.
 Measured cache improvements retained; remaining serialization non-blocking per
 Rui release-priority direction. No new performance work or fullmatrix required.
 Previous failed/aborted runs remain historical failures, not retroactivepasses.
+
+CI simplification: remove four repeated fullfrontendunit aliases and redundant
+HTTPunit subset from browserjobs; one hook/adapter/unit gate retainsallunits.
+Sharedbrowseracceptance runs six isolated project jobs (oneworker/zeroretries
+insideeach),35minlimit insteadof120minserial. One aggregate gate requiresall6
+uniqueprojects, rejectsfailed/flaky/empty/erroredreports, mergesallevidence,
+thenexecutesunchangedsharedcomplianceaccounting. Buildnowrequiresaggregate
+sharedgate(previousbuildneedsomittedsharedcompliance). actionlint,mergeunit
+checks and real6projectPlaywrightreport split/merge pass. No scenarios/assertions
+removed; no newfullmatrix run forworkflowdiagnosis. v0.1.4failedreload retained.
