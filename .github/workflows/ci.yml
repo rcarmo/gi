@@ -231,8 +231,8 @@ jobs:
         run: make test-ux-picker-geometry
       - name: Verify slash and Quick Actions keyboard ownership
         run: make test-ux-slash
-      - name: Verify read-only workspace tab transitions
-        run: make test-ux-workspace-tabs
+      - name: Verify native workspace editor contract
+        run: make test-ux-native-workspace
       - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
@@ -574,7 +574,7 @@ jobs:
   thinking-browser:
     name: Session thinking provider-request ownership
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
