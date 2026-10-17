@@ -231,6 +231,11 @@ jobs:
         run: make test-ux-picker-geometry
       - name: Verify slash and Quick Actions keyboard ownership
         run: make test-ux-slash
+      - name: Install native editor consumer runner
+        run: |
+          cd references/fixtures-vibes
+          bun install --frozen-lockfile
+          bun x playwright install --with-deps chromium webkit
       - name: Verify native workspace editor contract
         run: make test-ux-native-workspace
       - name: Retain concise run measurements
