@@ -127,7 +127,9 @@ test('workspace index reads keep edited bytes stale until the next explicit appl
 
 test('Native Markdown editor preview renders source and refreshes clean external writes',async({page,request})=>{
  const path=`functional-tab-${Date.now()}.md`;const written=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'# Native tab proof\n\nUse `inline proof` as code.'}}});expect((await written.json()).error).toBeFalsy();
- await page.goto(BASE_URL);const input=page.locator('.compose-box textarea');await input.fill('retained tab draft');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.locator('.workspace-edit').click();
+ await page.goto(BASE_URL);const input=page.locator('.compose-box textarea');await input.fill('retained tab draft');
+ // Exercise the native editor directly; explorer actions have shared coverage.
+ await page.evaluate(path=>window.dispatchEvent(new CustomEvent('piclaw-extension-ui:request',{detail:{payload:{request_id:'markdown-preview-open',kind:'custom',options:{action:'open_workspace_file',path,target:'tab'}}}})),path);
  const tab=page.getByRole('tab').filter({hasText:path});await expect(page.locator('.cm-editor')).toContainText('Native tab proof');await tab.click({button:'right'});await page.locator('.tab-context-menu').getByRole('button',{name:'Preview',exact:true}).click();
  const preview=page.locator('.md-preview-panel');await expect(preview.getByRole('heading',{name:'Native tab proof',exact:true})).toBeVisible();await expect(preview.locator('[contenteditable=true],textarea')).toHaveCount(0);
  const code=preview.locator('p code');await expect(code).toHaveText('inline proof');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily)).toContain('monospace');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily===getComputedStyle(el.parentElement!).fontFamily)).toBe(false);
