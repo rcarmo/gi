@@ -264,7 +264,7 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	if parent.Valid {
 		out.ParentSessionID = parent.String
 	}
-	state, err := unmarshalJSONMap(stateJSON)
+	state, err := s.listingState.decode(out.ID, stateJSON)
 	if err != nil {
 		return nil, err
 	}

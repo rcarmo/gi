@@ -98,3 +98,28 @@ func BenchmarkListSessionsJSONState(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkGetSessionJSONState(b *testing.B) {
+	s, err := Open(filepath.Join(b.TempDir(), "get-state.db"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer s.Close()
+	if _, err = s.CreateSession(b.Context(), "a", "session", nil); err != nil {
+		b.Fatal(err)
+	}
+	if err = s.TouchSessionState(b.Context(), "a", map[string]any{"context": strings.Repeat("context ", 8192)}); err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		row, err := s.GetSession(b.Context(), "a")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err = json.Marshal(row); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

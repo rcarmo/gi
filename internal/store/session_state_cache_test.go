@@ -88,6 +88,11 @@ func TestListSessionsCacheObservesDatabaseChanges(t *testing.T) {
 			t.Fatalf("stale state: %+v", list[0].State)
 		}
 		list[0].State["value"] = "caller mutation"
+		got, err := s.GetSession(t.Context(), "a")
+		if err != nil || got.State["value"] != value {
+			t.Fatal("GetSession shared or stale state", got, err)
+		}
+		got.State["value"] = "get mutation"
 	}
 	if _, err = s.db.ExecContext(t.Context(), `update sessions set state_json = '{' where id='a'`); err == nil {
 		t.Fatal("database accepted malformed state")

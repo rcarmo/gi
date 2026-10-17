@@ -846,3 +846,15 @@ these are diagnostics, not waiver/replacement of final acceptance. No weakened
 assertions or retries configured for full matrices. Cache remains bounded,
 transaction reads fresh, nested maps caller-owned; measured benefit applies
 only to documented equivalent warm repeated-state response workload.
+
+Listing-cache full fffb7221 passed1519/71existing skips/0failures;97m21swall,
+82m46sCPU/1397MBpeak. All6runtimeCPU/alloc_space/objects+browser/node analyzed
+and disposed by harness. Listingdecode0.2%CPU/0.057%allocation(first runtime),
+but GetSession still decoded repeatedly: unmarshal22.37%CPU/23.70%allocation.
+Extended same bounded owned-copy cache to GetSession after measuring equivalent
+64KiBstate read+response3×2s:208–214us/300.7–301KB/144alloc baseline,
+129.8–130.5us/157.0–157.3KB/136alloc candidate (~38%time/48%bytes/6%alloc).
+CPU/alloc_space/objects confirm repeated unmarshal removed from leaders; remaining
+SQLitecolumnText and responsebytes.Clone dominate. Profiles/binaries deleted.
+Race tests cover GetSession/ListSessions cross-caller ownership and DBfreshness.
+This extension requires final verification; no release claimed.
