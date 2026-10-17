@@ -778,3 +778,18 @@ Final pin b1d10d48 additional editor consumer acceptance4/4 passes Chromium/
 WebKit desktop: Reload, reviewed conditional Overwrite, create-only Save Copy,
 and clean external refresh retains revision for subsequent save. This is Gi
 consumer evidence, not proof of another consumer's publication or acceptance.
+
+### Clean final shared acceptance (2026-10-17 06:44 UTC)
+
+Exact bc3fad9a/frontendb1d10d48 full matrix PASSED:1519passed/71existing
+skips/0failures, no retries. Wall97m46s/CPU82m56s/1367MBpeakRSS. Both prior
+workspace004 baseline and settings019 navigation failures repaired; assertions
+retained. Rui explicitly rejected the spurious four-hour cooldown: no such
+restriction applies. No runtime/build/assets changed while the matrix owned them.
+Go1.27.2 combinedCPU288.55s sampled;handleSessions169.90s cumulative58.88%.
+Allocation260813.53MBsampled cumulative;handleSessions95%;230.8Mobjects,
+handleSessions78.56%. Browser/Node summaries inspected; live heaps are not
+allocation histories. Full-state session polling/JSON remains workload hotspot;
+previous controlled splitwrite probe did not reduceB/op and was reverted.
+No speedup claim. CPU/alloc_space/alloc_objects analyzed; all rawcaptures,
+matching fixtures/binary and disposable run data deleted after use.
