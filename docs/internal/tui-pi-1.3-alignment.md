@@ -876,3 +876,14 @@ remains across other state consumers. Per Rui14:28 direction, no further
 optimization unless majorperformanceproblem: remaining serialization workload
 is a non-blocking follow-up, measuredcache gains retained; finishrelease.
 Guidance allows small quantified secondary regressions for larger net benefit.
+
+Host diagnosis: Syncthing config permission failure caused1517containerrestarts,
+Docker endpoint/veth churn; observed via Docker events and ip monitor. Removed
+crashloop and stale containers/images with Rui authorisation, data preserved.
+Second full267d12cd failed1517/71/2:both loading-onlyChromium pages,9and2
+ERR_NETWORK_CHANGEDrequests,beforekeychain/sessionpickerassertions. Raw runtime
+CPU/alloc_space/objects/browser/node analyzed by harness/disposed;96m56swall,
+81m58sCPU/1361MBpeak. No waiver. Opt-in Linux network-isolated wrapper creates
+private loopback then drops privilege to caller, explicit test env only; no
+external credentials/access. Both affected scenarios diagnostic12/12pass;
+fullisolatedacceptance required. No retries or assertion changes.
