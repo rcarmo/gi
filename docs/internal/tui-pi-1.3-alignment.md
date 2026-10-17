@@ -821,3 +821,58 @@ no new claimed tuning benefit. Live browser heaps not allocation histories.
 v0.1.3CI39017624126 finalizedfailure;sharedjobcancelled,notaccepted.
 LocalcleanfullandfocusedpassesdonotwaiveoriginalHTTP/retrievalCI failures;
 next immutablepatchCI must succeed before release acceptance. No deployment.
+
+Measured session-state decode outlier fix (Go1.27.2): cache only decoded JSON,
+keyed by session ID and exact state read from each listing transaction. Never
+cache database reads/responses; deep-copy maps/arrays to preserve caller ownership.
+Bound256entries/32MiBestimated retained cost, oversizedstatesbypasscache.
+Equivalent20sessions×64KiBstate response workload,3×2s:baseline4.49–4.70ms,
+10.76–10.93MB/op,1299–1300allocs;candidate1.64–1.65ms,4.40–4.52MB/op,
+1138–1139allocs (~64%latency/~59%bytes/~12%objects reduction). CPU/alloc_space/
+alloc_objects inspected: repeated unmarshal leaves dominant allocation sites;
+remaining JSON encoding remains. Aggregate profiles contain different iteration
+counts, not per-work improvement evidence. Profiles/binaries disposed after use.
+Race checks pass cache ownership/nested edits, freshness after DB updates,
+invalid-map rejection, bounded/oversizedcache and concurrentreads. Fullsuite
+and frontend functional failure diagnosis still pending; no release claim.
+
+Cache candidate c43a0645 verification:2348native/35packages,vet,
+147functional passes/13existing skips. Native102swall/65sCPU/777MBpeak;
+functional201swall/100sCPU/1386MBpeak. CPU/alloc_space/alloc_objects and
+browser/Node summaries analyzed/disposed. Prior exact-main PWA failed4asset
+ERR_NETWORK_CHANGED; workspace subtree API correctly returned hiddenchild,
+but visible expansion failed, cause not proven. Six focused repetitions pass;
+these are diagnostics, not waiver/replacement of final acceptance. No weakened
+assertions or retries configured for full matrices. Cache remains bounded,
+transaction reads fresh, nested maps caller-owned; measured benefit applies
+only to documented equivalent warm repeated-state response workload.
+
+Listing-cache full fffb7221 passed1519/71existing skips/0failures;97m21swall,
+82m46sCPU/1397MBpeak. All6runtimeCPU/alloc_space/objects+browser/node analyzed
+and disposed by harness. Listingdecode0.2%CPU/0.057%allocation(first runtime),
+but GetSession still decoded repeatedly: unmarshal22.37%CPU/23.70%allocation.
+Extended same bounded owned-copy cache to GetSession after measuring equivalent
+64KiBstate read+response3×2s:208–214us/300.7–301KB/144alloc baseline,
+129.8–130.5us/157.0–157.3KB/136alloc candidate (~38%time/48%bytes/6%alloc).
+CPU/alloc_space/objects confirm repeated unmarshal removed from leaders; remaining
+SQLitecolumnText and responsebytes.Clone dominate. Profiles/binaries deleted.
+Race tests cover GetSession/ListSessions cross-caller ownership and DBfreshness.
+This extension requires final verification; no release claimed.
+
+GetSession cache3c539e96:2348native/35packages,vet,147functional+13existing
+skips pass. Native97swall/67sCPU/785MBpeak;functional194swall/99sCPU/1387MB.
+CPU/alloc_space/objects and browser/node analyzed; rawcaptures disposed. No
+additional optimization claimed from unrelated fullsuite timing differences.
+Finalsharedverification of this exact runtime still required before release.
+
+FinalGetSessioncache381586a4 fullmatrix FAILED1518/71existing skips/1failure;
+97m28swall/82m40sCPU/1395MBpeak. Chromiumtablet shared023 never reached
+reconnect assertions: LoadingGi only; app.bundle.js and beautiful-mermaid.js
+failednet::ERR_NETWORK_CHANGED. No retries/waiver. Freshcleanfull required.
+Harness analyzed all runtimeCPU/alloc_space/alloc_objects/browser/node and
+disposed rawprofiles. First runtime cachedecode0.41%CPU/0.033%alloc/0.008%
+objects;writeJSON25.46%CPU/58.61%alloc; unmarshal19.64%CPU/22.39%alloc
+remains across other state consumers. Per Rui14:28 direction, no further
+optimization unless majorperformanceproblem: remaining serialization workload
+is a non-blocking follow-up, measuredcache gains retained; finishrelease.
+Guidance allows small quantified secondary regressions for larger net benefit.
