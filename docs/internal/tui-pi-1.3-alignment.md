@@ -633,3 +633,12 @@ exit heaps are live samples, not allocation histories. Raw model browser profile
 and disposable run data were removed after analysis. The source checkout running
 shared acceptance remains on58a97a42, so final integration of922fd997 is pending
 that safe boundary; no release authorization is implied.
+
+Patch13 shared run recorded a Chromium-desktop shared-messages-tool failure:
+after navigation, expected third reply absent and snapshot stayed `Loading Gi…`.
+Trace analysis finds `net::ERR_NETWORK_CHANGED` loading app.bundle.js plus
+marked/KaTeX/mermaid/CSS; several subsequent API requests have status -1. This
+is network-loading evidence, not proof of a persistence defect or a passing
+matrix. Active run continues unchanged. An isolated exact-assertion repeat of
+both shared-messages-tool cases (three repetitions) is running on922fd997;
+retry-only evidence will not replace a clean final integrated run.
