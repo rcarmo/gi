@@ -858,3 +858,9 @@ CPU/alloc_space/objects confirm repeated unmarshal removed from leaders; remaini
 SQLitecolumnText and responsebytes.Clone dominate. Profiles/binaries deleted.
 Race tests cover GetSession/ListSessions cross-caller ownership and DBfreshness.
 This extension requires final verification; no release claimed.
+
+GetSession cache3c539e96:2348native/35packages,vet,147functional+13existing
+skips pass. Native97swall/67sCPU/785MBpeak;functional194swall/99sCPU/1387MB.
+CPU/alloc_space/objects and browser/node analyzed; rawcaptures disposed. No
+additional optimization claimed from unrelated fullsuite timing differences.
+Finalsharedverification of this exact runtime still required before release.
