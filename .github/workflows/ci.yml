@@ -108,6 +108,8 @@ jobs:
       - run: bun x playwright install --with-deps chromium webkit
       - run: make build-web
       - run: make fixtures-vibes-focused FIXTURES_SPEC_ARGS="--project=${{ matrix.project }}"
+        env:
+          GI_TEST_KEEP_RESULTS: "1"
       - name: Upload shard results
         if: always()
         uses: actions/upload-artifact@v7

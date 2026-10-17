@@ -129,7 +129,7 @@ func runMode(args []string) int {
 	if os.Getenv("PROFILE_KEEP") != "1" && rep.ExitCode == 0 {
 		if root := os.Getenv("GI_TEST_RUN_ROOT"); root != "" {
 			// The helper validates ownership and symlink ancestors before removal.
-			cleanup := exec.Command("bash", "-c", `source scripts/project-test-env.sh && gi_test_path "$GI_TEST_RUN_ROOT" && rm -rf -- "$GI_TEST_RUN_ROOT"`)
+			cleanup := exec.Command("bash", "-c", `source scripts/project-test-env.sh && gi_test_path "$GI_TEST_RUN_ROOT" && if [ "${GI_TEST_KEEP_RESULTS:-}" = 1 ]; then find "$GI_TEST_RUN_ROOT" -mindepth 1 -maxdepth 1 ! -name results -exec rm -rf -- {} +; if [ -d "$GI_TEST_RUN_ROOT/results" ]; then find "$GI_TEST_RUN_ROOT/results" -type f ! -name results.json -delete; fi; else rm -rf -- "$GI_TEST_RUN_ROOT"; fi`)
 			cleanup.Stdout, cleanup.Stderr = os.Stdout, os.Stderr
 			if err := cleanup.Run(); err != nil {
 				fmt.Fprintln(os.Stderr, "run cleanup:", err)
