@@ -642,3 +642,11 @@ is network-loading evidence, not proof of a persistence defect or a passing
 matrix. Active run continues unchanged. An isolated exact-assertion repeat of
 both shared-messages-tool cases (three repetitions) is running on922fd997;
 retry-only evidence will not replace a clean final integrated run.
+
+Merged model922fd997 isolated profiled functional acceptance passes147 cases
+with13 existing skips. Race passes web19.897s,turn54.955s,TUI50.163s,MCP6.074s.
+Functional workload278s wall,106sCPU,1368MBpeakRSS; captures analysed/disposed,
+no controlled improvement claim. This supplements merged-model42/42 and native
+2344/vet. The old-pin shared run remains active with one documented network load
+failure. Its full rerun frequency limit is four hours; do not start another full
+matrix until that boundary, even after active-job cleanup.
