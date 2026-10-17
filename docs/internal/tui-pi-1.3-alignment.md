@@ -716,3 +716,21 @@ CPU/alloc_space/alloc_objects complete and rawcaptures disposed: native89swall,
 53.3sCPU,763MBpeakRSS inclbuild;functional194swall,99sCPU,1383MBpeakRSS. These
 are observations, not a controlled improvement comparison. Final clean full
 shared is still scheduled03:28UTC; previous network-failed matrix is not passing.
+
+### Final HTTP admission and journal gate (2026-10-17)
+
+Frontend PR10/11 merged as 3df761a6, integrated in b06b92e0. Native model
+picker uses command POST, not Settings PATCH: request/rejection mocks now follow
+that boundary; draft/model persistence/provider requests/unique-turn checks remain.
+Connection presentation no longer hides supplied disconnected status. Navigation
+can cancel an already accepted POST response: retain unknown-delivery receipt
+and fence old pre-clear journal text only after exact source-token confirmation;
+never automatically resend. Newer edits and unconfirmed receipts stay recoverable.
+Exact candidate a4b1ad5: 200 units, hook/build, 48 HTTP controls and 18 queue pass.
+Merged final pin: 200 units, 147 functional passes/13 existing skips and 48 HTTP
+controls pass. Previous integrated native 2344/vet passed (native source unchanged).
+Profile analysis complete/disposed: final functional190s wall/95s CPU/1387MB peak;
+no controlled speedup claim. A diagnostic reload stress run was17/18: loading-only
+Chromium tablet with11 ERR_NETWORK_CHANGED assets, not passing acceptance. Prior
+WebKit accepted-send failures are retained as diagnosed failures, not erased by
+repeats. Full final shared acceptance remains mandatory and pending at03:23UTC.
