@@ -916,3 +916,11 @@ combinescallersignal;normalfailure/sendunknownrecoveryretained. Candidate
 475b48a202units/hook/build/32HTTPdelivery/48HTTPcontrolsPASS,noretries.
 Noerrorfiltering/assertionweakening. OriginalCIerrorstillhistoricalfailure;
 newcompleteCIrequired. No full localmatrix or performancework repeated.
+
+v0.1.6CI:HTTPdelivery32 andHTTPcontrols48 nowpass;remainingbasicwebjob
+failedStopreconnect6/6 atremoveddata-queue-idselector. Nativequeueusesqueue-item
+testID; APIassertionstillchecks exactdurabletailidentity. CorrectonlythatCIgate
+selector;6/6passzeroretries. Additionalnonrelease reconnectdiagnostics:authoritative
+refresh6pass;search6fail(queueUIhiddeninsearch). Thoseotherselectorchangesreverted
+and broadersearchscenario unresolved,notclaimedpassing. ThreeChromiumshared
+shardsCIpass;WebKitshardsstillrunning22:28UTC. No newlocalfullmatrix/perfwork.
