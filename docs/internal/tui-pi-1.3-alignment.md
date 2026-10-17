@@ -683,3 +683,9 @@ No source fix or weakened assertion is justified by that alone. Full integrated
 profiled rerun started; original failure remains a limitation, not erased by
 retries. Profiles from all completed diagnosis runs analysed/disposed. Need
 clean integrated verdict and releaseCI, and investigate recurrence if observed.
+
+Final integrated rerun completed native35packages/2344tests,vet,frontend194units
+and functional147passed/13existing skips (`PATCH13_FINAL_NATIVE_FUNCTIONAL_PASS`).
+The first PTY resize failure remains disclosed; clean rerun does not establish
+its cause. No assertions changed. Final fullshared and successful releaseCI are
+still mandatory. Completed rerun profiles analysed/disposed by helper.
