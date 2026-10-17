@@ -767,3 +767,9 @@ marshal-before-header/error contract; regression benchmark/tests added. Raw
 baseline/candidate CPU,alloc_space,alloc_objects captures/binaries disposed.
 Session response allocation reflects full state JSON contract, not fixed by
 newline changes; changing/list-filtering state requires separate API design.
+
+Final shared-boundary pin b1d10d48 verification:2345native tests/35packages,
+vet,200frontend units pass. Native profile93s wall/51.1sCPU/782MBpeak inclbuild;
+CPU,alloc_space,alloc_objects analyzed and disposed by harness. Runtime source
+unchanged by shared PR12 and JSON regression-test addition. Full acceptance
+still pending next eligible07:28UTC; no waiver from focused repair runs.
