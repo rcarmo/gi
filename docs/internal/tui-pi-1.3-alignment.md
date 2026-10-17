@@ -659,3 +659,9 @@ Chromium phone/tablet/desktop colour cases repeated3 times pass27/27. An earlier
 repeat accidentally used922fd997 after checkout was blocked by generated assets;
 its26/27 result is old-pin failure evidence, not candidate verification. Full
 candidate compose/model matrices are running; no integration/release claim yet.
+
+Settings teardown candidatee93ca43 passes complete compose36/36 and model42/42
+in six projects, after repeated Chromium colour27/27. Added cleanup-order unit
+coverage; frontend194units and hook pass. FrontendPR8 merges this repair; source
+shared run remains unchanged on58a97a42 until completion. Timed-parent restoration
+was not accepted as sufficient; cleanup now signals only after releasing inert.
