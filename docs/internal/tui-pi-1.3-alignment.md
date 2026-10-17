@@ -709,3 +709,10 @@ Exact queue candidate284fb04 passes18/18 queue-return,36/36 compose,42/42 model,
 only with no active source build/test owner. All recovery/error/storage/selection
 assertions retained; no default-native capability removed. Final integrated
 profiling and03:28UTC fullshared remain mandatory before PR62merge/tag.
+
+Final merged queue pinbf243dde integrated verification passes:35packages2344tests,
+vet,197frontend units,147functional cases with13existing skips. Profile analysis
+CPU/alloc_space/alloc_objects complete and rawcaptures disposed: native89swall,
+53.3sCPU,763MBpeakRSS inclbuild;functional194swall,99sCPU,1383MBpeakRSS. These
+are observations, not a controlled improvement comparison. Final clean full
+shared is still scheduled03:28UTC; previous network-failed matrix is not passing.
