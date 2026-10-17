@@ -184,7 +184,7 @@ test('Gi Stop reconnect retains draft, advances queue and ignores stale terminal
   await expect(page.getByRole('button',{name:'Resume queue',exact:true})).toHaveCount(0);
   await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
   await expect.poll(async()=>(await state()).turn_id).toBe(queued.turn_id);await expect(stop).toBeEnabled();
-  expect((await queue()).items).toEqual(beforeQueue.items.filter(x=>x.id===tail.turn_id));await expect(page.locator(`[data-queue-id="${tail.turn_id}"]`)).toBeVisible();await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
+  expect((await queue()).items).toEqual(beforeQueue.items.filter(x=>x.id===tail.turn_id));await expect(page.getByTestId('queue-item').filter({hasText:"retained queued tail"})).toBeVisible();await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
   expect((await api(`/api/sessions/${other.id}/activity`)).turn_id).toBe(foreign.turn_id);
   // Warm-up has its own idle frame. Wait for the exact cancelled occurrence,
   // not whichever terminal frame happened to arrive before the next poll.
