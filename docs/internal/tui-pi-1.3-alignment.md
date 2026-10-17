@@ -674,3 +674,12 @@ passing full matrix claimed. Final frontendcf94dc95 is now integrated only after
 the owning job ended. Next full run must start no earlier than03:27UTC to respect
 the four-hour full-matrix limit; final integrated native/functional/focused gates
 can run meanwhile. Preserve immutable failed tagsv0.1.1/v0.1.2.
+
+Final integrated first native run failed one PTY resize assertion (terminal
+reported initial30x120 after request25x88), so its chained vet/functional did not
+run. Diagnosis: unchanged targeted test passes30ordinary repetitions and100race
+repetitions; profiled/race targeted and complete profiled web package also pass.
+No source fix or weakened assertion is justified by that alone. Full integrated
+profiled rerun started; original failure remains a limitation, not erased by
+retries. Profiles from all completed diagnosis runs analysed/disposed. Need
+clean integrated verdict and releaseCI, and investigate recurrence if observed.
