@@ -842,6 +842,13 @@ test-ux-compose-surface: build-web
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_COMPOSE_SURFACE=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.web-regression.config.mjs tests/web-regression/compose-surface.spec.mjs
 
+.PHONY: test-ux-native-workspace
+test-ux-native-workspace: build-web
+	@$(MAKE) test-instance-start
+	@GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) $(PLAYWRIGHT) test --config=playwright.config.ts tests/functional/06-workspace.spec.ts; \
+	status=$$?; $(MAKE) test-instance-stop; test $$status -eq 0
+	@$(MAKE) test-editor-conflict-consumer
+
 .PHONY: test-ux-workspace-tabs
 test-ux-workspace-tabs:
 	$(MAKE) test-ux-parity-regression UX_PARITY_ARGS='tests/web-regression/workspace-tabs.spec.mjs'

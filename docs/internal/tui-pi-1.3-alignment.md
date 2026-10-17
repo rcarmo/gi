@@ -924,3 +924,11 @@ selector;6/6passzeroretries. Additionalnonrelease reconnectdiagnostics:authorita
 refresh6pass;search6fail(queueUIhiddeninsearch). Thoseotherselectorchangesreverted
 and broadersearchscenario unresolved,notclaimedpassing. ThreeChromiumshared
 shardsCIpass;WebKitshardsstillrunning22:28UTC. No newlocalfullmatrix/perfwork.
+
+v0.1.7CI basicHTTP/reconnectjobPASS. Journeyjob timedoutwaitingremovedOpen
+read-onlytab control from supersededviewer; replacedreleaseinvocationwithnative
+workspacefunctional17tests+revision/conflictconsumer4tests (21/21pass),shared
+suitealreadycoverstabkeyboard/MRU/pin/closecontracts. Oldviewerdiagnosticfile
+retainedhistoricallybutnotreleasegate;noclaimobsoleteUIpasses. Thinkingjob
+progressed23/36testsafter5m30sbuild/setupwithin10mintotal; budget15minbasedon
+observedsetup+execution,notchangingassertiontimeoutorretries. Workflowlintpass.
