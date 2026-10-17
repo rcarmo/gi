@@ -650,3 +650,12 @@ no controlled improvement claim. This supplements merged-model42/42 and native
 2344/vet. The old-pin shared run remains active with one documented network load
 failure. Its full rerun frequency limit is four hours; do not start another full
 matrix until that boundary, even after active-job cleanup.
+
+Cross-contract acceptance on merged922fd997 found intermittent colour-input
+close focus again (compose35/36); prior bounded retries were insufficient.
+Candidate frontend e93ca43 moves restoration initiation into Dialog cleanup,
+after it releases application inert state. Candidate checked out explicitly,
+Chromium phone/tablet/desktop colour cases repeated3 times pass27/27. An earlier
+repeat accidentally used922fd997 after checkout was blocked by generated assets;
+its26/27 result is old-pin failure evidence, not candidate verification. Full
+candidate compose/model matrices are running; no integration/release claim yet.
