@@ -734,3 +734,16 @@ no controlled speedup claim. A diagnostic reload stress run was17/18: loading-on
 Chromium tablet with11 ERR_NETWORK_CHANGED assets, not passing acceptance. Prior
 WebKit accepted-send failures are retained as diagnosed failures, not erased by
 repeats. Full final shared acceptance remains mandatory and pending at03:23UTC.
+
+Final shared run a3c8560d/3df761a6 (2026-10-17 03:28 UTC) FAILED:
+1517 passed,71 skipped,2 failed,96m29s wall/81m36s CPU/1378MB peak.
+Failures: Chromium tablet workspace004 baseline/toggle inconsistency; WebKit
+phone settings019 internal page.goto failure before debounce assertions.
+Runtime combined profiles (Go1.27.2, build9fb6e5e) analyzed CPU/alloc_space/
+alloc_objects:273.05s sampled CPU; handleSessions155.71s cumulative(57.03%),
+ListSessions93.88s(34.38%). Allocation237760MB sampled cumulative total;
+handleSessions94.46%,json.Marshal54.24%;215.6Mobjects,ListSessions67.21%.
+Browser/Node summaries analyzed; live heap samples are not allocation histories.
+Session polling/serialization dominates this matrix and warrants investigation
+before the next gate; no measured improvement claimed. Raw profiles disposed
+immediately after analysis. Acceptance remains failed; no merge/tag authorized.
