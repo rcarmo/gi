@@ -611,3 +611,15 @@ native no-op while pending-response tests click it. Separate genuine contracts
 from stale assumptions, preserving loading/disabled/no-write/focus assertions.
 The active shared checkout remains on merged frontend58a97a42 and was not rebuilt
 with this candidate. Session acceptance change365cd6bf is local pending publish.
+
+### Isolated model contract repair verified
+
+Frontend model changes through a6e5c7f (unit-only coverage checkpoint befbffc)
+passed42/42 across all six projects; frontend193units /1217assertions and hook
+check pass. The consumer test now uses native command POST admission rather than
+Settings-only PATCH, explicit accepted/rejected responses, native selected-option
+and active-descendant semantics, and a count derived from the supplied catalogue.
+Loading/no-extra-write/disabled/focus/Tab assertions remain. Stable list IDs,
+trigger ARIA, busy keyboard guards, inline errors and scroll-region Tab exclusion
+are actual host repairs. No final integrated acceptance claimed: active shared
+run still uses58a97a42 and must not be modified until it finishes.
