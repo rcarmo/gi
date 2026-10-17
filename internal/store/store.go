@@ -22,7 +22,8 @@ const defaultNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 var ephemeralStoreCounter uint64
 
 type Store struct {
-	db *sql.DB
+	db           *sql.DB
+	listingState sessionStateDecodeCache
 }
 
 type Session struct {
@@ -263,7 +264,7 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	if parent.Valid {
 		out.ParentSessionID = parent.String
 	}
-	state, err := unmarshalJSONMap(stateJSON)
+	state, err := s.listingState.decode(out.ID, stateJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +312,7 @@ func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 		if parent.Valid {
 			item.ParentSessionID = parent.String
 		}
-		item.State, err = unmarshalJSONMap(stateJSON)
+		item.State, err = s.listingState.decode(item.ID, stateJSON)
 		if err != nil {
 			return nil, err
 		}

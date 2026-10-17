@@ -3,10 +3,12 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -66,5 +68,58 @@ func TestListSessionsMatchesIndividualIdentityAndFailsClosed(t *testing.T) {
 	cancel()
 	if _, err := s.ListSessions(cancelled); !errors.Is(err, context.Canceled) {
 		t.Fatal("cancelled listing", err)
+	}
+}
+
+func BenchmarkListSessionsJSONState(b *testing.B) {
+	s, err := Open(filepath.Join(b.TempDir(), "json-bench.db"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer s.Close()
+	for i := 0; i < 20; i++ {
+		id := fmt.Sprintf("s-%d", i)
+		if _, err = s.CreateSession(b.Context(), id, "session", nil); err != nil {
+			b.Fatal(err)
+		}
+		if err = s.TouchSessionState(b.Context(), id, map[string]any{"context": strings.Repeat("context ", 8192)}); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		rows, err := s.ListSessions(b.Context())
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err = json.Marshal(rows); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGetSessionJSONState(b *testing.B) {
+	s, err := Open(filepath.Join(b.TempDir(), "get-state.db"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer s.Close()
+	if _, err = s.CreateSession(b.Context(), "a", "session", nil); err != nil {
+		b.Fatal(err)
+	}
+	if err = s.TouchSessionState(b.Context(), "a", map[string]any{"context": strings.Repeat("context ", 8192)}); err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		row, err := s.GetSession(b.Context(), "a")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err = json.Marshal(row); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
