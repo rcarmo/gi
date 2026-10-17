@@ -623,3 +623,13 @@ Loading/no-extra-write/disabled/focus/Tab assertions remain. Stable list IDs,
 trigger ARIA, busy keyboard guards, inline errors and scroll-region Tab exclusion
 are actual host repairs. No final integrated acceptance claimed: active shared
 run still uses58a97a42 and must not be modified until it finishes.
+
+FrontendPR7 merged922fd997. The isolated merged-pin rerun passes model42/42
+with Node CPU/exit-heap samples, and native35packages/2344tests plus vet. Native
+Go CPU/alloc_space/alloc_objects were analysed/disposed by the helper; workload
+wall207s, CPU74s, peakRSS773MB including build (concurrent browser workload; not
+an equivalent-workload speedup comparison). Node captures analysed separately;
+exit heaps are live samples, not allocation histories. Raw model browser profiles
+and disposable run data were removed after analysis. The source checkout running
+shared acceptance remains on58a97a42, so final integration of922fd997 is pending
+that safe boundary; no release authorization is implied.
