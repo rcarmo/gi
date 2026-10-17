@@ -773,3 +773,8 @@ vet,200frontend units pass. Native profile93s wall/51.1sCPU/782MBpeak inclbuild;
 CPU,alloc_space,alloc_objects analyzed and disposed by harness. Runtime source
 unchanged by shared PR12 and JSON regression-test addition. Full acceptance
 still pending next eligible07:28UTC; no waiver from focused repair runs.
+
+Final pin b1d10d48 additional editor consumer acceptance4/4 passes Chromium/
+WebKit desktop: Reload, reviewed conditional Overwrite, create-only Save Copy,
+and clean external refresh retains revision for subsequent save. This is Gi
+consumer evidence, not proof of another consumer's publication or acceptance.
