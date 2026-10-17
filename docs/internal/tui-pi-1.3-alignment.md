@@ -940,3 +940,9 @@ Preview/renderedcode/externalrefresh/draft/focus assertions unchanged;focused
 checkpasses2.8s. Explorerselection/editcontrolsremainsharedsuitecoverage.
 Initialdiagnosticpayloadincorrectandfailed;correctnativeenvelopeverified.
 No runtimechange/retries/newfullmatrix. ThinkingCIpasseswithmeasured15minbudget.
+
+v0.1.9journeyCI applicationchecks42startup/24picker/72slash/17workspacePASS.
+Consumerstepfailedbeforetests:sharedPlaywrightCLInotinstalledinjourneyjob.
+Installsharedsuitefrozenlockdependenciesandmatchingbrowserrevisionbefore
+nativeeditorconsumerstep. Setup-onlycorrection;no runtime/assertionchange.
+Workflowlintpass;no duplicateapplication/localfullmatrixrunneeded.
