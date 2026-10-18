@@ -73,7 +73,7 @@ test('HTTP model selection governs actual provider requests after reload; reject
   await trigger.click();await option('ux-local/alternate').click();expect((await selected).status()).toBe(200);await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(draft);
   expect((await h.read(`/api/sessions/${h.id}/turns`)).turns||[]).toHaveLength(0);await page.reload();await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(draft);
   async function sendAndAssert(text,model){
-   await h.input.fill(text);const response=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));await h.input.press('Enter');const res=await response;expect(res.status()).toBe(202);const id=(await res.json()).turn_id;
+   await h.input.fill(text);const response=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));await page.locator('.compose-box .send-btn').click();const res=await response;expect(res.status()).toBe(202);const id=(await res.json()).turn_id;
    await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===id)?.status).toBe('completed');
    const turn=(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===id);expect(turn.prompt).toBe(text);expect(turn.metadata.model).toBe(`ux-local/${model}`);
    const expected=`Provider model ${model}:`;await expect(page.locator('.post.agent-post .post-content').filter({hasText:expected}).filter({hasText:text})).toBeVisible();await expect(h.input).toHaveValue('');return id;
