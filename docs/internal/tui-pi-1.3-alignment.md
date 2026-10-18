@@ -1012,3 +1012,17 @@ Focused WebKit tablet pointer/keyboard cases: 2 passed in 10.9 seconds, no retri
 Only this shard's whole-job budget becomes 45 minutes: observed progress implies
 roughly 39 minutes plus setup/reporting. Test timeouts and retry policy are
 unchanged; actionlint passes. The cancelled run is not accepted as a pass.
+
+### v0.1.16 Plan fixture failure and v0.1.17 candidate
+
+All application gates passed. Chromium phone shared acceptance recorded 258
+passes and one Plan tool-reply failure; fail-fast cancelled the other shards.
+The Plan helper retried composer Enter and treated draft clearance as admission.
+Frontend PR #21 replaces that loop with one keyboard activation of the enabled
+Send button. On narrow screens the open Plan panel covers the pointer target;
+closing it autosaves dirty text and invalidates the dirty-editor scenario.
+Pointer-click probes were stopped after deterministic failures and discarded.
+The final helper keeps the panel and dirty state intact, never resends, and
+retains every Plan reply/tool/state assertion. Dedicated HTTP gates still cover
+composer Enter. All 16 Plan cases across Chromium phone and WebKit tablet pass
+in 1.2 minutes without retries. No runtime change or full local matrix.
