@@ -80,7 +80,9 @@ jobs:
   classic-compliance:
     name: Shared Classic / ${{ matrix.project }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Tablet reached 237/265 cases at 35m; extrapolation is ~39m plus
+    # setup/reporting. Only this measured slow shard receives a larger budget.
+    timeout-minutes: ${{ matrix.project == 'webkit-tablet' && 45 || 35 }}
     strategy:
       fail-fast: true
       matrix:
