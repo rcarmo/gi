@@ -958,3 +958,10 @@ model2/activeDescendantstillmodel1). Exact3caseslocalpass;sharedhelperwaited
 focusbutnotbusy/catalogueready. Synchronizearia-busycleared+searchenabled,
 asserttypedquery;18casesall6projectspass/root26+frontend202units. No retries,
 selection/contextblock/draftassertionsunchanged. UpstreamfixturePR16merged.
+
+v0.1.11attempt2allapplicationgatesPASS;Chromiumshared3PASS;WebKittablet
+10failures allmodelsearchinputempty/truncatedafterglobalkeyboard.type.
+Targetsearchfieldfill+valueassertioninstead;list-onlytypeaheadstillkeyboard.
+Keyboardnavigation/Enterselection/activeDescendant/contextblock/sessiondraft
+assertionsunchanged.9affectedWebKittabletcasesPASS/root26+frontend202units;
+no retries/runtimechanges/newfullmatrix. OriginalCI failuresretained.
