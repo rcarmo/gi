@@ -1129,3 +1129,10 @@ annotated tag and publish explicit verification limitations. The built-in token
 creates the tag without triggering the tag test matrix. No deployment. This is
 an explicit change from the earlier full-matrix release criterion; it is not a
 claim that the stopped integrated run passed. Actionlint validates the workflow.
+
+Published v0.1.20 packaging passed, but downloaded Linux --version exposed
+obsolete linker flags targeting main.version/main.commit/main.date. The CLI
+uses internal/version.Version. Both build workflows now stamp that supported
+symbol and remove the dead variables. Rebuild assets from the unchanged
+v0.1.20 source tag, replace assets (not tag/source), and verify binary versions.
+Only the version package test and workflow lint are needed; no matrix restart.
