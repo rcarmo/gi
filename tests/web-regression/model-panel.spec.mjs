@@ -18,7 +18,8 @@ test('Native model panel search, metadata, clear and Models-settings handoff pre
   const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();await expect(dialog.locator('.settings-nav-item.active')).toHaveText('Models');await expect(dialog.getByRole('searchbox',{name:'Filter models',exact:true})).toBeVisible();
   await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(trigger).toBeFocused();await expect(input).toHaveValue('Panel handoff draft Ω');
   await trigger.click();await expect(search).toBeFocused();await expect(panel.locator('.compose-model-catalogue-summary')).not.toContainText('Refreshing');
-  const initial=await search.getAttribute('aria-activedescendant');
+  await expect(search).toHaveAttribute('aria-activedescendant', /.+/);
+  const initial=await search.getAttribute('aria-activedescendant');expect(initial).not.toBeNull();
   await search.press('ArrowDown');await expect(search).toBeFocused();await expect(search).not.toHaveAttribute('aria-activedescendant',initial);
   await page.keyboard.press('Escape');await expect(trigger).toBeFocused();expect(writes).toEqual([]);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);
  }finally{await env.close();}

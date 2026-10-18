@@ -65,11 +65,17 @@ test('Gi Stop failure and delayed completion conflict retain composer data',asyn
 
 test('Gi durable compaction changes the next provider context without deleting timeline',async({page,request},info)=>{
  const{main,turn,input,turns,release}=await fixture(page,request,info);
+ let restored;
+ const reopen = async () => {
+  const url=page.url();const context=page.context();await page.close();
+  page=await context.newPage();restored=page;await page.goto(url);
+  return page.getByRole('textbox',{name:inputName,exact:true});
+ };
  try{
   release();await expect.poll(async()=> (await turns()).find(t=>t.id===turn.turn_id).status).toBe('completed');
   const messages=async()=>(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
   const before=await messages();const summary=before.find(m=>m.payload?.kind==='compaction'&&m.payload?.turn_id===turn.turn_id);expect(summary.payload.durable_context).toBe(true);
-  await page.reload();await expect(input).toHaveValue('preserved draft during compaction');
+  const reopenedInput=await reopen();await expect(reopenedInput).toHaveValue('preserved draft during compaction');
   const next=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'new request after durable boundary',model:'ux-local/gate'}})).json();
   await expect.poll(async()=> (await turns()).find(t=>t.id===next.turn_id).status).toBe('completed');
   const after=await messages();
@@ -79,8 +85,8 @@ test('Gi durable compaction changes the next provider context without deleting t
   expect(answer.content).toContain('Preserve user requirements and pending work.');expect(answer.content).toContain('new request after durable boundary');
   expect(answer.content).not.toContain('history 0 preserve requirements');
   expect(after.filter(m=>m.payload?.kind==='compaction')).toHaveLength(1);
-  await page.reload();await expect(page.getByText('history 0 preserve requirements and pending changes',{exact:true})).toBeVisible();await expect(input).toHaveValue('preserved draft during compaction');
- }finally{release();}
+  const finalInput=await reopen();await expect(page.getByText('history 0 preserve requirements and pending changes',{exact:true})).toBeVisible();await expect(finalInput).toHaveValue('preserved draft during compaction');
+ }finally{release();await restored?.close();}
 });
 
 test('Gi manual Compact failure, stale token and cancellation never submit the draft',async({page,request},info)=>{

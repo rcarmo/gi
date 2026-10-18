@@ -53,6 +53,7 @@ type Engine struct {
 	peering                           *peering.Manager
 	bgCtx                             context.Context
 	bgCancel                          context.CancelFunc
+	maintenance                       sync.WaitGroup
 	mcp                               *mcpState      // nil unless EnableMCP was called
 	mcpConfigErrors                   []error        // config errors when no server is configured
 	mcpNotices                        mcpNotices     // for the UI (SetMCPNotifier)
@@ -229,7 +230,11 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 	}
 	tools.SetReadOnlyRoots(readable)
 	if e.store != nil {
-		go e.runMCPOutputPruner(e.backgroundContext()) // mcp-output and codemode-output
+		e.maintenance.Add(1)
+		go func() {
+			defer e.maintenance.Done()
+			e.runMCPOutputPruner(e.backgroundContext())
+		}() // mcp-output and codemode-output
 	}
 	if e.store != nil {
 		if _, err := e.recoverInterruptedTurns(e.backgroundContext(), ""); err != nil {
@@ -357,6 +362,7 @@ func (e *Engine) Close() error {
 	if e.bgCancel != nil {
 		e.bgCancel()
 	}
+	e.maintenance.Wait() // finish DB writers before callers close/remove the store
 	if e.peering != nil {
 		return e.peering.Close()
 	}
