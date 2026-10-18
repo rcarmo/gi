@@ -1026,3 +1026,13 @@ The final helper keeps the panel and dirty state intact, never resends, and
 retains every Plan reply/tool/state assertion. Dedicated HTTP gates still cover
 composer Enter. All 16 Plan cases across Chromium phone and WebKit tablet pass
 in 1.2 minutes without retries. No runtime change or full local matrix.
+
+### v0.1.17 HTTP model-routing setup
+
+The HTTP control WebKit tablet model-routing case timed out waiting for a prompt
+POST after the final model selection: its helper pressed composer Enter. The
+model-routing proof now clicks visible Send; exact prompt, provider model, three
+unique turns, rejection/draft preservation, reload and no-page-error assertions
+are unchanged. Dedicated HTTP Return/Enter acceptance remains unchanged.
+Focused model-routing cases pass on all six projects (23.4 seconds), no retries.
+Shared v0.1.17 results are still pending; batch remaining outcomes before tagging.
