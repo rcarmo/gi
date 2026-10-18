@@ -84,6 +84,36 @@ test('Refreshing and switching models remove stale descendants and cannot activa
  }finally{releaseGet?.();releasePatch?.();await env.close();}
 });
 
+for(const picker of ['model','session'])test(`Deferred ${picker} close focus does not steal a newer composer Enter`,async({page,request},info)=>{
+ const env=await journeyEnvironment(info);
+ try{
+  await page.goto(env.origin);
+  const input=page.locator('.compose-box textarea');
+  const trigger=picker==='model'?page.getByRole('button',{name:'Open model picker',exact:true}):page.getByRole('button',{name:/manage sessions/i}).first();
+  await trigger.click();
+  const list=page.getByRole('listbox',{name:picker==='model'?'Models':'Sessions and agents',exact:true});
+  await expect(list).toBeVisible();
+  if(picker==='model')await expect(list).toHaveAttribute('aria-busy','false');
+  await page.evaluate(()=>{
+   const native=window.requestAnimationFrame.bind(window);
+   window.__deferredFocus=[];
+   window.requestAnimationFrame=callback=>String(callback).includes('focus')
+    ? (window.__deferredFocus.push(callback),0) : native(callback);
+  });
+  if(picker==='model')await list.getByRole('option',{selected:true}).click();
+  else await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+  await expect.poll(()=>page.evaluate(()=>window.__deferredFocus.length)).toBeGreaterThan(0);
+  await input.fill('Enter after model focus handoff');await expect(input).toBeFocused();
+  await page.evaluate(()=>{for(const callback of window.__deferredFocus.splice(0))callback(performance.now());});
+  await expect(input).toBeFocused();
+  const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));
+  const response=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${id}/prompt`));
+  await page.keyboard.press('Enter');expect((await response).status()).toBe(202);
+  await expect.poll(async()=>((await(await request.get(`${env.origin}/api/sessions/${id}/turns`)).json()).turns||[]).filter(t=>t.prompt==='Enter after model focus handoff').length).toBe(1);
+ }finally{await env.close();}
+});
+
 for(const owner of ['composer','Settings'])test(`Accepted model response does not steal focus from ${owner}`,async({page},info)=>{
  const env=await journeyEnvironment(info);let release;
  try{

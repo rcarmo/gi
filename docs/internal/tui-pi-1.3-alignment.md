@@ -1047,3 +1047,74 @@ before uploading an explicit list. Release pruning preserves immutable tags.
 Actionlint and a checkout-free shell contract pass; missing/extra artifacts
 fail before any publish call. Disposable contract fixtures were removed.
 This is a workflow-only correction; no runtime or acceptance assertions changed.
+
+### Local runtime repair after release-loop stop
+
+Rui stopped further patch releases and Actions spending. Run 39102526583 was
+cancelled; no new Actions runs, tags or releases are authorised.
+
+A deterministic browser regression demonstrates model-picker focus theft:
+selection schedules trigger focus, the composer takes focus, then the deferred
+callback steals it. The regression fails before the runtime change and passes
+after rechecking ownership inside the callback, including one real Enter prompt
+admission. Vendored bytes remain unchanged; the host adapter carries the fix.
+The Plan adapter similarly guards its 80 ms editor-focus callback against a
+newer focus owner or a closed panel, with a unit regression.
+
+Keyboard test workarounds are restored to composer Enter for Plan, shared model
+picker, shared picker navigation and HTTP model routing. Plan sends once rather
+than retrying uncertain submissions. Local results: 14 adapter/revision units,
+48 model-panel cases across six projects, 16 Plan and 20 picker cases across
+Chromium phone/WebKit tablet, 32 HTTP delivery cases and 48 HTTP controls pass.
+No retries or relaxed assertions. An initial isolated original keyboard case
+passed without reproducing the intermittent CI failure; the deterministic focus
+regression establishes a real defect, not proof that all intermittent failures
+have the same cause. Full integrated local acceptance remains outstanding.
+Changes are local and uncommitted; no publication or deployment performed.
+
+### Stopped integrated run: narrow follow-up only
+
+Rui clarified that full local/Actions runs must be minimised for CPU and cost.
+The integrated run was stopped after WebKit tablet original015 failed waiting
+for a busy gate. No prompt POST appears in its trace; the composer is empty at
+Enter. The identical isolated case passes (9.7s); this is not a fix or waiver.
+Investigate lost composer value/session lifecycle using the retained failure
+trace, then rerun only that case and directly affected regressions. Do not
+restart the matrix. No new Actions/tags/releases/deployment are authorised.
+
+Stopped-run profiling: seven runtime CPU and memory profiles inspected for
+cumulative CPU, alloc_space and alloc_objects. HTTP request serving dominates;
+representative WebKit-tablet allocation leaders remain slices.Grow (~40.5%),
+SQLite text (~17.8%), bytes.Clone (~15.1%); object leaders include reflect and
+model cloning. No equivalent-workload comparison, so no improvement claimed.
+Representative browser sample: 1.1s sampled CPU, mostly program/idle; 6.6MiB
+live sampled heap, led by V8 and editor/vendor code. This is not allocation
+history. No new performance tuning is justified by the focus defect. Raw
+profiles are disposed; retain only the current failure trace for diagnosis.
+
+### Session-picker deferred-focus repair (focused verification only)
+
+Original WebKit tablet original015 passes alone before repair, so that result
+is not evidence of a fix. Trace places the lost input after picker Escape.
+A deterministic browser regression delays the session-dismiss animation frame,
+focuses/fills the composer, then releases the callback: focus is stolen before
+repair. The host runtime now checks ownership when restoring session-trigger
+focus; Escape and close-button paths share the guarded helper. Vendored bytes
+are unchanged. Regression passes after repair (6.9s), including one Enter POST
+and exactly one admitted prompt; original015 passes afterward (10.0s), and three
+compose-host unit tests pass. No retries or assertion weakening, no matrix run.
+This proves a real session-focus race; it does not prove every intermittent
+empty-draft symptom has the same cause. Current failure diagnostics are now
+analysed and disposed. All runtime repairs remain local and uncommitted.
+
+### Local review checkpoint
+
+Frontend repairs are committed locally as 816b317107c685f4ca9271b06291b8bae5d0f882
+on fix/deferred-focus-ownership. Gi pins that local commit and includes the
+model/session timing regressions and restored HTTP Enter interaction. Generated
+test bundle churn was discarded; no vendored upstream bytes changed. Any later
+packaging must rebuild the frontend from this pin, not reuse the old bundle.
+No push, Actions run, tag, release or deployment is performed. Full matrices
+remain prohibited as routine verification; use only demonstrated failing cases
+and directly affected regressions. Release completion awaits permission for
+publication and final asset verification, not another exploratory test matrix.
