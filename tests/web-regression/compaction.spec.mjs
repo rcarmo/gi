@@ -67,6 +67,12 @@ test('Gi durable compaction changes the next provider context without deleting t
  const{main,turn,input,turns,release}=await fixture(page,request,info);
  let restored;
  const reopen = async () => {
+  // Page close destroys the same-tab emergency journal. Establish the actual
+  // durable IndexedDB boundary before testing a separate page's recovery.
+  await expect.poll(()=>page.evaluate(id=>new Promise((resolve,reject)=>{
+   const open=indexedDB.open('gi-session-drafts');open.onerror=()=>reject(open.error);
+   open.onsuccess=()=>{const db=open.result;const tx=db.transaction('drafts','readonly');const get=tx.objectStore('drafts').get(id);get.onsuccess=()=>{const row=get.result;resolve(row?.draft?.text==='preserved draft during compaction'&&row?.draft?.media?.length===1)};get.onerror=()=>reject(get.error);tx.oncomplete=()=>db.close();};
+  }),main.id)).toBe(true);
   const url=page.url();const context=page.context();await page.close();
   page=await context.newPage();restored=page;await page.goto(url);
   return page.getByRole('textbox',{name:inputName,exact:true});
