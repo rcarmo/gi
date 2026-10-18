@@ -984,3 +984,17 @@ persistencecheckmustestablishIDBcommitfirst. Assertactualdurabledrafttext+
 attachmentmetadata beforeclose,thenunchangedrestore/history/providercontext
 assertions.6/6projectsPASS19.6s,no sleeps/retries/runtimechange. SharedCI
 stillrunning;batchoutcomesbeforeanothertag.
+
+### v0.1.14 navigation failure and v0.1.15 candidate
+
+The v0.1.14 compaction gate passes. The HTTP gate fails its unchanged
+`expect(errors).toEqual([])` assertion: WebKit localhost reload reports seven
+access-control request errors after delivery and restoration checks pass.
+Page-owned requests previously cancelled only on `pagehide`. Frontend PR #19
+also cancels on `beforeunload`, before navigation tears down request access;
+`pageshow` still renews the lifetime. No errors are filtered and no assertions
+are relaxed. Focused verification: 3 lifetime unit tests, 32 HTTP delivery tests
+(1.1 minutes), and 48 HTTP controls (1.6 minutes), all passing without retries.
+These passes do not prove elimination of the intermittent CI failure; the next
+immutable release must pass the complete workflow and aggregate coverage gate.
+No deployment or additional performance work is authorised.
