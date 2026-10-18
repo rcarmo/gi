@@ -977,3 +977,10 @@ contextassertionsunchanged;dedicatedHTTPgatesstillcoverreload.6/6pass.
 SharedWebKitlastfailurewaspost-pickerEntertosubmit;usevisibleSendforprovider
 routingafterkeyboardmodelselection,allpickerassertionsunchanged;2/2pass.
 Theseareexplicitcontractseparations,noretries/noerrorfiltering/newlocalmatrix.
+
+v0.1.13allapplicationgatesexceptcompactionPASS. WebKitdesktopnewpage
+recoverydraftempty:pageclose destroys same-tab emergencyjournal;cross-page
+persistencecheckmustestablishIDBcommitfirst. Assertactualdurabledrafttext+
+attachmentmetadata beforeclose,thenunchangedrestore/history/providercontext
+assertions.6/6projectsPASS19.6s,no sleeps/retries/runtimechange. SharedCI
+stillrunning;batchoutcomesbeforeanothertag.
