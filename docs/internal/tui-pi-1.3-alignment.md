@@ -1118,3 +1118,14 @@ No push, Actions run, tag, release or deployment is performed. Full matrices
 remain prohibited as routine verification; use only demonstrated failing cases
 and directly affected regressions. Release completion awaits permission for
 publication and final asset verification, not another exploratory test matrix.
+
+### Authorised publication without a new matrix
+
+Rui approved publication at 09:10 UTC after requesting minimal test CPU/Actions
+expense. Frontend PR #22 merges the verified repairs at b1a21061. Gi includes
+a manual packaging-only workflow: validate a new version, rebuild six targets
+from the exact workflow revision, validate archives, then create an immutable
+annotated tag and publish explicit verification limitations. The built-in token
+creates the tag without triggering the tag test matrix. No deployment. This is
+an explicit change from the earlier full-matrix release criterion; it is not a
+claim that the stopped integrated run passed. Actionlint validates the workflow.
