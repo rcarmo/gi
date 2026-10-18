@@ -737,16 +737,28 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
+          pattern: gi-*
           path: dist
           merge-multiple: true
 
       - name: Publish durable release assets
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
+          assets=()
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              asset="dist/gi-${os}-${arch}.tar.gz"
+              test -s "$asset"
+              tar -tzf "$asset" >/dev/null
+              assets+=("$asset")
+            done
+          done
+          test "$(find dist -type f | wc -l)" -eq 6
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
             gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
-          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          gh release upload "$GITHUB_REF_NAME" "${assets[@]}"
 
       - name: Delete handoff artifacts and keep at most 10 releases
         uses: actions/github-script@v9
@@ -778,10 +790,5 @@ jobs:
             for (const release of published.slice(10)) {
               core.info(`Deleting old Release ${release.tag_name} (${release.id}).`);
               await github.rest.repos.deleteRelease({ owner, repo, release_id: release.id });
-              if (!release.tag_name) continue;
-              try {
-                await github.rest.git.deleteRef({ owner, repo, ref: `tags/${release.tag_name}` });
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
+              // Preserve immutable source tags, including failed release history.
             }

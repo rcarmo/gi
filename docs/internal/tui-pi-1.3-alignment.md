@@ -1036,3 +1036,14 @@ unique turns, rejection/draft preservation, reload and no-page-error assertions
 are unchanged. Dedicated HTTP Return/Enter acceptance remains unchanged.
 Focused model-routing cases pass on all six projects (23.4 seconds), no retries.
 Shared v0.1.17 results are still pending; batch remaining outcomes before tagging.
+
+### v0.1.18 acceptance passed; publisher correction
+
+All application gates, six shared shards, strict aggregate coverage and six
+cross-platform builds passed. Publication failed because `gh` ran without a
+checkout or repository context. The publisher now sets `GH_REPO`, downloads only
+`gi-*` build artifacts, and validates exactly six non-empty readable archives
+before uploading an explicit list. Release pruning preserves immutable tags.
+Actionlint and a checkout-free shell contract pass; missing/extra artifacts
+fail before any publish call. Disposable contract fixtures were removed.
+This is a workflow-only correction; no runtime or acceptance assertions changed.
