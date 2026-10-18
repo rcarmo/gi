@@ -831,7 +831,7 @@ test-ux-picker-thinking: build-web
 test-ux-model-panel: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN))
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
-	GI_UX_MODEL_PANEL=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.web-regression.config.mjs tests/web-regression/model-panel.spec.mjs
+	GI_UX_MODEL_PANEL=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.web-regression.config.mjs tests/web-regression/model-panel.spec.mjs $(UX_PARITY_ARGS)
 
 .PHONY: test-ux-compose-surface test-compose-surface-helpers
 test-compose-surface-helpers:

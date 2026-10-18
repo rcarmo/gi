@@ -1,0 +1,161 @@
+name: Package verified release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New immutable version (vX.Y.Z); packaging only, no test matrix'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: package-release
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release request
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if gh api "repos/$GH_REPO/git/ref/tags/$VERSION" >/dev/null 2>&1; then
+            echo 'Refusing to replace an existing tag'; exit 1
+          fi
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          # Windows is built and released but not tested (Rui, 2026-10-04).
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+          - goos: windows
+            goarch: arm64
+            ext: .exe
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
+
+      - name: Install web dependencies
+        run: |
+          bun install --frozen-lockfile
+          cd references/fixtures-vibes && bun install --frozen-lockfile
+
+      - name: Build web assets
+        run: bun run build:web
+
+      - name: Build single binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          VERSION="${{ inputs.version }}"
+          COMMIT="${GITHUB_SHA:-unknown}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE" \
+            -o "dist/gi-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}" \
+            ./cmd/gi
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          cd dist
+          tar -czf "gi-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "gi-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+
+      - name: Upload single-binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          # Tag builds are temporary Release handoffs; ordinary CI output is short-lived.
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 1 || 3 }}
+          name: gi-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: gi-*
+          path: dist
+          merge-multiple: true
+      - name: Validate archives before creating a tag
+        run: |
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              file="dist/gi-$os-$arch.tar.gz"
+              test -s "$file"
+              tar -tzf "$file" | grep -x "gi-$os-$arch$([[ "$os" == windows ]] && printf .exe || true)"
+            done
+          done
+          test "$(find dist -type f | wc -l)" -eq 6
+      - name: Create immutable annotated source tag
+        uses: actions/github-script@v9
+        env:
+          VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const tag = process.env.VERSION;
+            // GITHUB_TOKEN-created refs do not start another workflow matrix.
+            const object = await github.rest.git.createTag({owner, repo, tag,
+              message: `${tag}: runtime focus ownership repairs; focused local verification, packaging-only release`,
+              object: context.sha, type: 'commit',
+              tagger: {name: 'Rui Carmo', email: 'rui.carmo@gmail.com', date: new Date().toISOString()}});
+            await github.rest.git.createRef({owner, repo, ref: `refs/tags/${tag}`, sha: object.data.sha});
+      - name: Publish six durable assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Fixes deferred model/session-picker and Plan focus callbacks stealing newer composer focus. Restores original Enter interactions and removes resend/Send-button test workarounds.
+
+          Verification: deterministic model/session regressions fail before and pass after repair; focused browser and unit checks pass. The integrated local run was stopped on a session-picker failure, subsequently addressed and checked in isolation. This release does not claim a complete fresh matrix pass. Packaging-only workflow publishes Linux, macOS and Windows binaries for amd64 and arm64; Windows execution is not tested. No deployment.
+          NOTES
+          gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file release-notes.md dist/*.tar.gz
