@@ -998,3 +998,17 @@ are relaxed. Focused verification: 3 lifetime unit tests, 32 HTTP delivery tests
 These passes do not prove elimination of the intermittent CI failure; the next
 immutable release must pass the complete workflow and aggregate coverage gate.
 No deployment or additional performance work is authorised.
+
+### v0.1.15 tablet failure and v0.1.16 candidate
+
+All application gates (including HTTP reload) and five shared shards passed.
+WebKit tablet was cancelled at the 35-minute job limit, reaching 237/265 tests.
+Its detailed log also contains one earlier assertion failure: the pointer model
+picker's subsequent Enter-to-submit produced no reply. Frontend PR #20 uses the
+visible Send button for both subsequent provider-routing proofs. Picker pointer
+and keyboard selection, draft preservation, provider model, reload and session
+locality assertions remain unchanged. Dedicated HTTP tests retain Enter coverage.
+Focused WebKit tablet pointer/keyboard cases: 2 passed in 10.9 seconds, no retries.
+Only this shard's whole-job budget becomes 45 minutes: observed progress implies
+roughly 39 minutes plus setup/reporting. Test timeouts and retry policy are
+unchanged; actionlint passes. The cancelled run is not accepted as a pass.
