@@ -3,7 +3,7 @@
 # Resolve once, before redirecting child temporary paths. This repository owns
 # the resolver; CI does not depend on a host /workspace helper.
 GO ?= go
-export GOTOOLCHAIN := go1.27.2
+export GOTOOLCHAIN := go1.27.3
 export PROJECT_NAME := gi
 export PROJECT_ORIGINAL_TMPDIR := $(if $(filter undefined,$(origin PROJECT_ORIGINAL_TMPDIR)),$(TMPDIR),$(PROJECT_ORIGINAL_TMPDIR))
 _PROJECT_TMP_RESOLVED := $(shell $(if $(filter-out undefined,$(origin PROJECT_TMP_BASE)),PROJECT_TMP_BASE='$(PROJECT_TMP_BASE)') $(if $(filter-out undefined,$(origin PROJECT_TMP_ROOT)),PROJECT_TMP_ROOT='$(PROJECT_TMP_ROOT)') PROJECT_NAME=gi PROJECT_ORIGINAL_TMPDIR='$(PROJECT_ORIGINAL_TMPDIR)' CI='$(CI)' RUNNER_TEMP='$(RUNNER_TEMP)' bash scripts/project-tmp.sh)
@@ -69,7 +69,7 @@ _TMP_INIT := $(shell mkdir -p "$(GOCACHE)" "$(GOMODCACHE)" "$(GOTMPDIR)" "$(BUN_
 # The race detector needs a ThreadSanitizer-compatible address layout; some
 # kernels (e.g. 39/42-bit arm64 VMs) lack it. Probe once and drop -race there.
 ifndef RACE
-RACE := $(shell f='$(PROJECT_TMP_ROOT)/cache/go-race-1.27.2'; [ -f $$f.ok ] && cat $$f.ok || { printf 'package main\nfunc main(){}\n' > $$f.go; if timeout 60 env GOTOOLCHAIN=go1.27.2 GOCACHE='$(GOCACHE)' GOMODCACHE='$(GOMODCACHE)' GOTMPDIR='$(GOTMPDIR)' TMPDIR='$(TMPDIR)' TMP='$(TMP)' TEMP='$(TEMP)' $(GO) run -race $$f.go >/dev/null 2>&1; then echo -race; fi | tee $$f.ok; rm -f $$f.go; })
+RACE := $(shell f='$(PROJECT_TMP_ROOT)/cache/go-race-1.27.3'; [ -f $$f.ok ] && cat $$f.ok || { printf 'package main\nfunc main(){}\n' > $$f.go; if timeout 60 env GOTOOLCHAIN=go1.27.3 GOCACHE='$(GOCACHE)' GOMODCACHE='$(GOMODCACHE)' GOTMPDIR='$(GOTMPDIR)' TMPDIR='$(TMPDIR)' TMP='$(TMP)' TEMP='$(TEMP)' $(GO) run -race $$f.go >/dev/null 2>&1; then echo -race; fi | tee $$f.ok; rm -f $$f.go; })
 endif
 
 # ── Tool commands ───────────────────────────────────────────────────────
