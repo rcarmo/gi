@@ -33,3 +33,12 @@ available, but updating the require line would not update the replacement.
 Its terminal/paste/redraw extensions need a separate fork integration; this
 upgrade does not discard them. Vendored Piclaw source is unchanged. Transitive
 modules are not independently bumped beyond the selected dependencies' needs.
+
+## v0.2.0 publication
+
+Rui requested a new minor release on 30 October. Frontend PR #23 is merged;
+Gi uses its merge revision with identical dependency/assets content. Publish
+v0.2.0 through the manual packaging-only workflow, using the focused evidence
+above rather than repeating a full matrix. Release notes state this limitation.
+Validate all six archives and binary architectures/source metadata, download and
+smoke-check the native Linux binary. No deployment or additional optimisation.

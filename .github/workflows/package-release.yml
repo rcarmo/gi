@@ -141,7 +141,7 @@ jobs:
             const tag = process.env.VERSION;
             // GITHUB_TOKEN-created refs do not start another workflow matrix.
             const object = await github.rest.git.createTag({owner, repo, tag,
-              message: `${tag}: runtime focus ownership repairs; focused local verification, packaging-only release`,
+              message: `${tag}: verified dependency upgrade; packaging-only release`,
               object: context.sha, type: 'commit',
               tagger: {name: 'Rui Carmo', email: 'rui.carmo@gmail.com', date: new Date().toISOString()}});
             await github.rest.git.createRef({owner, repo, ref: `refs/tags/${tag}`, sha: object.data.sha});
@@ -152,8 +152,8 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           cat > release-notes.md <<'NOTES'
-          Fixes deferred model/session-picker and Plan focus callbacks stealing newer composer focus. Restores original Enter interactions and removes resend/Send-button test workarounds.
+          Dependency upgrade: Go 1.27.3, go-ai 1.4.0, SQLite 1.61.0, Tailscale 1.104.4, updated Goja and x/net. Frontend: Preact 11.1.0, Playwright 1.64.1, marked 18.1.2, KaTeX 0.19.1, Babel runtime 8.0.10 and CodeMirror patches, with rebuilt pinned assets. The patched go-tui replacement and vendored Piclaw source are preserved.
 
-          Verification: deterministic model/session regressions fail before and pass after repair; focused browser and unit checks pass. The integrated local run was stopped on a session-picker failure, subsequently addressed and checked in isolation. This release does not claim a complete fresh matrix pass. Packaging-only workflow publishes Linux, macOS and Windows binaries for amd64 and arm64; Windows execution is not tested. No deployment.
+          Verification: targeted scripting, codemode, store, auth and web tests; selected turn/provider checks; CLI/frontend builds; 46 focused frontend unit tests; isolated WebKit focus/Enter regression. No fresh full matrix was run. Packaging-only workflow builds Linux, macOS and Windows binaries for amd64 and arm64. Non-native binaries are not execution-tested. No deployment.
           NOTES
           gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file release-notes.md dist/*.tar.gz
