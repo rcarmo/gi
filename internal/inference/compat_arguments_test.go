@@ -27,6 +27,7 @@ func TestCompatStreamAccumulatesArgumentsAndMarksInvalidCalls(t *testing.T) {
 		frame([]any{call(1, "array", "shell", "["), call(0, "valid", "shell", `{"command":`)})
 		frame([]any{call(0, "", "", `"echo ok"}`), call(1, "", "", "1]")})
 		frame([]any{call(2, "broken", "shell", `{"command":`), call(3, "scalar", "shell", "null"), call(4, "empty", "shell", "")})
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n")
 		fmt.Fprint(w, "data: [DONE]\n\n")
 	}))
 	defer server.Close()
@@ -142,5 +143,30 @@ func TestCompatNilArgumentsNormalizeToObject(t *testing.T) {
 	calls := messages[0]["tool_calls"].([]any)
 	if got := calls[0].(map[string]any)["function"].(map[string]any)["arguments"]; got != "{}" {
 		t.Fatalf("nil arguments emitted %v", got)
+	}
+}
+
+func TestCompatTerminalFramingRejectsMissingDuplicateAndContradictoryStops(t *testing.T) {
+	for _, tc := range []struct{ name, body string }{
+		{"missing", "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\ndata: [DONE]\n\n"},
+		{"duplicate", "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"},{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"},
+		{"contradictory", "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c\",\"function\":{\"name\":\"shell\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprint(w, tc.body)
+			}))
+			defer server.Close()
+			done := false
+			_, err := streamOpenCodeZen(context.Background(), &goai.Model{ID: "fixture", Provider: "fixture", Api: goai.ApiOpenAICompletions, BaseURL: server.URL}, &goai.Context{}, func(event map[string]any) {
+				if event["type"] == "done" {
+					done = true
+				}
+			}, nil)
+			if err == nil || done {
+				t.Fatal("invalid terminal adopted", err, done)
+			}
+		})
 	}
 }

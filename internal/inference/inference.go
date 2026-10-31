@@ -520,10 +520,20 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 		opts.Headers = goai.CopilotHeaders()
 	}
 
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	return collectProviderStream(ctx, modelID, goai.Stream(streamCtx, model, convCtx, opts), broadcast)
+}
+
+// Drain the producer through channel closure before returning ownership. This
+// also makes duplicate/missing terminals observable instead of adopting the
+// first DoneEvent and abandoning the producer.
+func collectProviderStream(ctx context.Context, modelID string, events <-chan goai.Event, broadcast func(map[string]any)) (*StreamResult, error) {
 	var fullText string
 	var result *StreamResult
-
-	for ev := range goai.Stream(ctx, model, convCtx, opts) {
+	var terminalCount int
+	var streamErr error
+	for ev := range events {
 		switch e := ev.(type) {
 		case *goai.TextDeltaEvent:
 			fullText += e.Delta
@@ -551,32 +561,54 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 				broadcast(map[string]any{"type": "tool_call_end", "name": e.ToolCall.Name, "id": e.ToolCall.ID})
 			}
 		case *goai.DoneEvent:
-			usage := e.Message.Usage
-			if broadcast != nil {
-				usageMap := map[string]any{}
-				if usage != nil {
-					usageMap = map[string]any{
-						"input": usage.Input, "output": usage.Output,
-						"total":      usage.TotalTokens,
-						"cache_read": usage.CacheRead, "cache_write": usage.CacheWrite,
-						"cost_input": usage.Cost.Input, "cost_output": usage.Cost.Output,
-						"cost_total": usage.Cost.Total,
-					}
-				}
-				broadcast(map[string]any{"type": "done", "model": modelID, "usage": usageMap})
+			terminalCount++
+			if e.Message == nil {
+				streamErr = fmt.Errorf("provider returned a nil terminal message")
+				continue
 			}
-			result = &StreamResult{Message: objectToolInputs(e.Message), Usage: usage, Text: fullText}
-			return result, nil
+			if e.Reason != "" && e.Reason != e.Message.StopReason {
+				streamErr = fmt.Errorf("provider terminal stop reason mismatch")
+			}
+			result = &StreamResult{Message: objectToolInputs(e.Message), Usage: e.Message.Usage, Text: fullText}
 		case *goai.ErrorEvent:
-			if broadcast != nil {
-				broadcast(map[string]any{"type": "error", "error": e.Err.Error()})
+			terminalCount++
+			streamErr = e.Err
+			if streamErr == nil {
+				streamErr = fmt.Errorf("provider terminal error: %s", e.Reason)
 			}
-			return nil, e.Err
+			result = &StreamResult{Message: e.Error, Text: fullText}
+			if e.Error != nil {
+				result.Usage = e.Error.Usage
+			}
+			if broadcast != nil {
+				broadcast(map[string]any{"type": "error", "error": streamErr.Error()})
+			}
 		}
 	}
 
-	// Stream ended without a DoneEvent — return what we have
-	return &StreamResult{Text: fullText}, nil
+	if result == nil {
+		result = &StreamResult{Text: fullText}
+	}
+	if terminalCount != 1 {
+		streamErr = fmt.Errorf("provider stream has %d terminals, want 1", terminalCount)
+	}
+	if ctx.Err() != nil {
+		streamErr = ctx.Err()
+	}
+	if streamErr == nil {
+		streamErr = ValidateAssistantResult(result)
+	}
+	if streamErr != nil {
+		return result, streamErr
+	}
+	if broadcast != nil {
+		usageMap := map[string]any{}
+		if usage := result.Usage; usage != nil {
+			usageMap = map[string]any{"input": usage.Input, "output": usage.Output, "total": usage.TotalTokens, "cache_read": usage.CacheRead, "cache_write": usage.CacheWrite, "cost_input": usage.Cost.Input, "cost_output": usage.Cost.Output, "cost_total": usage.Cost.Total}
+		}
+		broadcast(map[string]any{"type": "done", "model": modelID, "usage": usageMap})
+	}
+	return result, nil
 }
 
 func responseHeadersMap(header http.Header) map[string]string {
@@ -649,6 +681,8 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	var fullText, fullThinking string
+	var terminalCount int
+	var terminalStop goai.StopReason
 	usage := &goai.Usage{}
 	toolCalls := map[int]*goai.ToolCall{}
 	argumentFragments := map[int]*strings.Builder{}
@@ -694,6 +728,19 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 			usage.TotalTokens = chunk.Usage.TotalTokens
 		}
 		for _, choice := range chunk.Choices {
+			if choice.FinishReason != "" {
+				terminalCount++
+				switch choice.FinishReason {
+				case "stop":
+					terminalStop = goai.StopReasonStop
+				case "length":
+					terminalStop = goai.StopReasonLength
+				case "tool_calls":
+					terminalStop = goai.StopReasonToolUse
+				default:
+					terminalStop = goai.StopReason(choice.FinishReason)
+				}
+			}
 			if choice.Delta.Reasoning != "" {
 				fullThinking += choice.Delta.Reasoning
 				if broadcast != nil {
@@ -738,9 +785,9 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	msg := &goai.Message{Role: goai.RoleAssistant, Model: model.ID, Provider: model.Provider, Api: model.Api, Usage: usage}
+	msg := &goai.Message{Role: goai.RoleAssistant, Model: model.ID, Provider: model.Provider, Api: model.Api, Usage: usage, StopReason: terminalStop}
 	if fullThinking != "" {
-		msg.Content = append(msg.Content, goai.ContentBlock{Type: "thinking", Text: fullThinking})
+		msg.Content = append(msg.Content, goai.ContentBlock{Type: "thinking", Thinking: fullThinking})
 	}
 	if fullText != "" {
 		msg.Content = append(msg.Content, goai.ContentBlock{Type: "text", Text: fullText})
@@ -757,10 +804,17 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 			broadcast(map[string]any{"type": "tool_call_end", "name": call.Name, "id": call.ID})
 		}
 	}
+	result := &StreamResult{Message: msg, Usage: usage, Text: fullText}
+	if terminalCount != 1 {
+		return result, fmt.Errorf("provider stream has %d terminals, want 1", terminalCount)
+	}
+	if err := ValidateAssistantResult(result); err != nil {
+		return result, err
+	}
 	if broadcast != nil {
 		broadcast(map[string]any{"type": "done", "model": string(model.Provider) + "/" + model.ID, "usage": map[string]any{"input": usage.Input, "output": usage.Output, "total": usage.TotalTokens}})
 	}
-	return &StreamResult{Message: msg, Usage: usage, Text: fullText}, nil
+	return result, nil
 }
 
 func openAICompatMessages(convCtx *goai.Context) ([]map[string]any, error) {

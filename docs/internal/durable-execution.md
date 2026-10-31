@@ -22,3 +22,16 @@ Executed, rejected, denied, skipped and hook-supplied tool results commit their
 terminal event and replay message in one transaction. Model continuation and
 completion notifications require that commit. Tool-owned details and harness
 output-policy diagnostics remain separate.
+
+## Provider terminals
+
+Gi validates assistant role, supported content, tool-call identity and arguments,
+stop reason and non-negative finite usage before adopting a result or executing
+tools. `stop` and `length` cannot carry tool calls. Empty `toolUse` is a final
+answer. `pending` is invalid as a terminal; deferred provider execution is
+explicitly unsupported and fails the turn without dispatching tools.
+
+Streaming adapters require exactly one terminal, reject contradictory stop
+metadata and drain the provider channel through closure before returning. The
+OpenCode-compatible SSE path requires a final finish reason; `[DONE]` alone
+cannot turn an incomplete response into success.
