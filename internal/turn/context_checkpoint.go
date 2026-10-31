@@ -31,7 +31,7 @@ func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID st
 			}
 			added, _ := decodeReplayValue[[]string](m.Payload["added_tool_names"])
 			messages = append(messages, goai.Message{Role: goai.RoleToolResult, ToolCallID: id, ToolName: name, IsError: failed, Content: blocks, AddedToolNames: added, Details: m.Payload["details"]})
-		} else if saved, ok := decodeReplayValue[goai.Message](m.Payload["provider_message"]); ok && saved.Role == goai.RoleAssistant {
+		} else if saved, ok := decodeAssistantReplay(m.Payload["provider_message"]); ok {
 			messages = append(messages, saved)
 		} else if m.Payload["kind"] == "tool_calls" {
 			text, _ := m.Payload["display_text"].(string)
@@ -172,6 +172,19 @@ func summarizeWith(ctx context.Context, model, thinking string, req compaction.S
 		}
 	}
 	return resp, nil
+}
+
+// Releases through v0.2.0 wrote StreamResult envelopes. Accept those as well
+// as the direct protocol message written now; never discard signed blocks just
+// because the legacy envelope has no top-level role.
+func decodeAssistantReplay(value any) (goai.Message, bool) {
+	if message, ok := decodeReplayValue[goai.Message](value); ok && message.Role == goai.RoleAssistant {
+		return message, true
+	}
+	if result, ok := decodeReplayValue[inference.StreamResult](value); ok && result.Message != nil && result.Message.Role == goai.RoleAssistant {
+		return *result.Message, true
+	}
+	return goai.Message{}, false
 }
 
 func decodeReplayValue[T any](value any) (T, bool) {
