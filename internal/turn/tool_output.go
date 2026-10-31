@@ -1,6 +1,7 @@
 package turn
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -10,7 +11,8 @@ import (
 
 // Each reporter owns its coalescing timer. Closing joins any in-flight write;
 // terminal replacement bypasses pacing, even for an empty final result.
-func (r *sessionRunner) toolOutputReporter(turnID, sessionID, callID, occurrence string) (func(string, bool) error, func()) {
+func (r *sessionRunner) toolOutputReporter(ctx context.Context, turnID, sessionID, callID, occurrence string) (func(string, bool) error, func()) {
+	ctx = context.WithoutCancel(ctx)
 	var mu sync.Mutex
 	var workers sync.WaitGroup
 	var timer *time.Timer
@@ -28,7 +30,7 @@ func (r *sessionRunner) toolOutputReporter(turnID, sessionID, callID, occurrence
 			preview = map[string]any{"output_preview": "", "output_total_lines": 0, "output_preview_lines": 0, "output_truncated": false}
 		}
 		preview["tool_call_id"], preview["occurrence_id"], preview["final"] = callID, occurrence, final
-		failure = r.store.AppendTurnEvent(r.engine.backgroundContext(), turnID, sessionID, "tool.output", preview)
+		failure = r.store.AppendTurnEffectEvent(ctx, turnID, sessionID, "tool.output", preview)
 		if failure != nil {
 			return
 		}

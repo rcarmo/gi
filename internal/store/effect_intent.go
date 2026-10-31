@@ -14,6 +14,10 @@ func (s *Store) AdmitTurnEffect(ctx context.Context, sessionID, turnID, phase, e
 	default:
 		return fmt.Errorf("invalid effect intent %q", eventType)
 	}
+	token, err := turnWriterToken(ctx, sessionID, turnID)
+	if err != nil {
+		return err
+	}
 	raw, err := marshalJSON(payload)
 	if err != nil {
 		return err
@@ -26,7 +30,7 @@ func (s *Store) AdmitTurnEffect(ctx context.Context, sessionID, turnID, phase, e
 		return err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `update turns set phase=?,updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and exists(select 1 from session_active_turns where session_id=? and turn_id=?)`, phase, turnID, sessionID, sessionID, turnID)
+	result, err := tx.ExecContext(ctx, `update turns set phase=?,updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and phase not in ('settling','cancelling') and exists(select 1 from session_active_turns where session_id=? and turn_id=? and (?='' or claim_token=?))`, phase, turnID, sessionID, sessionID, turnID, token, token)
 	if err != nil {
 		return err
 	}

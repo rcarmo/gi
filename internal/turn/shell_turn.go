@@ -34,7 +34,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	r.engine.PublishRuntimeToolEvent("tool_started", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, intent)
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 
-	reportOutput, closeOutput := r.toolOutputReporter(run.turnID, run.sessionID, "", toolOccurrenceID)
+	reportOutput, closeOutput := r.toolOutputReporter(ctx, run.turnID, run.sessionID, "", toolOccurrenceID)
 	defer closeOutput()
 	var streamedOutput strings.Builder
 	executionStart := time.Now()
@@ -46,21 +46,23 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	if outputErr := reportOutput(out, true); outputErr != nil && !cancelled {
 		runErr = outputErr
 	}
-	bgCtx := r.engine.backgroundContext()
+	bgCtx := context.WithoutCancel(ctx)
 	status, phase := "completed", "completed"
 	if cancelled || ctx.Err() != nil {
 		status, phase = "cancelled", "aborted"
 	} else if runErr != nil {
 		status, phase = "failed", "failed"
 	}
+	r.setTerminalPending(run.turnID, true)
 	finalStatus, err := s.FinalizeRunningTurn(bgCtx, run.turnID, status, phase)
 	if err != nil {
 		log.Printf("shell turn finalization conflict for %s: %v", run.turnID, err)
 		return
 	}
+	r.setTerminalPending(run.turnID, false)
 	logutil.WarnIfErr("mark shell turn finished", s.MarkTurnFinished(bgCtx, run.turnID))
 	if finalStatus == "cancelled" {
-		r.persistStoppedTool(s, run.sessionID, run.turnID, goai.ToolCall{Name: "shell"}, toolOccurrenceID, "cancelled", durationMS)
+		r.persistStoppedTool(ctx, s, run.sessionID, run.turnID, goai.ToolCall{Name: "shell"}, toolOccurrenceID, "cancelled", durationMS)
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 		logutil.WarnIfErr("append turn.cancelled event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancelled", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}))
 		logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "cancelled", "reason": "cancelled", "failure_kind": ""}))

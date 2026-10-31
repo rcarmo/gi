@@ -55,7 +55,7 @@ func TestProviderRequestContextMeasurementIsNotCumulativeTurnUsage(t *testing.T)
 	}
 	for i, u := range []*goai.Usage{{Input: 100, CacheRead: 20, CacheWrite: 30, Output: 400, TotalTokens: 550}, {Input: 140, CacheRead: 40, CacheWrite: 10, Output: 700, TotalTokens: 890}} {
 		id := fmt.Sprintf("response-%d", i)
-		if err := runner.settleProviderResponse(s, "context-turn", "context-origin", "provider/model", i+1, &inference.StreamResult{OccurrenceID: id, Usage: u}, id, "response", map[string]any{"turn_id": "context-turn"}, "reply_boundary"); err != nil {
+		if err := runner.settleProviderResponse(context.Background(), s, "context-turn", "context-origin", "provider/model", i+1, &inference.StreamResult{OccurrenceID: id, Usage: u}, id, "response", map[string]any{"turn_id": "context-turn"}, "reply_boundary"); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -12,12 +12,16 @@ var ErrCompactionInactive = errors.New("compaction requires a running claimed tu
 // BeginCompaction commits the checkpoint with its phase; cancellation cannot
 // be overwritten by a later unconditional status update.
 func (s *Store) BeginCompaction(ctx context.Context, sessionID, turnID string, payload map[string]any) (int, error) {
+	token, err := turnWriterToken(ctx, sessionID, turnID)
+	if err != nil {
+		return 0, err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `update turns set phase='compacting',updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and phase!='compacting' and exists(select 1 from session_active_turns where session_id=? and turn_id=?)`, turnID, sessionID, sessionID, turnID)
+	result, err := tx.ExecContext(ctx, `update turns set phase='compacting',updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and phase not in ('compacting','settling','cancelling') and exists(select 1 from session_active_turns where session_id=? and turn_id=? and (?='' or claim_token=?))`, turnID, sessionID, sessionID, turnID, token, token)
 	if err != nil {
 		return 0, err
 	}
@@ -55,6 +59,9 @@ func (s *Store) FinishCompactionWithBoundary(ctx context.Context, sessionID, tur
 		return "", err
 	}
 	defer tx.Rollback()
+	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
+		return "", err
+	}
 	// One terminal outcome per occurrence, even when a turn compacts repeatedly.
 	var latestSeq int
 	var latestType string
@@ -124,7 +131,11 @@ func (s *Store) FinishCompactionWithBoundary(ctx context.Context, sessionID, tur
 // SetClaimedRunningPhase is used on return to inference after context hooks.
 // It never writes status, so a cancel committed before this statement wins.
 func (s *Store) SetClaimedRunningPhase(ctx context.Context, sessionID, turnID, phase string) error {
-	result, err := s.db.ExecContext(ctx, `update turns set phase=?,updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and exists(select 1 from session_active_turns where session_id=? and turn_id=?)`, phase, turnID, sessionID, sessionID, turnID)
+	token, err := turnWriterToken(ctx, sessionID, turnID)
+	if err != nil {
+		return err
+	}
+	result, err := s.db.ExecContext(ctx, `update turns set phase=?,updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and phase not in ('settling','cancelling') and exists(select 1 from session_active_turns where session_id=? and turn_id=? and (?='' or claim_token=?))`, phase, turnID, sessionID, sessionID, turnID, token, token)
 	if err != nil {
 		return err
 	}

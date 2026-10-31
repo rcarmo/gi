@@ -125,7 +125,7 @@ func (r *sessionRunner) providerRetryWait(ctx context.Context, s *store.Store, t
 	p := r.engine.runtimeCfg.Retry.Policy()
 	title := fmt.Sprintf("Provider %s — retrying (attempt %d/%d, %gs delay)", map[string]string{"timeout": "request timed out", "network": "connection failed", "rate_limit": "rate limited"}[class], attempt, p.MaxRetries, delay.Seconds())
 	payload := map[string]any{"title": title, "attempt": attempt, "max_attempts": p.MaxRetries, "delay_ms": delay.Milliseconds(), "retry_at": time.Now().Add(delay).UTC().Format(time.RFC3339Nano), "failure_category": class, "iteration": iter, "model": model, "phase": "retry_wait"}
-	if err := s.AppendTurnEvent(ctx, turnID, sessionID, "inference.retry_scheduled", payload); err != nil {
+	if err := s.AppendTurnEffectEvent(ctx, turnID, sessionID, "inference.retry_scheduled", payload); err != nil {
 		return err
 	}
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "status": "running", "phase": "retry_wait", "title": title, "attempt": attempt, "max_attempts": p.MaxRetries, "retry_at": payload["retry_at"], "failure_category": class})

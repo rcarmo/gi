@@ -129,6 +129,11 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 // takes precedence over a late success or failure; a terminal turn is never
 // finalized twice. Call before publishing terminal events or responses.
 func (s *Store) FinalizeRunningTurn(ctx context.Context, turnID, status, phase string) (string, error) {
+	if writer, scoped := ctx.Value(turnWriterKey{}).(turnWriter); scoped {
+		if _, err := turnWriterToken(ctx, writer.sessionID, turnID); err != nil {
+			return "", err
+		}
+	}
 	if status != "cancelled" {
 		err := s.updateTurnStatusAndPhase(ctx, turnID, status, phase, "running")
 		if err == nil {
@@ -153,12 +158,23 @@ func (s *Store) FinalizeRunningTurn(ctx context.Context, turnID, status, phase s
 }
 
 func (s *Store) updateTurnStatusAndPhase(ctx context.Context, turnID, status, phase, expectedStatus string) error {
+	writer, _ := ctx.Value(turnWriterKey{}).(turnWriter)
+	// Administrative callers may coordinate linked turns. Bind a host's
+	// updates to its own incarnation; effect APIs additionally check targets.
+	if writer.turnID != turnID {
+		writer = turnWriter{}
+	} else if writer.token == "" {
+		return ErrQueueConflict
+	}
 	res, err := s.db.ExecContext(ctx, `update turns set status = ?, phase = ?, updated_at = `+defaultNow+` where id = ?
 		and (? = '' or turns.status = ?)
+		and (?='' or (turns.session_id=?
+		 and not exists(select 1 from session_active_turns a where a.turn_id=turns.id and a.session_id=turns.session_id and a.claim_token<>?)
+		 and not exists(select 1 from turn_recovery_fences f where f.turn_id=turns.id and (f.session_id<>turns.session_id or f.claim_token<>?))))
 		and (? not in ('queued','running','completed') or not exists (
 			select 1 from turn_failures f where f.turn_id = turns.id
 			and (f.hold_state <> 'none' or coalesce(f.resolution_state,'') <> '')
-		))`, status, phase, turnID, expectedStatus, expectedStatus, status)
+		))`, status, phase, turnID, expectedStatus, expectedStatus, writer.token, writer.sessionID, writer.token, writer.token, status)
 	if err != nil {
 		return fmt.Errorf("update turn status and phase: %w", err)
 	}

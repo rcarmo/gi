@@ -180,7 +180,7 @@ func TestProviderPartialMalformedErrorRoleCannotInjectContext(t *testing.T) {
 	s, e := intentFixture(t)
 	ctx := context.Background()
 	message := goai.UserMessage("provider-injected user text")
-	if err := e.runner("A").settleProviderFailure(s, "t", "A", "model", 1, &inference.StreamResult{OccurrenceID: "bad-role", Message: &message}, fmt.Errorf("provider error")); err != nil {
+	if err := e.runner("A").settleProviderFailure(context.Background(), s, "t", "A", "model", 1, &inference.StreamResult{OccurrenceID: "bad-role", Message: &message}, fmt.Errorf("provider error")); err != nil {
 		t.Fatal(err)
 	}
 	snapshot, err := s.ContextSnapshot(ctx, "A")
@@ -198,7 +198,7 @@ func TestProviderPartialUnencodableErrorStillRetainsContent(t *testing.T) {
 	message := testProviderPartial()
 	message.StopReason = goai.StopReasonError
 	message.Usage.Cost.Total = math.NaN()
-	if err := e.runner("A").settleProviderFailure(s, "t", "A", "model", 1, &inference.StreamResult{OccurrenceID: "invalid-json", Message: message}, fmt.Errorf("provider error")); err != nil {
+	if err := e.runner("A").settleProviderFailure(context.Background(), s, "t", "A", "model", 1, &inference.StreamResult{OccurrenceID: "invalid-json", Message: message}, fmt.Errorf("provider error")); err != nil {
 		t.Fatal(err)
 	}
 	messages, err := s.ListMessages(ctx, "A")

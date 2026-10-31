@@ -132,7 +132,7 @@ func (r *sessionRunner) compactSnapshot(ctx context.Context, sessionID, turnID, 
 }
 
 func (r *sessionRunner) compactSnapshotWithInstructions(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool, instructions string) error {
-	return compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.CompactionPolicy(), Force: force, Instructions: instructions, ModelMaxTokens: inference.ModelMaxTokens(model)}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, Summarize: r.compactionSummarizer(turnID, model), BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
+	return compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.CompactionPolicy(), Force: force, Instructions: instructions, ModelMaxTokens: inference.ModelMaxTokens(model)}, convCtx, compaction.RuntimeOps{BackgroundContext: func() context.Context { return context.WithoutCancel(ctx) }, Summarize: r.compactionSummarizer(turnID, model), BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
 		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
 		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
 	}, AfterCompact: func(ctx context.Context, payload map[string]any) {

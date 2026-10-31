@@ -17,7 +17,7 @@ func TestToolOutputReporterPersistsBeforeNotificationAndFlushesFinal(t *testing.
 	_, _ = s.CreateTurn(ctx, "t", "a", "prompt", nil)
 	_ = s.AppendTurnEvent(ctx, "t", "a", "tool.started", map[string]any{"tool": "shell", "tool_call_id": "call", "occurrence_id": "occ"})
 	r := &sessionRunner{store: s, engine: e}
-	report, closeOutput := r.toolOutputReporter("t", "a", "call", "occ")
+	report, closeOutput := r.toolOutputReporter(ctx, "t", "a", "call", "occ")
 	defer closeOutput()
 	if err := report("first", false); err != nil {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func TestToolOutputReporterPersistsBeforeNotificationAndFlushesFinal(t *testing.
 	if _, err = s.DB().Exec(`CREATE TRIGGER reject_output BEFORE INSERT ON turn_events WHEN NEW.event_type='tool.output' BEGIN SELECT RAISE(ABORT,'fixture output failure'); END`); err != nil {
 		t.Fatal(err)
 	}
-	failed, closeFailed := r.toolOutputReporter("t", "a", "call", "occ")
+	failed, closeFailed := r.toolOutputReporter(ctx, "t", "a", "call", "occ")
 	defer closeFailed()
 	if failed("new", true) == nil || failed("", true) == nil {
 		t.Fatal("persistence failure lost")
@@ -63,7 +63,7 @@ func TestToolOutputProgressCoalescesAndJoinsFinalReplacement(t *testing.T) {
 	if _, err := s.CreateTurn(ctx, "t", "a", "prompt", nil); err != nil {
 		t.Fatal(err)
 	}
-	report, closeOutput := e.runner("a").toolOutputReporter("t", "a", "call", "occ")
+	report, closeOutput := e.runner("a").toolOutputReporter(ctx, "t", "a", "call", "occ")
 	defer closeOutput()
 	if err := report("first", false); err != nil {
 		t.Fatal(err)
