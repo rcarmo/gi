@@ -178,6 +178,8 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 }
 
 func (e *Engine) launchQueueActionLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string, selectedSteer bool, endedID string) (bool, error) {
+	e.launchMu.Lock()
+	defer e.launchMu.Unlock()
 	if e.closing.Load() {
 		return false, nil // shutting down: leave queued work for the next start
 	}
