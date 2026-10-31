@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,9 @@ import (
 )
 
 type RuntimeConfig struct {
+	// File-backed configurations can be refreshed at a generation boundary.
+	// Configurations constructed without Load remain authoritative.
+	fileBacked           bool
 	WorkspaceRoot        string             `json:"workspace_root"`
 	JavaScriptRuntime    string             `json:"javascript_runtime,omitempty"`
 	AssistantName        string             `json:"assistant_name"`
@@ -218,18 +222,42 @@ func (b *piBranchSummary) apply(cfg *RuntimeConfig) {
 	}
 }
 
+// ForGeneration reloads a configuration produced by Load without mutating an
+// engine's shared configuration. Configs constructed without Load remain static.
+func (c RuntimeConfig) ForGeneration() (RuntimeConfig, error) {
+	if !c.fileBacked {
+		return c, nil
+	}
+	var readErr error
+	fresh := loadRuntimeConfig(c.WorkspaceRoot, func(path string, out any) error {
+		err := readJSON(path, out)
+		if err != nil && !errors.Is(err, os.ErrNotExist) && readErr == nil {
+			readErr = fmt.Errorf("read current generation settings %s: %w", path, err)
+		}
+		return err
+	})
+	if readErr != nil {
+		return RuntimeConfig{}, readErr
+	}
+	return fresh, nil
+}
+
 func Load(workspaceRoot string) RuntimeConfig {
+	return loadRuntimeConfig(workspaceRoot, readJSON)
+}
+
+func loadRuntimeConfig(workspaceRoot string, readSettings func(string, any) error) RuntimeConfig {
 	workspaceRoot = strings.TrimSpace(workspaceRoot)
 	if workspaceRoot == "" {
 		workspaceRoot = DefaultWorkspaceRoot()
 	}
-	cfg := RuntimeConfig{WorkspaceRoot: workspaceRoot, Compaction: CompactionSettings{Enabled: true}, InboundWork: InboundWorkSettings{Enabled: true}}
+	cfg := RuntimeConfig{fileBacked: true, WorkspaceRoot: workspaceRoot, Compaction: CompactionSettings{Enabled: true}, InboundWork: InboundWorkSettings{Enabled: true}}
 	var projectTools, projectExtensions []string
 	var projectCodemode *CodemodeSettings
 	var projectHideThinking *bool
 	var projectBranchSummary *piBranchSummary
 	var pc piclawConfig
-	if err := readJSON(filepath.Join(workspaceRoot, ".piclaw", "config.json"), &pc); err == nil {
+	if err := readSettings(filepath.Join(workspaceRoot, ".piclaw", "config.json"), &pc); err == nil {
 		cfg.AssistantName = pc.Assistant.AssistantName
 		cfg.AssistantAvatar = pc.Assistant.AssistantAvatar
 		cfg.UserName = pc.User.UserName
@@ -237,7 +265,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.UserAvatarBackground = pc.User.UserAvatarBackground
 	}
 	var ps piSettings
-	if err := readJSON(ProjectConfigFile(workspaceRoot, "settings.json"), &ps); err == nil {
+	if err := readSettings(ProjectConfigFile(workspaceRoot, "settings.json"), &ps); err == nil {
 		cfg.JavaScriptRuntime = strings.TrimSpace(ps.JavaScriptRuntime)
 		cfg.DefaultProvider = ps.DefaultProvider
 		cfg.DefaultModel = ps.DefaultModel
@@ -277,7 +305,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		}
 	}
 	cfg.VNCAllowDirect = os.Getenv("GI_WEB_VNC_ALLOW_DIRECT") == "true"
-	applyGlobalPiSettings(&cfg)
+	applyGlobalPiSettings(&cfg, readSettings)
 	projectBranchSummary.apply(&cfg)
 	if projectHideThinking != nil {
 		cfg.HideThinkingBlock = *projectHideThinking
@@ -523,14 +551,15 @@ func piTransport(settings piSettings) string {
 // Pi's agent directory) under the project
 // settings, as Pi does: project values win, global values fill the model,
 // provider, thinking level and scoped models when the project leaves them unset.
-func applyGlobalPiSettings(cfg *RuntimeConfig) {
+func applyGlobalPiSettings(cfg *RuntimeConfig, readSettings func(string, any) error) {
 	var global piSettings
-	if err := readJSON(UserConfigFile("settings.json"), &global); err != nil {
+	if err := readSettings(UserConfigFile("settings.json"), &global); err != nil {
 		return
 	}
 	if cfg.JavaScriptRuntime == "" {
 		cfg.JavaScriptRuntime = strings.TrimSpace(global.JavaScriptRuntime)
 	}
+	cfg.Retry = global.Retry.overlay(cfg.Retry)
 	cfg.ModelCatalogURL = strings.TrimSpace(global.ModelCatalogURL)
 	if global.HideThinkingBlock != nil {
 		cfg.HideThinkingBlock = *global.HideThinkingBlock

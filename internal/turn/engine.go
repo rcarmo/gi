@@ -4114,7 +4114,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		maxIter = 64
 	}
 
-	convCtx, err := r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID)
+	providerState := &providerPreparation{}
+	convCtx, err := r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID, providerState)
 	if err != nil {
 		r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Turn context error: %v", err), "context_error")
 		return
@@ -4142,7 +4143,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 
 		var prepareErr error
-		pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering)
+		pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering, providerState)
 		if prepareErr != nil {
 			if ctx.Err() != nil || isCancellationError(prepareErr) || errors.Is(prepareErr, store.ErrCompactionInactive) {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
@@ -4151,7 +4152,10 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			}
 			return
 		}
-		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx)
+		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx, providerState)
+		if providerState.initialized {
+			model = providerState.model
+		}
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {
 			if result != nil && result.OccurrenceID != "" {
@@ -4499,6 +4503,12 @@ func (r *sessionRunner) addResponseRecord(ctx context.Context, s *store.Store, t
 		if len(thinking) > 0 {
 			payload["thinking_blocks"] = thinking
 		}
+	}
+	if result.RequestThinking != nil {
+		if *result.RequestThinking != "" {
+			payload["thinking_level"] = *result.RequestThinking
+		}
+		return
 	}
 	if rec, err := s.GetTurn(ctx, turnID); err == nil && rec.Metadata["selected_thinking_model"] == model {
 		if level, _ := rec.Metadata["selected_thinking_level"].(string); level != "" {
@@ -5033,16 +5043,16 @@ func providerRequestReplacementFromHook(resp HookResponse) (any, bool) {
 	return replacement, true
 }
 
-func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) (*goai.Context, error) {
-	var turnMetadata map[string]any
-	if turnRec, err := s.GetTurn(ctx, turnID); err == nil {
-		turnMetadata = turnRec.Metadata
-	}
-
+func (r *sessionRunner) buildAgentContext(ctx context.Context, s *store.Store, turnID, sessionID string, cfg config.RuntimeConfig, p *providerPreparation) (*goai.Context, error) {
 	snapshot, err := s.ContextSnapshot(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("load session messages: %w", err)
 	}
+	turnRec, err := s.GetTurn(ctx, turnID)
+	if err != nil {
+		return nil, fmt.Errorf("load turn metadata: %w", err)
+	}
+	turnMetadata := turnRec.Metadata
 	convCtx := &goai.Context{
 		Tools:    r.engine.toolDefsForMetadata(turnMetadata),
 		Messages: r.projectContextSnapshot(ctx, sessionID, snapshot),
@@ -5051,13 +5061,29 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 	r.engine.declareLoadedTools(convCtx, r.engine.sessionLoadedTools(ctx, sessionID))
 	r.engine.applyCodemodeLoadout(ctx, convCtx, sessionID, turnMetadata)
 	ids, offset := snapshotMessageIDs(snapshot)
-	plan := r.engine.planPromptSections(ctx, sessionID, r.engine.promptSections(convCtx.Tools), ids, offset, convCtx.Messages)
-	sectionPlans.Store(sessionID, plan)
+	plan := r.engine.planPromptSections(ctx, sessionID, r.engine.promptSectionsWithConfig(convCtx.Tools, cfg), ids, offset, convCtx.Messages, turnID)
+	p.plan = plan
 	convCtx.SystemPrompt = plan.systemPrompt()
+	return convCtx, nil
+}
 
+func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, preparations ...*providerPreparation) (*goai.Context, error) {
+	p := &providerPreparation{}
+	if len(preparations) > 0 && preparations[0] != nil {
+		p = preparations[0]
+	}
+	convCtx, err := r.buildAgentContext(ctx, s, turnID, sessionID, r.engine.runtimeCfg, p)
+	if err != nil {
+		return nil, err
+	}
 	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
 		log.Printf("hook before_agent_start error: %v", err)
 	} else {
+		if len(preparations) > 0 && preparations[0] != nil {
+			if err := r.captureAgentStartPreparation(preparations[0], resp); err != nil {
+				return nil, fmt.Errorf("capture agent start preparation: %w", err)
+			}
+		}
 		if resp.SystemPrompt != "" {
 			convCtx.SystemPrompt = resp.SystemPrompt
 		}
@@ -5075,7 +5101,7 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 	return convCtx, nil
 }
 
-func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, turnID, model, agentID string, iter int, convCtx *goai.Context, pendingSteering []store.SteeringMessage) ([]store.SteeringMessage, error) {
+func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, turnID, model, agentID string, iter int, convCtx *goai.Context, pendingSteering []store.SteeringMessage, preparations ...*providerPreparation) ([]store.SteeringMessage, error) {
 	// A previous boundary may already have dequeued one message. Do not poll
 	// again in this iteration: one-at-a-time must reach the next model request
 	// before another queued message is admitted (as in Pi's agent loop).
@@ -5091,84 +5117,52 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 		pendingSteering = nil
 	}
 	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter})
-	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookContext, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
-		log.Printf("hook context error: %v", err)
-	} else {
-		if resp.SystemPrompt != "" {
-			convCtx.SystemPrompt = resp.SystemPrompt
-		}
-		if resp.Messages != nil {
-			convCtx.Messages = resp.Messages
-		}
-		if resp.Tools != nil {
-			convCtx.Tools = resp.Tools
-		}
-	}
+	r.applyGenerationContextHook(ctx, sessionID, turnID, model, agentID, iter, convCtx)
 	// Snapshot before the asynchronous before-compact hook; completion compares
 	// the exact history and checkpoint version inside its write transaction.
 	snapshot, snapshotErr := r.store.ContextSnapshot(ctx, sessionID)
 	if snapshotErr != nil {
 		return pendingSteering, snapshotErr
 	}
-	err := r.compactSnapshot(ctx, sessionID, turnID, model, agentID, convCtx, snapshot, false)
+	err := r.compactSnapshot(ctx, sessionID, turnID, model, agentID, convCtx, snapshot, false, preparations...)
 	return pendingSteering, err
 }
 
-func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context) (*inference.StreamResult, error) {
-	requestCtx := &goai.Context{SystemPrompt: convCtx.SystemPrompt, Messages: append([]goai.Message(nil), convCtx.Messages...), Tools: append([]goai.Tool(nil), convCtx.Tools...)}
-	if plan, ok := sectionPlans.Load(sessionID); ok {
-		requestCtx.SystemPrompt, requestCtx.Messages = plan.(*sectionPlan).apply(requestCtx.SystemPrompt, requestCtx.Messages, inference.SupportsMidConversationSystemMessages(model))
+func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context, preparations ...*providerPreparation) (*inference.StreamResult, error) {
+	prepared := &providerPreparation{}
+	if len(preparations) > 0 && preparations[0] != nil {
+		prepared = preparations[0]
 	}
-	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools), "stage": "context"}}); err != nil {
-		log.Printf("hook before_provider_request error: %v", err)
-	} else {
-		if abortErr := hookAbortFromResponse(resp, "aborted before provider request by hook"); abortErr != nil {
-			return nil, abortErr
-		}
-		if resp.SystemPrompt != "" {
-			convCtx.SystemPrompt = resp.SystemPrompt
-			requestCtx.SystemPrompt = resp.SystemPrompt
-		}
-		if resp.Messages != nil {
-			convCtx.Messages = resp.Messages
-			requestCtx.Messages = append([]goai.Message(nil), resp.Messages...)
-		}
-		if resp.Tools != nil {
-			convCtx.Tools = resp.Tools
-			requestCtx.Tools = append([]goai.Tool(nil), resp.Tools...)
-		}
-		if strings.TrimSpace(resp.Message) != "" {
-			requestCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, requestCtx.Messages...)
-		}
-	}
-	if err := ctx.Err(); err != nil {
+	if err := prepared.initialize(ctx, s, turnID, model, r.engine.runtimeCfg); err != nil {
 		return nil, err
 	}
-	// Admission below pins each actual attempt before host entry. Context hooks
-	// may have changed the request; retry attempts need their own durable intent.
-	iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
-	log.Printf("inference [%s]: calling %s", iterLabel, model)
-
-	turnSnapshot, err := s.GetTurn(ctx, turnID)
-	if err != nil {
-		return nil, err
-	}
-	thinking := ""
-	if turnSnapshot.Metadata["selected_thinking_model"] == model {
-		thinking, _ = turnSnapshot.Metadata["selected_thinking_level"].(string)
-	}
-	responseObserved := false
-	policy := r.engine.runtimeCfg.Retry.Policy()
+	policy := prepared.cfg.Retry.Policy()
+	var previousFailure error
 	attempt := 0
 	var retryWait *store.ProviderRetryWait
 	var retryOccurrenceID string
-	result, inferErr := retryProviderRequest(ctx, policy, func() (*inference.StreamResult, error, bool) {
+	result, inferErr := retryProviderRequestDynamic(ctx, func() config.ProviderRetryPolicy { return policy }, func() (*inference.StreamResult, error, bool) {
 		defer func() { attempt++ }()
 		retryWait = nil
+		if attempt > 0 {
+			if err := r.refreshProviderPreparation(ctx, s, turnID, sessionID, agentID, iter, attempt, prepared, convCtx); err != nil {
+				return nil, errors.Join(previousFailure, fmt.Errorf("retry preparation: %w", err)), true
+			}
+			policy = prepared.cfg.Retry.Policy()
+		}
+		model, thinking := prepared.model, prepared.thinking
+		responseObserved := false
+		requestCtx, err := r.prepareProviderRequestContext(ctx, sessionID, turnID, model, agentID, iter, convCtx, prepared.plan)
+		if err != nil {
+			return nil, err, true
+		}
+		if err = ctx.Err(); err != nil {
+			return nil, err, true
+		}
+		log.Printf("inference [iter=%d/%d]: calling %s", iter, maxIter, model)
 		progress, hookFailed := false, false
-		responseObserved = false
 		requestID := store.NowID("inference")
-		intent, intentErr := sanitizedProviderIntent(map[string]any{"model": model, "context": requestCtx, "thinking": thinking, "transport": r.engine.runtimeCfg.Transport})
+		intent, intentErr := sanitizedProviderIntent(map[string]any{"model": model, "context": requestCtx, "thinking": thinking, "transport": prepared.cfg.Transport})
 		if intentErr != nil {
 			return nil, intentErr, true
 		}
@@ -5211,7 +5205,7 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 				}
 				return partials.Observe(message)
 			},
-			Transport: goai.Transport(r.engine.runtimeCfg.Transport),
+			Transport: goai.Transport(prepared.cfg.Transport),
 			OnPayload: func(payload any, modelDef *goai.Model) (any, error) {
 				hookPayload := map[string]any{"ok": true, "request": payload, "stage": "payload"}
 				if modelDef != nil {
@@ -5258,6 +5252,9 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			result = &inference.StreamResult{}
 		}
 		result.OccurrenceID = requestID
+		actualThinking := thinking
+		result.RequestThinking = &actualThinking
+		previousFailure = inferErr
 		retryOccurrenceID = requestID
 		// Some adapters return a failed partial without emitting deltas. That is
 		// still observed progress, not permission to repeat the generation.
@@ -5269,8 +5266,17 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			hookFailed = true
 		}
 		if inferErr != nil {
-			if class, eligible := transientProviderFailure(inferErr); ctx.Err() == nil && policy.Enabled && eligible && !progress && !hookFailed && attempt < policy.MaxRetries {
-				retryWait = newProviderRetryWait(policy, model, iter, attempt+1, providerRetryDelay(policy, attempt+1), class)
+			if class, eligible := transientProviderFailure(inferErr); ctx.Err() == nil && eligible && !progress && !hookFailed {
+				current, policyErr := r.engine.runtimeCfg.ForGeneration()
+				if policyErr != nil {
+					inferErr = errors.Join(inferErr, fmt.Errorf("retry policy reload: %w", policyErr))
+					hookFailed = true
+				} else {
+					policy = current.Retry.Policy()
+					if policy.Enabled && attempt < policy.MaxRetries {
+						retryWait = newProviderRetryWait(policy, model, iter, attempt+1, providerRetryDelay(policy, attempt+1), class)
+					}
+				}
 			}
 			if err := r.settleProviderFailure(ctx, s, turnID, sessionID, model, iter, result, inferErr, retryWait); err != nil {
 				return result, fmt.Errorf("provider receipt settlement: %w", err), true

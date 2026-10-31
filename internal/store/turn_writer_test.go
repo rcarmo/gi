@@ -44,6 +44,9 @@ func TestTurnWriterRevocationFencesEveryEffectBoundary(t *testing.T) {
 			"progress": func(ctx context.Context) error {
 				return s.AppendTurnEffectEvent(ctx, "t", "s", "tool.output", map[string]any{"occurrence_id": "late"})
 			},
+			"prompt_sections": func(ctx context.Context) error {
+				return s.RecordTurnPromptSections(ctx, "s", "t", map[string]any{"late": true})
+			},
 			"begin_compaction": func(ctx context.Context) error { _, err := s.BeginCompaction(ctx, "s", "t", nil); return err },
 			"finish_compaction": func(ctx context.Context) error {
 				_, err := s.FinishCompaction(ctx, "s", "t", 1, "completed", "late", nil)
@@ -147,5 +150,28 @@ func BenchmarkTurnWriterEvent(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func TestTurnWriterPromptPreparationOwnedRecord(t *testing.T) {
+	s, ctx, _ := retryReceiptFixture(t)
+	if err := s.RecordTurnPromptSections(ctx, "s", "t", map[string]any{"owned": true}); err != nil {
+		t.Fatal(err)
+	}
+	row, err := s.GetSession(context.Background(), "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record, ok := row.State["system_prompt_sections"].(map[string]any); !ok || record["owned"] != true {
+		t.Fatal(row.State)
+	}
+	if err := s.RecordTurnPromptSections(WithTurnWriter(context.Background(), "other", "t", "epoch"), "s", "t", nil); err == nil {
+		t.Fatal("cross-session preparation admitted")
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, "t", "cancelling", "cancelling"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordTurnPromptSections(ctx, "s", "t", map[string]any{"late": true}); err == nil {
+		t.Fatal("cancelled preparation adopted")
 	}
 }

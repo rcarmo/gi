@@ -14,6 +14,22 @@ type ProviderRetryPolicy struct {
 	MaxRetries, BaseDelayMS, MaxDelayMS int
 }
 
+func (base ProviderRetrySettings) overlay(upper ProviderRetrySettings) ProviderRetrySettings {
+	if upper.Enabled != nil {
+		base.Enabled = upper.Enabled
+	}
+	if upper.MaxRetries != nil {
+		base.MaxRetries = upper.MaxRetries
+	}
+	if upper.BaseDelayMS != nil {
+		base.BaseDelayMS = upper.BaseDelayMS
+	}
+	if upper.MaxAgentDelayMS != nil {
+		base.MaxAgentDelayMS = upper.MaxAgentDelayMS
+	}
+	return base
+}
+
 func (s ProviderRetrySettings) Policy() ProviderRetryPolicy {
 	p := ProviderRetryPolicy{true, 3, 2000, 60000}
 	if s.Enabled != nil {

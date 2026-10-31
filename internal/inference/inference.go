@@ -441,17 +441,20 @@ func loadAuth(provider string) (string, string, error) {
 // StreamResult holds the full result from a streaming inference call.
 type StreamResult struct {
 	// OccurrenceID is assigned by Gi's turn owner, not the remote provider.
-	OccurrenceID   string `json:"-"`
-	Message        *goai.Message
-	Partial        *goai.Message   `json:"-"`
-	Incomplete     bool            `json:"-"`
-	TerminalReason goai.StopReason `json:"-"`
-	Usage          *goai.Usage
-	Text           string
+	OccurrenceID string `json:"-"`
+	// RequestThinking is the turn owner's captured preparation, not a remote
+	// provider assertion. Nil retains legacy admission-metadata fallback.
+	RequestThinking *string `json:"-"`
+	Message         *goai.Message
+	Partial         *goai.Message   `json:"-"`
+	Incomplete      bool            `json:"-"`
+	TerminalReason  goai.StopReason `json:"-"`
+	Usage           *goai.Usage
+	Text            string
 }
 
 type StreamHooks struct {
-	// Validated immutable turn choice; empty leaves the provider default unset.
+	// Validated choice captured for this request; empty leaves the provider default unset.
 	Thinking   string
 	Transport  goai.Transport // Pi's configured transport; empty leaves go-ai's default
 	OnPayload  func(payload any, model *goai.Model) (any, error)
