@@ -132,12 +132,23 @@ func TestNativeSteeringDuringAutomaticCompaction(t *testing.T) {
 	if count.Load() != 3 || compactionCalls.Load() < 2 {
 		t.Fatalf("provider requests=%d compaction hooks=%d, want 3 requests and real second-iteration compaction", count.Load(), compactionCalls.Load())
 	}
-	// After an earlier live response, the model context is not byte-for-byte
-	// the SQLite projection. Compaction is valid for this request, but must
-	// not advance durable coverage for that ambiguous live context.
+	// Provider replay now preserves the earlier live response exactly (#84).
+	// This context is therefore a valid durable prefix. Neither steering
+	// admission may disappear behind that prefix.
 	snapshot, err := s.ContextSnapshot(ctx, sessionID)
-	if err != nil || snapshot.Summary != "" {
+	if err != nil || snapshot.Summary != "retained decisions" {
 		t.Fatalf("unexpected durable summary=%q: %v", snapshot.Summary, err)
+	}
+	for _, text := range []string{"steer one", "steer two"} {
+		found := false
+		for _, message := range snapshot.Messages {
+			if message.Role == "user" && message.Content == text {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("durable compaction swallowed steering %q: %+v", text, snapshot)
+		}
 	}
 	events, err := s.ListTurnEvents(ctx, turn.TurnID)
 	if err != nil {
@@ -147,8 +158,8 @@ func TestNativeSteeringDuringAutomaticCompaction(t *testing.T) {
 	for _, event := range events {
 		if event.Type == "compaction.completed" {
 			completed++
-			if event.Payload["durable_context"] != false {
-				t.Fatalf("live-context compaction falsely advanced durable coverage: %#v", event.Payload)
+			if event.Payload["durable_context"] != true {
+				t.Fatalf("equivalent replay context did not advance durable coverage: %#v", event.Payload)
 			}
 		}
 	}
