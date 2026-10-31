@@ -24,6 +24,7 @@ type ProviderReceipt struct {
 	Decision    string
 	Error       string
 	Iteration   int
+	RetryWait   *ProviderRetryWait
 }
 
 type ReceiptSettlement struct {
@@ -31,6 +32,7 @@ type ReceiptSettlement struct {
 	MessageID  string
 	Decision   string
 	Accounting TurnAccounting
+	RetryWait  *ProviderRetryWait
 }
 
 type TurnAccounting struct {
@@ -194,6 +196,15 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 	default:
 		return out, fmt.Errorf("invalid provider successor %q", receipt.Decision)
 	}
+	if err := receipt.RetryWait.validate(); err != nil {
+		return out, err
+	}
+	if receipt.RetryWait != nil && (receipt.Decision != "error_boundary" || receipt.RetryWait.Iteration != receipt.Iteration) {
+		return out, fmt.Errorf("retry requires the matching failed provider receipt")
+	}
+	if receipt.RetryWait != nil && (receipt.Content != "" || receipt.Payload["partial"] == true) {
+		return out, fmt.Errorf("retry cannot repeat an observed partial")
+	}
 	if (receipt.Decision == "tools" || receipt.Decision == "reply_boundary") && receipt.MessageID == "" {
 		return out, fmt.Errorf("adoption requires a message identity")
 	}
@@ -212,8 +223,8 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
 		return out, err
 	}
-	var owner, status string
-	if err = tx.QueryRowContext(ctx, `select session_id,status from turns where id=?`, turnID).Scan(&owner, &status); err != nil {
+	var owner, status, phase string
+	if err = tx.QueryRowContext(ctx, `select session_id,status,phase from turns where id=?`, turnID).Scan(&owner, &status, &phase); err != nil {
 		return out, err
 	}
 	if owner != sessionID {
@@ -230,6 +241,15 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 			return out, err
 		}
 		out.Decision, _ = decision["next"].(string)
+		if raw, ok := decision["retry_wait"]; ok {
+			encoded, marshalErr := json.Marshal(raw)
+			if marshalErr != nil {
+				return out, marshalErr
+			}
+			if err = json.Unmarshal(encoded, &out.RetryWait); err != nil {
+				return out, err
+			}
+		}
 		out.Accounting, err = receiptAccountingTx(ctx, tx, turnID)
 		return out, err
 	}
@@ -239,9 +259,27 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 	if status != "running" && status != "cancelling" {
 		return out, ErrQueueConflict
 	}
+	if receipt.RetryWait != nil && status == "running" {
+		if phase == "settling" || phase == "cancelling" {
+			return out, ErrQueueConflict
+		}
+		var current bool
+		err = tx.QueryRowContext(ctx, `select exists(select 1 from turn_events i where i.turn_id=? and i.event_type='inference.started' and json_extract(i.payload_json,'$.request_id')=?
+		and not exists(select 1 from turn_events n where n.turn_id=i.turn_id and n.seq>i.seq and n.event_type in ('inference.started','tool.started')))
+		and exists(select 1 from session_active_turns where session_id=? and turn_id=?)`, turnID, occurrenceID, sessionID, turnID).Scan(&current)
+		if err != nil {
+			return out, err
+		}
+		if !current {
+			return out, ErrQueueConflict
+		}
+	}
 	decision := map[string]any{"next": receipt.Decision, "iteration": receipt.Iteration, "error": receipt.Error}
 	if status == "cancelling" {
 		decision["next"] = "cancelled"
+	} else if receipt.RetryWait != nil {
+		decision["next"] = "retry_wait"
+		decision["retry_wait"] = receipt.RetryWait
 	}
 	if receipt.MessageID != "" {
 		messagePayload := make(map[string]any, len(receipt.Payload)+1)
@@ -282,6 +320,16 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 	if err = receiptEventTx(ctx, tx, turnID, sessionID, "inference.settled", event); err != nil {
 		return out, err
 	}
+	if decision["next"] == "retry_wait" {
+		payload := receipt.RetryWait.Payload()
+		payload["request_id"] = occurrenceID
+		if err = receiptEventTx(ctx, tx, turnID, sessionID, "inference.retry_scheduled", payload); err != nil {
+			return out, err
+		}
+		if _, err = tx.ExecContext(ctx, `update turns set phase='retry_wait',updated_at=`+defaultNow+` where id=? and session_id=? and status='running'`, turnID, sessionID); err != nil {
+			return out, err
+		}
+	}
 	if _, err = tx.ExecContext(ctx, `update sessions set updated_at=`+defaultNow+` where id=?`, sessionID); err != nil {
 		return out, err
 	}
@@ -291,6 +339,10 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 	out.Applied = true
 	out.MessageID = receipt.MessageID
 	out.Decision, _ = decision["next"].(string)
+	if out.Decision == "retry_wait" {
+		p := *receipt.RetryWait
+		out.RetryWait = &p
+	}
 	return out, nil
 }
 

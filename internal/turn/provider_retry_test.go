@@ -19,8 +19,11 @@ func TestTransientProviderFailureClassifier(t *testing.T) {
 	cases := []struct {
 		text string
 		want bool
-	}{{`Post "https://api.enterprise.githubcopilot.com/responses": http2: timeout awaiting response headers`, true}, {"HTTP 503: service unavailable", true}, {"HTTP 501: not implemented", false}, {"HTTP 505: version unsupported", false}, {"HTTP 429: slow down", true}, {"HTTP 401: timeout in auth", false}, {"HTTP 400: timeout argument invalid", false}, {"invalid_request_error: schema mismatch", false}, {"Unsupported parameter: max_output_tokens", false}, {"context_length exceeded", false}, {"model not found", false}, {"arbitrary provider error", false}, {"connection reset by peer", true}, {"server_busy", true}, {"servers are currently busy", true}, {"Selected model is at capacity", true}, {"HTTP 400 server_busy", false}, {"unsupported model: selected model is at capacity", false}}
+	}{{`Post "https://api.enterprise.githubcopilot.com/responses": http2: timeout awaiting response headers`, true}, {"HTTP 503: service unavailable", true}, {"HTTP 501: not implemented", false}, {"HTTP 505: version unsupported", false}, {"HTTP 429: slow down", true}, {"HTTP 401: timeout in auth", true}, {"HTTP 400: timeout argument invalid", true}, {"invalid_request_error: schema mismatch", false}, {"Unsupported parameter: max_output_tokens", false}, {"context_length exceeded", false}, {"model not found", false}, {"arbitrary provider error", false}, {"connection reset by peer", false}, {"server_busy", true}, {"servers are currently busy", true}, {"Selected model is at capacity", true}, {"HTTP 400 server_busy", true}, {"unsupported model: selected model is at capacity", true}, {"HTTP 524", true}, {"HTTP 429 insufficient_quota", false}}
 	for _, tc := range cases {
+		if native := goai.IsRetryableAssistantError(&goai.Message{StopReason: goai.StopReasonError, ErrorMessage: tc.text}); native != tc.want {
+			t.Fatalf("fixture disagrees with native classifier: %q", tc.text)
+		}
 		if _, got := transientProviderFailure(errors.New(tc.text)); got != tc.want {
 			t.Errorf("%q retry=%v", tc.text, got)
 		}
@@ -52,12 +55,12 @@ func TestProviderRetryBoundsProgressCancellationAndDisabled(t *testing.T) {
 			_, err := retryProviderRequest(ctx, tc.policy, func() (*inference.StreamResult, error, bool) {
 				calls++
 				return nil, errors.New("timeout awaiting response headers"), tc.progress
-			}, func(n int, d time.Duration, s string) error {
+			}, func(n int, d time.Duration, s string) (time.Time, error) {
 				waits++
 				if tc.cancel {
 					cancel()
 				}
-				return nil
+				return time.Now().Add(d), nil
 			}, func() error { return nil })
 			if err == nil || calls != tc.want {
 				t.Fatalf("calls=%d waits=%d err=%v", calls, waits, err)
@@ -157,12 +160,20 @@ func TestProviderRetryActivitySnapshotAndCancelWait(t *testing.T) {
 		t.Fatal(ok, err)
 	}
 	r := &sessionRunner{engine: e}
-	_, err := retryProviderRequest(ctx, config.ProviderRetryPolicy{Enabled: true, MaxRetries: 3, BaseDelayMS: 60000, MaxDelayMS: 60000}, func() (*inference.StreamResult, error, bool) {
-		return nil, errors.New("timeout awaiting response headers"), false
-	}, func(n int, d time.Duration, class string) error {
-		if err := r.providerRetryWait(ctx, s, "retry-active", "retry-snapshot", "test/provider", 1, n, d, class); err != nil {
-			return err
+	ctx = store.WithTurnWriter(ctx, "retry-snapshot", "retry-active", "claim")
+	policy := config.ProviderRetryPolicy{Enabled: true, MaxRetries: 3, BaseDelayMS: 60000, MaxDelayMS: 60000}
+	var checkpoint *store.ProviderRetryWait
+	_, err := retryProviderRequest(ctx, policy, func() (*inference.StreamResult, error, bool) {
+		if err := s.AdmitTurnEffect(ctx, "retry-snapshot", "retry-active", "running", "inference.started", map[string]any{"request_id": "attempt"}); err != nil {
+			t.Fatal(err)
 		}
+		checkpoint = newProviderRetryWait(policy, "test/provider", 1, 1, time.Minute, "timeout")
+		if _, err := s.SettleProviderAttempt(ctx, "retry-active", "retry-snapshot", "attempt", store.ProviderReceipt{Decision: "error_boundary", Error: "timeout awaiting response headers", Unknown: true, RetryWait: checkpoint, Iteration: 1}); err != nil {
+			t.Fatal(err)
+		}
+		return nil, errors.New("timeout awaiting response headers"), false
+	}, func(n int, d time.Duration, class string) (time.Time, error) {
+		r.publishProviderRetryWait("retry-active", "retry-snapshot", checkpoint)
 		state, err := s.SessionActivity(ctx, "retry-snapshot")
 		if err != nil {
 			t.Fatal(err)
@@ -172,7 +183,7 @@ func TestProviderRetryActivitySnapshotAndCancelWait(t *testing.T) {
 			t.Fatalf("missing reload snapshot %#v", state)
 		}
 		cancel()
-		return nil
+		return checkpoint.RetryAt, nil
 	}, func() error { t.Fatal("cancelled retry resumed"); return nil })
 	if !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
@@ -260,9 +271,13 @@ func TestProviderRetryExhaustionEmitsOneDurableFailure(t *testing.T) {
 	}
 }
 
-func waitProviderTerminal(t *testing.T, s *store.Store, id, status string) {
+func waitProviderTerminal(t *testing.T, s *store.Store, id, status string, timeout ...time.Duration) {
 	t.Helper()
-	end := time.Now().Add(3 * time.Second)
+	limit := 3 * time.Second
+	if len(timeout) > 0 {
+		limit = timeout[0]
+	}
+	end := time.Now().Add(limit)
 	for time.Now().Before(end) {
 		tr, err := s.GetTurn(context.Background(), id)
 		if err != nil {
@@ -326,7 +341,7 @@ func TestProviderRetryAttemptDeadlineVersusParentCancellation(t *testing.T) {
 			return nil, context.DeadlineExceeded, false
 		}
 		return &inference.StreamResult{Text: "ok"}, nil, false
-	}, func(int, time.Duration, string) error { return nil }, func() error { return nil })
+	}, func(_ int, d time.Duration, _ string) (time.Time, error) { return time.Now().Add(d), nil }, func() error { return nil })
 	if err != nil || calls != 2 || result.Text != "ok" {
 		t.Fatal(result, err, calls)
 	}
@@ -343,8 +358,144 @@ func TestProviderRetryAttemptDeadlineVersusParentCancellation(t *testing.T) {
 	}
 	original := errors.New("timeout awaiting response headers")
 	storage := errors.New("lost ownership")
-	_, err = retryProviderRequest(context.Background(), p, func() (*inference.StreamResult, error, bool) { return nil, original, false }, func(int, time.Duration, string) error { return storage }, nil)
+	_, err = retryProviderRequest(context.Background(), p, func() (*inference.StreamResult, error, bool) { return nil, original, false }, func(int, time.Duration, string) (time.Time, error) { return time.Time{}, storage }, nil)
 	if !errors.Is(err, original) || !errors.Is(err, storage) {
 		t.Fatal("original/callback error lost", err)
+	}
+}
+
+func TestProviderRetryUsesCommittedDeadlineRatherThanAnotherDelay(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	calls := 0
+	result, err := retryProviderRequest(ctx, config.ProviderRetryPolicy{Enabled: true, MaxRetries: 1, BaseDelayMS: 60000, MaxDelayMS: 60000}, func() (*inference.StreamResult, error, bool) {
+		calls++
+		if calls == 1 {
+			return nil, errors.New("HTTP 503"), false
+		}
+		return &inference.StreamResult{Text: "ok"}, nil, false
+	}, func(int, time.Duration, string) (time.Time, error) { return time.Now().Add(-time.Second), nil }, func() error { return nil })
+	if err != nil || calls != 2 || result.Text != "ok" {
+		t.Fatal("committed deadline ignored", result, err, calls)
+	}
+}
+func TestProviderRetryReturnedPartialWithoutDeltasDoesNotReplay(t *testing.T) {
+	for _, kind := range []string{"text", "tool", "partial", "incomplete"} {
+		t.Run(kind, func(t *testing.T) {
+			s := openChildJoinStore(t)
+			zero := 0
+			e := NewWithRuntimeConfig(s, config.RuntimeConfig{Retry: config.ProviderRetrySettings{BaseDelayMS: &zero, MaxAgentDelayMS: &zero}}, "")
+			defer e.Close()
+			var calls atomic.Int32
+			withStreamWithToolsStub(t, func(context.Context, string, *goai.Context, func(map[string]any)) (*inference.StreamResult, error) {
+				calls.Add(1)
+				m := &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonError, ErrorMessage: "HTTP 503", Usage: &goai.Usage{Input: 5, Output: 2, TotalTokens: 7}}
+				result := &inference.StreamResult{Message: m, Usage: m.Usage}
+				switch kind {
+				case "text":
+					m.Content = []goai.ContentBlock{{Type: "text", Text: "observed partial"}}
+				case "tool":
+					m.Content = []goai.ContentBlock{{Type: "toolCall", ID: "must-not-run", Name: "shell", Arguments: map[string]any{"command": "false"}}}
+				case "partial":
+					result.Message = nil
+					result.Partial = m
+				case "incomplete":
+					result.Incomplete = true
+				}
+				return result, errors.New("HTTP 503")
+			})
+			ctx := context.Background()
+			if _, err := s.CreateSession(ctx, "partial-retry", "partial", nil); err != nil {
+				t.Fatal(err)
+			}
+			run, err := e.SubmitPrompt(ctx, RunInput{SessionID: "partial-retry", Prompt: "one input", Model: "fixture/model"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			waitProviderTerminal(t, s, run.TurnID, "failed")
+			if calls.Load() != 1 {
+				t.Fatal("returned partial was replayed", calls.Load())
+			}
+			accounting, err := s.TurnAccounting(ctx, run.TurnID)
+			if err != nil || accounting.Usage.TotalTokens != 7 {
+				t.Fatal("known partial accounting lost", accounting, err)
+			}
+			var n int
+			if err := s.DB().QueryRow(`select count(*) from turn_events where turn_id=? and event_type='inference.retry_scheduled'`, run.TurnID).Scan(&n); err != nil || n != 0 {
+				t.Fatal(n, err)
+			}
+		})
+	}
+}
+
+func TestProviderRetryExplicitZeroAndOneHundredRetriesUseDistinctReceipts(t *testing.T) {
+	s := openChildJoinStore(t)
+	zero, retries := 0, 100
+	e := NewWithRuntimeConfig(s, config.RuntimeConfig{Retry: config.ProviderRetrySettings{MaxRetries: &retries, BaseDelayMS: &zero, MaxAgentDelayMS: &zero}}, "")
+	defer e.Close()
+	var calls atomic.Int32
+	withStreamWithToolsStub(t, func(context.Context, string, *goai.Context, func(map[string]any)) (*inference.StreamResult, error) {
+		calls.Add(1)
+		return &inference.StreamResult{Usage: &goai.Usage{Input: 1, TotalTokens: 1}}, errors.New("HTTP 503")
+	})
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "hundred", "hundred", nil); err != nil {
+		t.Fatal(err)
+	}
+	run, err := e.SubmitPrompt(ctx, RunInput{SessionID: "hundred", Prompt: "one input", Model: "fixture/model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Race instrumentation makes this 101-attempt stress case much slower
+	// than the ordinary three-retry fixtures; keep a bounded, case-local guard.
+	waitProviderTerminal(t, s, run.TurnID, "failed", 20*time.Second)
+	if calls.Load() != 101 {
+		t.Fatal("retry count or explicit zero ignored", calls.Load())
+	}
+	var scheduled, resumed, receipts int
+	if err := s.DB().QueryRow(`select count(*) from turn_events where turn_id=? and event_type='inference.retry_scheduled'`, run.TurnID).Scan(&scheduled); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DB().QueryRow(`select count(*) from turn_events where turn_id=? and event_type='inference.retry_resumed'`, run.TurnID).Scan(&resumed); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DB().QueryRow(`select count(*) from turn_receipts where turn_id=? and kind='provider'`, run.TurnID).Scan(&receipts); err != nil {
+		t.Fatal(err)
+	}
+	if scheduled != 100 || resumed != 100 || receipts != 101 {
+		t.Fatal(scheduled, resumed, receipts)
+	}
+	accounting, err := s.TurnAccounting(ctx, run.TurnID)
+	if err != nil || accounting.Usage.TotalTokens != 101 || accounting.Unknown != 0 {
+		t.Fatal(accounting, err)
+	}
+}
+
+func TestProviderRetryCancellationPublishesCommittedPartialBeforeStopping(t *testing.T) {
+	s, e := intentFixture(t)
+	ctx := store.WithTurnWriter(context.Background(), "A", "t", "claim")
+	if err := s.UpdateTurnStatusAndPhase(ctx, "t", "cancelling", "cancelling"); err != nil {
+		t.Fatal(err)
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	ch := e.Subscribe("A")
+	defer e.Unsubscribe("A", ch)
+	message := testProviderPartial()
+	err := e.runner("A").settleProviderFailure(cancelled, s, "t", "A", "fixture/model", 1, &inference.StreamResult{OccurrenceID: "cancelled-partial", Message: message, Usage: message.Usage, Incomplete: true}, context.Canceled)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	select {
+	case ev := <-ch:
+		if ev["type"] != "new_post" || ev["content"] != goai.GetTextContent(message) {
+			t.Fatal("cancelled partial not published", ev)
+		}
+	default:
+		t.Fatal("committed cancelled partial lost its live post")
+	}
+	accounting, err := s.TurnAccounting(context.Background(), "t")
+	if err != nil || accounting.Usage.Input != 17 {
+		t.Fatal(accounting, err)
 	}
 }

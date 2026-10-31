@@ -1,5 +1,9 @@
 # Copilot response-header timeout recovery
 
+Historical report. The [31 October retry checkpoint increment](atomic-provider-retry-checkpoints.md)
+supersedes the local classifier, ten-retry cap and nonpositive-delay fallback
+below; the older verification results are retained as historical conclusions.
+
 Screenshot 3143 shows `Post "https://api.enterprise.githubcopilot.com/responses": http2: timeout awaiting response headers`, followed by a duplicate assistant-labelled inference error. The system-role duplication was fixed in `d0470da`; the previous runtime still ended a turn on its first timeout.
 
 ## Oracle and implemented scope

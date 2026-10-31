@@ -4381,7 +4381,7 @@ func providerUsageUnknown(u *goai.Usage) bool {
 	return u == nil || (u.Input == 0 && u.Output == 0 && u.CacheRead == 0 && u.CacheWrite == 0 && u.TotalTokens == 0 && u.CacheWrite1h == 0 && u.Reasoning == 0)
 }
 
-func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Store, turnID, sessionID, model string, iteration int, result *inference.StreamResult, failure error) error {
+func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Store, turnID, sessionID, model string, iteration int, result *inference.StreamResult, failure error, retryWait ...*store.ProviderRetryWait) error {
 	if result == nil || result.OccurrenceID == "" {
 		return fmt.Errorf("missing provider attempt identity")
 	}
@@ -4440,9 +4440,22 @@ func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Stor
 		payload["provider_message"] = json.RawMessage(encoded)
 		r.addResponseRecord(bgCtx, s, turnID, model, &savedResult, payload)
 	}
-	settled, err := s.SettleProviderAttempt(bgCtx, turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: usage, Unknown: partial || result.Incomplete || providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration})
+	var next *store.ProviderRetryWait
+	if len(retryWait) > 0 {
+		next = retryWait[0]
+	}
+	settled, err := s.SettleProviderAttempt(bgCtx, turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: usage, Unknown: partial || result.Incomplete || providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration, RetryWait: next})
+	if err == nil && next != nil && settled.Decision != "cancelled" {
+		if settled.RetryWait == nil {
+			return store.ErrQueueConflict
+		}
+		*next = *settled.RetryWait
+	}
 	if err == nil && settled.Applied && message != nil {
 		r.broadcastPost(sessionID, turnID, settled.MessageID, content, "", payload["content_blocks"])
+	}
+	if err == nil && settled.Decision == "cancelled" {
+		return context.Canceled
 	}
 	return err
 }
@@ -5145,7 +5158,13 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		thinking, _ = turnSnapshot.Metadata["selected_thinking_level"].(string)
 	}
 	responseObserved := false
-	result, inferErr := retryProviderRequest(ctx, r.engine.runtimeCfg.Retry.Policy(), func() (*inference.StreamResult, error, bool) {
+	policy := r.engine.runtimeCfg.Retry.Policy()
+	attempt := 0
+	var retryWait *store.ProviderRetryWait
+	var retryOccurrenceID string
+	result, inferErr := retryProviderRequest(ctx, policy, func() (*inference.StreamResult, error, bool) {
+		defer func() { attempt++ }()
+		retryWait = nil
 		progress, hookFailed := false, false
 		responseObserved = false
 		requestID := store.NowID("inference")
@@ -5239,12 +5258,21 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			result = &inference.StreamResult{}
 		}
 		result.OccurrenceID = requestID
+		retryOccurrenceID = requestID
+		// Some adapters return a failed partial without emitting deltas. That is
+		// still observed progress, not permission to repeat the generation.
+		if result.Incomplete || result.Partial != nil || (result.Message != nil && (len(result.Message.Content) > 0 || result.Message.Deferred != nil || result.Message.StopReason == goai.StopReasonPending)) {
+			progress = true
+		}
 		if err := partials.Seal(result.Partial); err != nil {
 			inferErr = fmt.Errorf("persist provider partial: %w", err)
 			hookFailed = true
 		}
 		if inferErr != nil {
-			if err := r.settleProviderFailure(ctx, s, turnID, sessionID, model, iter, result, inferErr); err != nil {
+			if class, eligible := transientProviderFailure(inferErr); ctx.Err() == nil && policy.Enabled && eligible && !progress && !hookFailed && attempt < policy.MaxRetries {
+				retryWait = newProviderRetryWait(policy, model, iter, attempt+1, providerRetryDelay(policy, attempt+1), class)
+			}
+			if err := r.settleProviderFailure(ctx, s, turnID, sessionID, model, iter, result, inferErr, retryWait); err != nil {
 				return result, fmt.Errorf("provider receipt settlement: %w", err), true
 			}
 		}
@@ -5254,13 +5282,14 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			}
 		}
 		return result, inferErr, progress || hookFailed
-	}, func(attempt int, delay time.Duration, class string) error {
-		return r.providerRetryWait(ctx, s, turnID, sessionID, model, iter, attempt, delay, class)
-	}, func() error {
-		if err := s.SetClaimedRunningPhase(ctx, sessionID, turnID, "running"); err != nil {
-			return err
+	}, func(attempt int, delay time.Duration, class string) (time.Time, error) {
+		if retryWait == nil || retryWait.Attempt != attempt {
+			return time.Time{}, store.ErrQueueConflict
 		}
-		if err := s.AppendTurnEffectEvent(ctx, turnID, sessionID, "inference.retry_resumed", map[string]any{"iteration": iter, "phase": "inference"}); err != nil {
+		r.publishProviderRetryWait(turnID, sessionID, retryWait)
+		return retryWait.RetryAt, nil
+	}, func() error {
+		if err := s.ResumeProviderRetry(ctx, sessionID, turnID, retryOccurrenceID); err != nil {
 			return err
 		}
 		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "status": "running", "title": "Retrying provider request…", "phase": "inference"})

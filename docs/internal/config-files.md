@@ -31,6 +31,20 @@ Pi's `transport` setting is read from project settings over user settings and pa
 
 AgentsInTheCloud's managed Pi settings use `sse`. Gi honours that preference instead of making a WebSocket attempt first. Codex WebSocket connections now explicitly allow incoming messages up to 4 MiB in go-ai, including auto and cached mode, instead of inheriting coder/websocket's 32 KiB default. Larger messages are rejected to bound memory use.
 
+## Provider retries
+
+Pi settings accept `retry.enabled`, `retry.maxRetries`, `retry.baseDelayMs` and
+`retry.maxAgentDelayMs`. Defaults are `true`, `3`, `2000` and `60000`. Explicit
+false/zero values are honoured. Retry counts are bounded to 0–100 and delays to
+0–60000 ms; negative values use their defaults.
+
+These generation retries are separate from provider-controlled transport
+retries. Eligibility uses go-ai's assistant-error classifier at the provider
+boundary. Observed or returned partial progress suppresses automatic retry;
+Stop/Escape cancels the wait. Failed accounting, the deadline and wait phase
+commit together. Restart recovery still conservatively holds interrupted turns;
+recording a deadline does not enable whole-turn or tool replay.
+
 ## VNC target environment
 
 VNC startup configuration uses `GI_WEB_VNC_TARGETS` (JSON target array) and `GI_WEB_VNC_ALLOW_DIRECT` (only literal `true` enables direct host:port access). Defaults disable VNC. These are operator environment settings, not model-editable Pi preferences. See [VNC protocol and security limits](web-vnc.md).
