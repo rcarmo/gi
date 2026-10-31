@@ -177,6 +177,12 @@ test-web-basic-send: test-instance-start
 test: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
+.PHONY: test-provider-partials
+test-provider-partials: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial' ./internal/store
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial' ./internal/turn
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestStreamProgress|TestCompatProgress' ./internal/inference
+
 # Bounded compatibility checks for the Piclaw v3.3.0 shared UI pin.
 .PHONY: test-ui-pin-compatibility
 test-ui-pin-compatibility: $(TESTPROFILE)

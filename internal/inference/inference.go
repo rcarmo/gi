@@ -441,10 +441,13 @@ func loadAuth(provider string) (string, string, error) {
 // StreamResult holds the full result from a streaming inference call.
 type StreamResult struct {
 	// OccurrenceID is assigned by Gi's turn owner, not the remote provider.
-	OccurrenceID string `json:"-"`
-	Message      *goai.Message
-	Usage        *goai.Usage
-	Text         string
+	OccurrenceID   string `json:"-"`
+	Message        *goai.Message
+	Partial        *goai.Message   `json:"-"`
+	Incomplete     bool            `json:"-"`
+	TerminalReason goai.StopReason `json:"-"`
+	Usage          *goai.Usage
+	Text           string
 }
 
 type StreamHooks struct {
@@ -453,6 +456,8 @@ type StreamHooks struct {
 	Transport  goai.Transport // Pi's configured transport; empty leaves go-ai's default
 	OnPayload  func(payload any, model *goai.Model) (any, error)
 	OnResponse func(status int, headers map[string]string, model *goai.Model)
+	// OnProgress receives provider snapshots; an error stops this request.
+	OnProgress func(*goai.Message) error
 	// MaxTokens caps the response; CacheRetention "none" avoids cache
 	// writes for one-off requests (compaction summaries, as Pi).
 	MaxTokens      int
@@ -524,18 +529,46 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	return collectProviderStream(ctx, modelID, goai.Stream(streamCtx, model, convCtx, opts), broadcast)
+	var observe func(*goai.Message) error
+	if hooks != nil && hooks.OnProgress != nil {
+		observe = func(message *goai.Message) error {
+			err := hooks.OnProgress(message)
+			if err != nil {
+				cancel()
+			}
+			return err
+		}
+	}
+	return collectProviderStream(ctx, modelID, goai.Stream(streamCtx, model, convCtx, opts), broadcast, observe)
 }
 
 // Drain the producer through channel closure before returning ownership. This
 // also makes duplicate/missing terminals observable instead of adopting the
 // first DoneEvent and abandoning the producer.
-func collectProviderStream(ctx context.Context, modelID string, events <-chan goai.Event, broadcast func(map[string]any)) (*StreamResult, error) {
+func collectProviderStream(ctx context.Context, modelID string, events <-chan goai.Event, broadcast func(map[string]any), observers ...func(*goai.Message) error) (*StreamResult, error) {
 	var fullText string
 	var result *StreamResult
 	var terminalCount int
-	var streamErr error
+	var terminalReason goai.StopReason
+	var streamErr, progressErr error
+	var lastPartial *goai.Message
+	var fallback fallbackProgress
 	for ev := range events {
+		switch ev.(type) {
+		case *goai.DoneEvent, *goai.ErrorEvent:
+		default:
+			fallbackMessage := fallback.observe(ev)
+			partial := streamEventPartial(ev)
+			if partial == nil {
+				partial = fallbackMessage
+			}
+			if partial != nil {
+				lastPartial = partial
+				if progressErr == nil && len(observers) > 0 && observers[0] != nil {
+					progressErr = observers[0](partial)
+				}
+			}
+		}
 		switch e := ev.(type) {
 		case *goai.TextDeltaEvent:
 			fullText += e.Delta
@@ -564,6 +597,7 @@ func collectProviderStream(ctx context.Context, modelID string, events <-chan go
 			}
 		case *goai.DoneEvent:
 			terminalCount++
+			terminalReason = e.Reason
 			if e.Message == nil {
 				streamErr = fmt.Errorf("provider returned a nil terminal message")
 				continue
@@ -574,6 +608,7 @@ func collectProviderStream(ctx context.Context, modelID string, events <-chan go
 			result = &StreamResult{Message: objectToolInputs(e.Message), Usage: e.Message.Usage, Text: fullText}
 		case *goai.ErrorEvent:
 			terminalCount++
+			terminalReason = e.Reason
 			streamErr = e.Err
 			if streamErr == nil {
 				streamErr = fmt.Errorf("provider terminal error: %s", e.Reason)
@@ -590,6 +625,12 @@ func collectProviderStream(ctx context.Context, modelID string, events <-chan go
 
 	if result == nil {
 		result = &StreamResult{Text: fullText}
+	}
+	result.TerminalReason = terminalReason
+	result.Partial = lastPartial
+	result.Incomplete = terminalCount != 1 || result.Message == nil || ctx.Err() != nil || progressErr != nil || terminalReason == goai.StopReasonAborted || (result.Message != nil && result.Message.StopReason == goai.StopReasonAborted)
+	if progressErr != nil {
+		streamErr = progressErr
 	}
 	if terminalCount != 1 {
 		streamErr = fmt.Errorf("provider stream has %d terminals, want 1", terminalCount)
@@ -638,6 +679,8 @@ func splitModelID(id string) (string, string) {
 }
 
 func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Context, broadcast func(map[string]any), hooks *StreamHooks) (*StreamResult, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	messages, err := openAICompatMessages(convCtx)
 	if err != nil {
 		return nil, err
@@ -688,6 +731,8 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	usage := &goai.Usage{}
 	toolCalls := map[int]*goai.ToolCall{}
 	argumentFragments := map[int]*strings.Builder{}
+	var partial *goai.Message
+	var progressErr error
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -783,9 +828,14 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 				}
 			}
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+		partial = compatProviderPartial(model, fullText, fullThinking, usage, toolCalls, argumentFragments)
+		if hooks != nil && hooks.OnProgress != nil {
+			if err := hooks.OnProgress(partial); err != nil {
+				progressErr = err
+				cancel()
+				break
+			}
+		}
 	}
 	msg := &goai.Message{Role: goai.RoleAssistant, Model: model.ID, Provider: model.Provider, Api: model.Api, Usage: usage, StopReason: terminalStop}
 	if fullThinking != "" {
@@ -806,7 +856,16 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 			broadcast(map[string]any{"type": "tool_call_end", "name": call.Name, "id": call.ID})
 		}
 	}
-	result := &StreamResult{Message: msg, Usage: usage, Text: fullText}
+	result := &StreamResult{Message: msg, Usage: usage, Text: fullText, Partial: partial, TerminalReason: terminalStop, Incomplete: terminalCount != 1 || scanner.Err() != nil || ctx.Err() != nil || progressErr != nil}
+	if progressErr != nil {
+		return result, progressErr
+	}
+	if err := scanner.Err(); err != nil {
+		return result, err
+	}
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
 	if terminalCount != 1 {
 		return result, fmt.Errorf("provider stream has %d terminals, want 1", terminalCount)
 	}

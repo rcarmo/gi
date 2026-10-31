@@ -15,6 +15,9 @@ func ValidateAssistantResult(result *StreamResult) error {
 	if result == nil || result.Message == nil {
 		return fmt.Errorf("provider returned no terminal message")
 	}
+	if result.Incomplete {
+		return fmt.Errorf("provider returned an incomplete response")
+	}
 	result.Message = objectToolInputs(result.Message)
 	message := result.Message
 	if message.Role != goai.RoleAssistant {

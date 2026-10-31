@@ -4077,7 +4077,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			// keeps this run active for another model request. Persist it before
 			// rebuilding the next context from SQLite; otherwise it vanishes from
 			// both history and the visible timeline.
-			msgID := store.NowID("msg")
+			msgID := store.ProviderMessageID(result.OccurrenceID)
 			messagePayload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "agent_id": agentID, "iterations": iter}
 			messagePayload["provider_message"] = result.Message
 			r.addResponseRecord(ctx, s, turnID, model, result, messagePayload)
@@ -4133,7 +4133,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 		callsPayload["provider_message"] = result.Message
 		r.addResponseRecord(ctx, s, turnID, model, result, callsPayload)
-		if err := r.settleProviderResponse(s, turnID, sessionID, model, iter, result, store.NowID("msg"), toolCallSummary, callsPayload, "tools"); err != nil {
+		if err := r.settleProviderResponse(s, turnID, sessionID, model, iter, result, store.ProviderMessageID(result.OccurrenceID), toolCallSummary, callsPayload, "tools"); err != nil {
 			if errors.Is(err, context.Canceled) {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 				return
@@ -4250,14 +4250,65 @@ func (r *sessionRunner) settleProviderFailure(s *store.Store, turnID, sessionID,
 	if result == nil || result.OccurrenceID == "" {
 		return fmt.Errorf("missing provider attempt identity")
 	}
+	bgCtx := r.engine.backgroundContext()
+	message := result.Message
+	partial := result.Incomplete
+	if message != nil && (message.StopReason == goai.StopReasonPending || message.StopReason == goai.StopReasonAborted || message.Deferred != nil) {
+		partial = true
+	}
+	var checkpoint any
+	if message == nil {
+		record, err := s.ProviderPartial(bgCtx, turnID, sessionID, result.OccurrenceID)
+		if err != nil {
+			return err
+		}
+		if record != nil {
+			message = record.Message
+			checkpoint = record.Payload["partial_checkpoint"]
+			partial = true
+		}
+	}
 	usage := result.Usage
-	if usage == nil && result.Message != nil {
-		usage = result.Message.Usage
+	if usage == nil && message != nil {
+		usage = message.Usage
 	}
 	if store.ValidateReceiptUsage(usage) != nil {
 		usage = nil
 	}
-	_, err := s.SettleProviderAttempt(r.engine.backgroundContext(), turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{Usage: usage, Unknown: providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration})
+	messageID, content := "", ""
+	payload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "partial": partial || result.Incomplete, "receipt_error": failure.Error()}
+	if checkpoint != nil {
+		payload["partial_checkpoint"] = checkpoint
+	}
+	if message != nil {
+		encoded, encodeErr := json.Marshal(message)
+		if encodeErr != nil {
+			payload["provider_message_omissions"] = encodeErr.Error()
+			if message.Usage != nil {
+				payload["provider_usage_diagnostic"] = fmt.Sprintf("%+v", *message.Usage)
+			}
+			message, _ = boundedProviderPartial(message)
+			partial = true
+			payload["partial"] = true
+			payload["partial_checkpoint"] = map[string]any{"truncated": true, "string_bytes_limit": providerPartialStringBytes, "blocks_limit": 64}
+			var err error
+			encoded, err = json.Marshal(message)
+			if err != nil {
+				return err
+			}
+		}
+		messageID = store.ProviderMessageID(result.OccurrenceID)
+		content = goai.GetTextContent(message)
+		savedResult := *result
+		savedResult.Message = message
+		savedResult.Usage = usage
+		payload["provider_message"] = json.RawMessage(encoded)
+		r.addResponseRecord(bgCtx, s, turnID, model, &savedResult, payload)
+	}
+	settled, err := s.SettleProviderAttempt(bgCtx, turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: usage, Unknown: partial || result.Incomplete || providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration})
+	if err == nil && settled.Applied && message != nil {
+		r.broadcastPost(sessionID, turnID, settled.MessageID, content, "", payload["content_blocks"])
+	}
 	return err
 }
 
@@ -4267,6 +4318,9 @@ func (r *sessionRunner) settleProviderFailure(s *store.Store, turnID, sessionID,
 func (r *sessionRunner) addResponseRecord(ctx context.Context, s *store.Store, turnID, model string, result *inference.StreamResult, payload map[string]any) {
 	if result == nil {
 		return
+	}
+	if result.TerminalReason != "" {
+		payload["provider_terminal_reason"] = result.TerminalReason
 	}
 	if result.Usage != nil {
 		if raw, err := json.Marshal(result.Usage); err == nil {
@@ -4927,6 +4981,7 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		}
 		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
 		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID})
+		partials := &providerPartialRecorder{store: s, ctx: r.engine.backgroundContext(), turnID: turnID, sessionID: sessionID, occurrenceID: requestID, model: model}
 		result, inferErr := streamWithToolsWithHooks(ctx, model, requestCtx, func(ev map[string]any) {
 			ev["chat_jid"] = "gi:" + sessionID
 			ev["turn_id"] = turnID
@@ -4953,7 +5008,13 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 				// publish a terminal error while a transient retry is pending.
 			}
 		}, &inference.StreamHooks{
-			Thinking:  thinking,
+			Thinking: thinking,
+			OnProgress: func(message *goai.Message) error {
+				if message != nil && (len(message.Content) > 0 || !providerUsageUnknown(message.Usage)) {
+					progress = true
+				}
+				return partials.Observe(message)
+			},
 			Transport: goai.Transport(r.engine.runtimeCfg.Transport),
 			OnPayload: func(payload any, modelDef *goai.Model) (any, error) {
 				hookPayload := map[string]any{"ok": true, "request": payload, "stage": "payload"}
@@ -5001,6 +5062,10 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			result = &inference.StreamResult{}
 		}
 		result.OccurrenceID = requestID
+		if err := partials.Seal(result.Partial); err != nil {
+			inferErr = fmt.Errorf("persist provider partial: %w", err)
+			hookFailed = true
+		}
 		if inferErr != nil {
 			if err := r.settleProviderFailure(s, turnID, sessionID, model, iter, result, inferErr); err != nil {
 				return result, fmt.Errorf("provider receipt settlement: %w", err), true
