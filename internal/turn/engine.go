@@ -60,6 +60,9 @@ type Engine struct {
 	mcpWaited                         atomic.Bool    // the first prompt waited for direct MCP servers
 	codemode                          *codemodeState // nil when -builtin:codemode
 	closing                           atomic.Bool    // set by Close: no new launches
+	launchMu                          sync.Mutex     // host admission versus shutdown
+	closeOnce                         sync.Once
+	closeErr                          error
 	runs                              sync.WaitGroup // in-flight runTurn goroutines
 	sideMu                            sync.Mutex     // serialises side admission with Close
 	sideRuns                          sync.WaitGroup
@@ -329,20 +332,24 @@ func (e *Engine) toolDefsForMetadata(metadata map[string]any) []goai.Tool {
 	return tools.ToolDefsForMetadata(metadata, e.tools.AllEntries(), e.toolDefs())
 }
 
-// shutdownGrace bounds how long Close waits for aborted turns to finalize.
+// shutdownGrace bounds cancellation admission and the first join diagnostic.
+// Close continues joining after it expires.
 const shutdownGrace = 5 * time.Second
 
-// Close aborts in-flight turns and waits (bounded) for them to finalize
-// before cancelling background work. A clean quit is therefore a deliberate
-// abort, not a crash: without this the store closed under the runner, the
-// turn stayed 'running', and stale-claim recovery replayed it on the next
-// start. Crashes still leave running claims for recovery to requeue.
+// Close fences launches and joins main, side and maintenance hosts. Concurrent
+// callers share the shutdown barrier and its result. The grace interval controls
+// diagnostics only; it never releases a live main or side host.
+// TODO(#86): join hook hosts and separate graceful close from user abort.
 func (e *Engine) Close() error {
 	if e == nil {
 		return nil
 	}
-	if e.closing.CompareAndSwap(false, true) {
+	e.closeOnce.Do(func() {
+		e.launchMu.Lock()
+		e.closing.Store(true)
+		e.launchMu.Unlock()
 		e.abortActiveTurns(shutdownGrace)
+		e.runs.Wait()
 		// Fence side admission before waiting. Preserve main-turn finalisation
 		// ordering, then cancel background work and independent side requests.
 		e.sideMu.Lock()
@@ -350,23 +357,14 @@ func (e *Engine) Close() error {
 			e.bgCancel()
 		}
 		e.sideMu.Unlock()
-		done := make(chan struct{})
-		go func() { e.sideRuns.Wait(); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(shutdownGrace):
-			log.Printf("side prompt shutdown exceeded %s", shutdownGrace)
-		}
+		e.sideRuns.Wait()
 		e.closeMCP()
-	}
-	if e.bgCancel != nil {
-		e.bgCancel()
-	}
-	e.maintenance.Wait() // finish DB writers before callers close/remove the store
-	if e.peering != nil {
-		return e.peering.Close()
-	}
-	return nil
+		e.maintenance.Wait() // finish DB writers before callers close/remove the store
+		if e.peering != nil {
+			e.closeErr = e.peering.Close()
+		}
+	})
+	return e.closeErr
 }
 
 // AbortActiveTurns cancels every running turn this engine owns and waits up

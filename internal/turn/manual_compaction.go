@@ -102,6 +102,11 @@ func (e *Engine) SubmitManualCompactionWithInstructions(ctx context.Context, ses
 	r := e.runner(sessionID)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	e.launchMu.Lock()
+	defer e.launchMu.Unlock()
+	if e.closing.Load() {
+		return nil, fmt.Errorf("engine closing")
+	}
 	state, err := e.ManualCompactionState(ctx, sessionID)
 	if err != nil {
 		return nil, err
