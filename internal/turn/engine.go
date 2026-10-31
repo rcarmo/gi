@@ -88,6 +88,7 @@ type Engine struct {
 type sharedSessionCoord struct {
 	mu      sync.Mutex
 	current *runningTurn
+	hosts   map[string]chan struct{}
 }
 
 var sharedSessionCoords sync.Map // sessionCoordKey -> *sharedSessionCoord
@@ -104,9 +105,12 @@ type sessionRunner struct {
 }
 
 type runningTurn struct {
-	turnID     string
-	claimToken string
-	cancel     context.CancelFunc
+	turnID          string
+	claimToken      string
+	cancel          context.CancelFunc
+	done            chan struct{}
+	cancelled       <-chan struct{}
+	terminalPending bool // guarded by sharedSessionCoord.mu
 }
 
 type ExtensionInfo struct {
@@ -4586,21 +4590,53 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 			model = resolvedModel
 		}
 	}
+	r.setTerminalPending(turnID, true)
 	r.engine.joinTurnHooks(turnID, false)
-	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	phase := terminalPhaseForStatus(status)
 	msgPayload := map[string]any{"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID}
 	if marker := turnOutcomeMarker(status, failureKind); marker != nil {
 		msgPayload["content_blocks"] = []any{marker}
 	}
-	settled, err := s.SettleRunningTurn(bgCtx, turnID, sessionID, store.TurnSettlement{
-		Status: status, Phase: phase, MessageID: store.NowID("msg"), Message: systemMsg,
-		MessagePayload: msgPayload, FailureKind: failureKind, Payload: payload,
-	})
-	if err != nil {
-		log.Printf("turn settlement conflict for %s: %v", turnID, err)
-		return
+	decision := store.TurnSettlement{Status: status, Phase: phase, MessageID: store.NowID("msg"), Message: systemMsg, MessagePayload: msgPayload, FailureKind: failureKind, Payload: payload}
+	var settled store.TurnSettlement
+	for {
+		childrenStatus, pending, err := s.StageTurnTerminal(bgCtx, turnID, sessionID, decision)
+		if err != nil {
+			log.Printf("stage terminal decision for %s: %v", turnID, err)
+			return
+		}
+		if !pending {
+			r.setTerminalPending(turnID, false)
+			return
+		}
+		childFailureKind := failureKind
+		if childrenStatus == "cancelled" {
+			childFailureKind = ""
+		}
+		r.propagateChildSubTurnCancellation(bgCtx, turnID, childrenStatus, childFailureKind)
+		if err = r.joinRequiredChildren(bgCtx, turnID, childrenStatus, childFailureKind); err != nil {
+			if errors.Is(err, store.ErrQueueConflict) {
+				continue
+			}
+			log.Printf("join child settlement for %s: %v", turnID, err)
+			return
+		}
+		r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
+		decision.ChildrenStatus = childrenStatus
+		settled, err = s.SettleRunningTurn(bgCtx, turnID, sessionID, decision)
+		if err != nil {
+			if errors.Is(err, store.ErrQueueConflict) {
+				latest, readErr := s.GetTurn(bgCtx, turnID)
+				if readErr == nil && latest.Status == "cancelling" && childrenStatus != "cancelled" {
+					continue
+				}
+			}
+			log.Printf("turn settlement conflict for %s: %v", turnID, err)
+			return
+		}
+		break
 	}
+	r.setTerminalPending(turnID, false)
 	if !settled.Applied {
 		return
 	}
@@ -4632,7 +4668,6 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	hookPayload["reason"] = tools.FirstNonEmpty(failureKind, status)
 	hookPayload["failure_kind"] = failureKind
 	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, hookPayload)
-	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)
 	r.publishSubTurnLifecycle(bgCtx, turnID, status)
 	sessionPayload := cloneMap(payload)
 	if sessionPayload == nil {
@@ -4694,20 +4729,28 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 	}
 	summary := r.subTurnResultSummary(opCtx, sub.ChildSessionID, sub.ChildTurnID)
 	if sub.DeliveryMode == "async" {
-		orphaned := false
+		orphaned, ending := false, false
 		if parentTurn, err := r.store.GetTurn(opCtx, sub.ParentTurnID); err == nil {
-			orphaned = isTerminalSubTurnStatus(parentTurn.Status)
+			ending = parentTurn.Phase == "settling" || parentTurn.Status == "cancelling"
+			orphaned = isTerminalSubTurnStatus(parentTurn.Status) || ending
 		}
 		eventType := "subturn_result_ready"
 		if orphaned {
 			eventType = "subturn_orphaned"
+			orphanReason := "parent_turn_completed_before_async_result_consumption"
+			if ending {
+				orphanReason = "parent_terminal_decision_staged"
+			}
 			logutil.WarnIfErr("update async subturn orphan metadata", r.store.UpdateSubTurnMetadataByChild(opCtx, sub.ChildTurnID, map[string]any{
 				"orphaned":      true,
 				"orphaned_at":   time.Now().UTC().Format(time.RFC3339Nano),
-				"orphan_reason": "parent_turn_completed_before_async_result_consumption",
+				"orphan_reason": orphanReason,
 			}))
 			if sub.ParentSessionID != sub.ChildSessionID {
 				content := fmt.Sprintf("Async sub-turn %s finished with status %s after parent turn %s had already ended.", sub.ChildTurnID, status, sub.ParentTurnID)
+				if ending {
+					content = fmt.Sprintf("Async sub-turn %s finished with status %s while parent turn %s was ending.", sub.ChildTurnID, status, sub.ParentTurnID)
+				}
 				if strings.TrimSpace(summary) != "" {
 					content += "\n\n" + summary
 				}
@@ -4819,6 +4862,8 @@ func directiveForParentTerminalStatus(parentStatus, failureKind string) subTurnC
 		return subTurnCancellationDirective{enabled: true, cancelCritical: true, reason: "parent_hard_abort"}
 	case status == "completed":
 		return subTurnCancellationDirective{enabled: true, cancelCritical: false, reason: "parent_finished_gracefully"}
+	case status == "failed":
+		return subTurnCancellationDirective{enabled: true, cancelCritical: false, reason: "parent_failed"}
 	default:
 		return subTurnCancellationDirective{}
 	}
@@ -4854,7 +4899,7 @@ func (r *sessionRunner) propagateChildSubTurnCancellation(ctx context.Context, p
 	if !directive.enabled {
 		return
 	}
-	visited := map[string]bool{}
+	visited := map[string]bool{parentTurnID: true}
 	var walk func(string)
 	walk = func(turnID string) {
 		subs, err := r.store.ListSubTurnsByParent(ctx, turnID)
@@ -5547,6 +5592,15 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	ctx := r.engine.backgroundContext()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if active != nil && active.terminalPending {
+		// Keep the durable claim/checkpoint for recovery; releasing it would
+		// let another turn pass unresolved child or settlement ownership.
+		if r.current == active {
+			r.current = nil
+		}
+		r.appendCleanupHandoffFailure(ctx, sessionID, active.turnID, "terminal_settlement_pending", fmt.Errorf("terminal decision requires recovery"))
+		return
+	}
 	if err := r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken); err != nil {
 		log.Printf("turn coordination: release session active turn failed: %v", err)
 		r.appendCleanupHandoffFailure(ctx, sessionID, claimToken, "release_active_claim", err)

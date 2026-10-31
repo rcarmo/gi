@@ -136,8 +136,10 @@ func (e *Engine) SubmitManualCompactionWithInstructions(ctx context.Context, ses
 	active := &runningTurn{turnID: id, claimToken: claimToken, cancel: cancel}
 	r.current = active
 	e.runs.Add(1)
+	r.registerHostFenceLocked(active, runCtx)
 	go func() {
 		defer e.runs.Done()
+		defer r.finishHostFence(active)
 		r.mu.Lock()
 		r.mu.Unlock()
 		r.runTurn(e.store, sessionID, id, runCtx, cancel, active)
