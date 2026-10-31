@@ -25,6 +25,8 @@ Verification uses `cache/go-build`, `cache/go-mod`, `cache/go-race-1.27.3.ok`, `
 
 Browser/TUI helpers source `scripts/project-test-env.sh`; direct commands and CI use `eval "$(make -s test-env RACE=)"` before installs or subprocesses. Per-run instance, fixture, output and temporary paths live beneath `GI_TEST_RUN_ROOT`. Helpers reject symlink, unowned and outside-run mutation targets. `make test-project-paths` checks override agreement, workspace/generic/CI selection and non-nesting. `playwright.fixtures.config.ts` redirects shared fixture results without editing the pinned suite. Completed successful profiled runs dispose their owned scratch; failed/manual runs are kept only until diagnosis. `clean` removes only the selected owned run after its jobs have finished, never durable state, another project or active/shared caches. This section supersedes older home-cache/race-probe defaults below.
 
+Go verification clears inherited `PI_CODING_AGENT_DIR` and `GI_CODING_AGENT_DIR`. Inference tests also install a project-owned isolated `HOME`; credential subprocesses may inherit only a validated fixture home beneath `GI_TEST_RUN_ROOT`. Never run credential tests against the host agent's configuration.
+
 You are a coding agent working on the gi project: a Go coding agent with a Pi-style terminal UI and a Piclaw-compatible web UI.
 
 ## Repository layout

@@ -44,7 +44,7 @@ func TestListRuntimeOptionsMatchesPiCopilotCatalogue(t *testing.T) {
 	}
 
 	auth := `{"github-copilot":{"type":"oauth","refresh":"r","access":"a","expires":9999999999999,
-		"availableModelIds":["gpt-5-mini","` + newID + `","not-in-any-catalogue"]}}`
+		"availableModelIds":["gpt-5.3-codex","` + newID + `","not-in-any-catalogue"]}}`
 	if err := os.WriteFile(filepath.Join(agent, "auth.json"), []byte(auth), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestListRuntimeOptionsMatchesPiCopilotCatalogue(t *testing.T) {
 		}
 	}
 	sort.Strings(copilot)
-	if strings.Join(copilot, ",") != newID+",gpt-5-mini" {
+	if strings.Join(copilot, ",") != newID+",gpt-5.3-codex" {
 		t.Fatalf("copilot models = %v, want only the account's available catalogue models", copilot)
 	}
 	for _, o := range options {
