@@ -1,8 +1,10 @@
 package turn
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -216,4 +218,90 @@ func TestDeniedAndSkippedResultsCommitBeforeContinuation(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestProviderIntentJSONFastPathPreservesOwnershipNumbersAndEscapedSecrets(t *testing.T) {
+	for _, raw := range []string{
+		`{"model":"fixture","n":9007199254740993,"text":"\\\"Authorization\\\": value","schema":{"properties":{"plain":{"type":"string"}}}}`,
+		`{"n":9007199254740993,"headers":{"\u0041uthorization":"fixture-secret","X-Trace":"kept"},"nested":[{"CoOkIe":"fixture-secret","safe":"kept"}]}`,
+		`[{"api_Key":"fixture-secret"},{"proxy-authorization":"fixture-secret"},{"api_key":"fixture-secret"},{"apikey":"fixture-secret"},{"api-key":"fixture-secret"},{"x-api-key":"fixture-secret"},{"access_token":"fixture-secret"},{"refresh_token":"fixture-secret"},{"set-cookie":"fixture-secret"}]`,
+	} {
+		intent, err := sanitizedProviderIntent(json.RawMessage(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := json.Marshal(intent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(encoded), "fixture-secret") {
+			t.Fatal("secret retained", string(encoded))
+		}
+		if strings.Contains(raw, "9007199254740993") && !strings.Contains(string(encoded), "9007199254740993") {
+			t.Fatal("intent number rounded", string(encoded))
+		}
+		if strings.Contains(raw, "kept") && !strings.Contains(string(encoded), "kept") {
+			t.Fatal("non-secret removed", string(encoded))
+		}
+	}
+	source := map[string]any{"messages": []any{map[string]any{"text": "original"}}}
+	pinned, err := sanitizedProviderIntent(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source["messages"].([]any)[0].(map[string]any)["text"] = "mutated"
+	encoded, err := json.Marshal(pinned)
+	if err != nil || strings.Contains(string(encoded), "mutated") {
+		t.Fatal("intent aliases caller", string(encoded), err)
+	}
+}
+
+func FuzzProviderIntentSanitizer(f *testing.F) {
+	for _, seed := range []string{`{"model":"fixture","n":9007199254740993}`, `{"\u0041uthorization":"secret","text":"\\\"cookie\\\": example"}`, `[{"api_Key":"secret"},{"safe":[{"X-API-Key":"secret","text":"kept"}]}]`} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, raw string) {
+		if len(raw) > 4096 || !json.Valid([]byte(raw)) {
+			t.Skip()
+		}
+		decode := func(raw []byte) any {
+			var value any
+			decoder := json.NewDecoder(bytes.NewReader(raw))
+			decoder.UseNumber()
+			if err := decoder.Decode(&value); err != nil {
+				t.Fatal(err)
+			}
+			return value
+		}
+		expected := decode([]byte(raw))
+		var scrub func(any)
+		scrub = func(value any) {
+			switch v := value.(type) {
+			case map[string]any:
+				for key, child := range v {
+					if providerIntentSecretKey(key) {
+						delete(v, key)
+					} else {
+						scrub(child)
+					}
+				}
+			case []any:
+				for _, child := range v {
+					scrub(child)
+				}
+			}
+		}
+		scrub(expected)
+		pinned, err := sanitizedProviderIntent(json.RawMessage(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := json.Marshal(pinned)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := decode(encoded); !reflect.DeepEqual(got, expected) {
+			t.Fatal("JSON intent sanitizer disagrees with decoded reference")
+		}
+	})
 }

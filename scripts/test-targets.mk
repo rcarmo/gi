@@ -310,7 +310,7 @@ test-provider-retry-oracle:
 	$(BUN) tests/ux/oracle/provider-retry-probe.mjs
 
 test-provider-retry:
-	$(TESTPROFILE) gotest $(RACE) -count=3 ./internal/config ./internal/turn ./internal/tui -run 'TestProviderRetry|TestProviderHeaderTimeout|TestTransientProviderFailure'
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/config ./internal/store ./internal/turn ./internal/tui -run 'TestProviderRetry|TestProviderHeaderTimeout|TestTransientProviderFailure|TestProviderIntentJSON|TestProviderPreparedIntent|TestProviderHostEntry|FuzzProviderIntentSanitizer'
 
 .PHONY: test-codex-tui-regression
 test-codex-tui-regression:

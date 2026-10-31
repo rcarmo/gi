@@ -22,11 +22,31 @@ func TestProviderRetryPiSettings(t *testing.T) {
 	}
 }
 
-func TestProviderRetryZeroDelayFallsBackWithoutEnablingRetries(t *testing.T) {
+func TestProviderRetryHonoursZeroWithoutEnablingRetries(t *testing.T) {
 	zero := 0
 	no := false
 	p := ProviderRetrySettings{Enabled: &no, MaxRetries: &zero, BaseDelayMS: &zero, MaxAgentDelayMS: &zero}.Policy()
-	if p.Enabled || p.MaxRetries != 0 || p.BaseDelayMS != 2000 || p.MaxDelayMS != 60000 {
+	if p.Enabled || p.MaxRetries != 0 || p.BaseDelayMS != 0 || p.MaxDelayMS != 0 {
+		t.Fatal(p)
+	}
+}
+
+func TestProviderRetryAcceptsUpToOneHundred(t *testing.T) {
+	for _, n := range []int{0, 10, 11, 100, 101} {
+		p := ProviderRetrySettings{MaxRetries: &n}.Policy()
+		if p.MaxRetries != min(n, 100) {
+			t.Fatal(n, p)
+		}
+	}
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".pi"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".pi", "settings.json"), []byte(`{"retry":{"maxRetries":100,"baseDelayMs":0,"maxAgentDelayMs":0}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	p := Load(root).Retry.Policy()
+	if p.MaxRetries != 100 || p.BaseDelayMS != 0 || p.MaxDelayMS != 0 {
 		t.Fatal(p)
 	}
 }

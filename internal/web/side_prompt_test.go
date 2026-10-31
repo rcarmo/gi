@@ -288,10 +288,25 @@ func TestSidePromptCompletesBesideRunningMainTurn(t *testing.T) {
 			}
 		}
 		if started {
-			break
+			// Admission precedes the provider's first partial checkpoint. Wait
+			// for the held stream's partial row before comparing persistence;
+			// otherwise legitimate main progress races the side request.
+			messages, err := s.store.ListMessages(context.Background(), "s")
+			if err != nil {
+				t.Fatal(err)
+			}
+			partialReady := false
+			for _, message := range messages {
+				if message.Payload["turn_id"] == main.TurnID && message.Payload["partial"] == true {
+					partialReady = true
+				}
+			}
+			if partialReady {
+				break
+			}
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("main inference not started", events)
+			t.Fatal("main inference partial not persisted", events)
 		}
 		time.Sleep(time.Millisecond)
 	}

@@ -22,15 +22,15 @@ func (s ProviderRetrySettings) Policy() ProviderRetryPolicy {
 	if s.MaxRetries != nil && *s.MaxRetries >= 0 {
 		p.MaxRetries = *s.MaxRetries
 	}
-	if s.BaseDelayMS != nil && *s.BaseDelayMS > 0 {
+	if s.BaseDelayMS != nil && *s.BaseDelayMS >= 0 {
 		p.BaseDelayMS = *s.BaseDelayMS
 	}
-	if s.MaxAgentDelayMS != nil && *s.MaxAgentDelayMS > 0 {
+	if s.MaxAgentDelayMS != nil && *s.MaxAgentDelayMS >= 0 {
 		p.MaxDelayMS = *s.MaxAgentDelayMS
 	}
 	// Keep malformed or hostile settings bounded.
-	if p.MaxRetries > 10 {
-		p.MaxRetries = 10
+	if p.MaxRetries > 100 {
+		p.MaxRetries = 100
 	}
 	if p.BaseDelayMS > 60000 {
 		p.BaseDelayMS = 60000
