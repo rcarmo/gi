@@ -4090,7 +4090,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			// both history and the visible timeline.
 			msgID := store.NowID("msg")
 			messagePayload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "agent_id": agentID, "iterations": iter}
-			messagePayload["provider_message"] = result
+			messagePayload["provider_message"] = result.Message
 			r.addResponseRecord(ctx, s, turnID, model, result, messagePayload)
 			r.addRecoveryMarker(ctx, sessionID, turnID, messagePayload)
 			if err := s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, messagePayload); err != nil {
@@ -4138,7 +4138,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			"turn_id": turnID, "agent_id": agentID, "display_text": strings.TrimSpace(textContent),
 			"tool_calls": recordedCalls,
 		}
-		callsPayload["provider_message"] = result
+		callsPayload["provider_message"] = result.Message
 		r.addResponseRecord(ctx, s, turnID, model, result, callsPayload)
 		if err := s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, callsPayload); err != nil {
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist assistant tool calls: "+err.Error(), "persistence_error")
