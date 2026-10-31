@@ -12,6 +12,11 @@ import (
 )
 
 func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID string, snapshot store.ContextSnapshot) []goai.Message {
+	messages, _ := reduceContextContributions(r.rawContextSnapshot(ctx, sessionID, snapshot))
+	return messages
+}
+
+func (r *sessionRunner) rawContextSnapshot(ctx context.Context, sessionID string, snapshot store.ContextSnapshot) []goai.Message {
 	var messages []goai.Message
 	if snapshot.Summary != "" {
 		messages = append(messages, goai.UserMessage(compaction.SummaryPrefix+snapshot.Summary+compaction.SummarySuffix))
@@ -51,6 +56,12 @@ func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID st
 		} else {
 			messages = append(messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
 		}
+		// Legacy receipts may carry their terminal reason only in display metadata.
+		if last := &messages[len(messages)-1]; last.Role == goai.RoleAssistant && last.StopReason == "" {
+			if stop, ok := m.Payload["stop_reason"].(string); ok {
+				last.StopReason = goai.StopReason(stop)
+			}
+		}
 	}
 	return messages
 }
@@ -58,14 +69,20 @@ func (r *sessionRunner) projectContextSnapshot(ctx context.Context, sessionID st
 func (r *sessionRunner) compactionBoundary(ctx context.Context, sessionID string, conv *goai.Context, snapshot store.ContextSnapshot, payload map[string]any) (*store.ContextBoundary, error) {
 	// Hook edits and live tool exchanges cannot be mapped merely by message count.
 	// Preserve run-local compaction but do not advance durable history coverage.
-	if !reflect.DeepEqual(conv.Messages, r.projectContextSnapshot(ctx, sessionID, snapshot)) {
+	projected, boundaries := reduceContextContributions(r.rawContextSnapshot(ctx, sessionID, snapshot))
+	if !reflect.DeepEqual(conv.Messages, projected) {
 		return nil, nil
 	}
 	count, ok := payload["messages_to_summarize"].(int)
 	if !ok {
 		return nil, nil
 	}
-	nativeCount := count
+	rawCount, boundaryOK := boundaries[count]
+	if !boundaryOK {
+		// In particular, do not split a batch or one of its synthetic results.
+		return nil, nil
+	}
+	nativeCount := rawCount
 	if snapshot.Summary != "" {
 		nativeCount--
 	}
@@ -101,7 +118,7 @@ func (r *sessionRunner) compactionBoundary(ctx context.Context, sessionID string
 			return nil, nil
 		}
 	}
-	return store.PrepareContextBoundary(snapshot, count)
+	return store.PrepareContextBoundary(snapshot, rawCount)
 }
 
 func (r *sessionRunner) compactSnapshot(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool) error {

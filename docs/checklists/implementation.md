@@ -2,7 +2,7 @@
 
 - [x] #94: keep compaction summaries in durable/raw history, never conversation pages/search. Store and HTTP regressions pass; automatic/manual compaction WebKit desktop regressions pass (2 tests), including reload and normal continuation. `make vet RACE=` passes. SSE already publishes lifecycle metadata only, with no summary post.
 - [x] #84: write direct provider messages and read legacy StreamResult envelopes. Real engine → SQLite reopen/fork → next-provider-request tests pass for chat and tool calls, preserving signed blocks, usage and response/provider metadata. Existing replay, compaction pairing and response-record checks pass.
-- [ ] #91: exclude non-contributing assistant receipts and reduce tool-call batches.
+- [x] #91: one model-context reducer excludes aborted/error/deferred receipts (including legacy formats), preserves pending, orders results within batches and supplies missing-result errors without cross-batch ID reuse. Raw receipts remain intact. Reopen/fork regressions fail on the previous projector and pass now. Source-index mapping keeps compaction boundaries atomic despite filtering/synthesis. Focused context/compaction/replay/steering tests and store edit/reset/fork checks pass. Updated the steering checkpoint expectation: faithful #84 replay now matches live context; both steering messages must remain outside durable coverage.
 - [ ] #85–#90: committed effects, owned-work joins, partial retention, atomic settlement, stop validation and retries.
 - [ ] #92/#93: checkpoint recovery and shared bounded tool-output policy.
 - [ ] Merge verified fixes and close corresponding GitHub issues; no release or deployment.
