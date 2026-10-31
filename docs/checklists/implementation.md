@@ -1,3 +1,11 @@
+### Durable semantics repairs (#83–#94)
+
+- [x] #94: keep compaction summaries in durable/raw history, never conversation pages/search. Store and HTTP regressions pass; automatic/manual compaction WebKit desktop regressions pass (2 tests), including reload and normal continuation. `make vet RACE=` passes. SSE already publishes lifecycle metadata only, with no summary post.
+- [ ] #84/#91: faithfully replay provider messages and exclude non-contributing assistant receipts.
+- [ ] #85–#90: committed effects, owned-work joins, partial retention, atomic settlement, stop validation and retries.
+- [ ] #92/#93: checkpoint recovery and shared bounded tool-output policy.
+- [ ] Merge verified fixes and close corresponding GitHub issues; no release or deployment.
+
 ### Web terminal acceptance (#45)
 
 - [x] Pass all 20 unchanged shared terminal scenarios across six browser/viewport projects: 110 passes and 10 source applicability skips, zero retries.

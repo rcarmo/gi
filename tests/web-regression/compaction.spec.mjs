@@ -3,6 +3,13 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
+async function assertInternalSummaryHidden(page,request,session,summary,expected='Preserve user requirements and pending work.'){
+ expect(summary.content).toBe(expected);
+ const visible=(await(await request.get(`/api/sessions/${session}/messages?view=conversation&limit=100`)).json()).messages;
+ expect(visible.some(m=>m.id===summary.id||m.payload?.kind==='compaction')).toBe(false);
+ await expect(page.locator(`[id="post-${summary.id}"]`)).toHaveCount(0);
+}
+
 async function fixture(page,request,info,mode='complete'){
  const token=`compact-${info.project.name}-${Date.now()}`;
  const main=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
@@ -81,6 +88,7 @@ test('Gi durable compaction changes the next provider context without deleting t
   release();await expect.poll(async()=> (await turns()).find(t=>t.id===turn.turn_id).status).toBe('completed');
   const messages=async()=>(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
   const before=await messages();const summary=before.find(m=>m.payload?.kind==='compaction'&&m.payload?.turn_id===turn.turn_id);expect(summary.payload.durable_context).toBe(true);
+  await assertInternalSummaryHidden(page,request,main.id,summary);
   const reopenedInput=await reopen();await expect(reopenedInput).toHaveValue('preserved draft during compaction');
   const next=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'new request after durable boundary',model:'ux-local/gate'}})).json();
   await expect.poll(async()=> (await turns()).find(t=>t.id===next.turn_id).status).toBe('completed');
@@ -92,6 +100,7 @@ test('Gi durable compaction changes the next provider context without deleting t
   expect(answer.content).not.toContain('history 0 preserve requirements');
   expect(after.filter(m=>m.payload?.kind==='compaction')).toHaveLength(1);
   const finalInput=await reopen();await expect(page.getByText('history 0 preserve requirements and pending changes',{exact:true})).toBeVisible();await expect(finalInput).toHaveValue('preserved draft during compaction');
+  await assertInternalSummaryHidden(page,request,main.id,summary);
  }finally{release();await restored?.close();}
 });
 
@@ -153,6 +162,8 @@ test('@gi-settings-014 @gi-settings-015 Read-only policy and explicit manual com
   await expect(dialog.getByRole('status')).toContainText('Authoritative state: Context compacted');
   const after=(await(await request.get(`/api/sessions/${main}/messages`)).json()).messages;for(const item of before)expect(after.find(m=>m.id===item.id)).toEqual(item);
   expect(after.some(m=>m.payload?.turn_id===run.turn_id&&m.payload?.durable_context)).toBe(true);expect(after.filter(m=>m.role==='user')).toHaveLength(2);
+  const summary=after.find(m=>m.payload?.turn_id===run.turn_id&&m.payload?.kind==='compaction');
+  await assertInternalSummaryHidden(page,request,main,summary,'Manual summary of decisions and pending work.');
   expect((await(await request.get(`/api/sessions/${main}/model`)).json()).current).toBe(model);
   if(process.env.GI_SETTINGS_CAPTURE&&info.project.name.startsWith('chromium-')){mkdirSync('test-results/gi-settings-captures',{recursive:true});await page.screenshot({path:`test-results/gi-settings-captures/compaction-${info.project.name}.png`});}
   await page.keyboard.press('Escape');await expect(input).toHaveValue('settings compaction draft');await expect(page.locator('.compose-file-pill[title="settings-compact.txt"]')).toBeVisible();
