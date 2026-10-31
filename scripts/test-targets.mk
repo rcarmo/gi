@@ -309,8 +309,13 @@ test-conversation-projection:
 test-provider-retry-oracle:
 	$(BUN) tests/ux/oracle/provider-retry-probe.mjs
 
+RETRY_PREPARATION_COUNT ?= 1
+.PHONY: test-provider-retry-preparation
+test-provider-retry-preparation: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=$(RETRY_PREPARATION_COUNT) ./internal/turn -run '^TestProviderRetryFreshCommittedPreparationAndSubsequentToolPhase$$'
+
 test-provider-retry:
-	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/config ./internal/store ./internal/turn ./internal/tui -run 'TestProviderRetry|TestProviderHeaderTimeout|TestTransientProviderFailure|TestProviderIntentJSON|TestProviderPreparedIntent|TestProviderHostEntry|FuzzProviderIntentSanitizer'
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/config ./internal/store ./internal/turn ./internal/tui -run 'TestProviderRetry|TestProviderHeaderTimeout|TestTransientProviderFailure|TestProviderIntentJSON|TestProviderPreparedIntent|TestProviderHostEntry|TestTurnWriter|TestSessionThinking|TestBeforeProviderRequest|TestAfterProviderResponse|TestAssembleAgentContext|TestCompaction|FuzzProviderIntentSanitizer'
 
 .PHONY: test-codex-tui-regression
 test-codex-tui-regression:

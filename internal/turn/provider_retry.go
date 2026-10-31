@@ -62,6 +62,10 @@ func providerRetryDelay(p config.ProviderRetryPolicy, attempt int) time.Duration
 // request repeats only the current inference request; executed tools and prior
 // iterations are never replayed. Progress or hook failure disables blind retry.
 func retryProviderRequest(ctx context.Context, p config.ProviderRetryPolicy, request func() (result *inference.StreamResult, err error, progress bool), waiting func(int, time.Duration, string) (time.Time, error), resuming func() error) (*inference.StreamResult, error) {
+	return retryProviderRequestDynamic(ctx, func() config.ProviderRetryPolicy { return p }, request, waiting, resuming)
+}
+
+func retryProviderRequestDynamic(ctx context.Context, policy func() config.ProviderRetryPolicy, request func() (result *inference.StreamResult, err error, progress bool), waiting func(int, time.Duration, string) (time.Time, error), resuming func() error) (*inference.StreamResult, error) {
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -82,6 +86,7 @@ func retryProviderRequest(ctx context.Context, p config.ProviderRetryPolicy, req
 		if ctx.Err() != nil {
 			return result, ctx.Err()
 		}
+		p := policy()
 		if !p.Enabled || !retry || progress || attempt >= p.MaxRetries {
 			return result, err
 		}

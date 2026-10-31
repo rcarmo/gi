@@ -127,12 +127,27 @@ func (r *sessionRunner) compactionBoundary(ctx context.Context, sessionID string
 	return store.PrepareContextBoundary(snapshot, rawCount)
 }
 
-func (r *sessionRunner) compactSnapshot(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool) error {
-	return r.compactSnapshotWithInstructions(ctx, sessionID, turnID, model, agentID, convCtx, snapshot, force, "")
+func (r *sessionRunner) compactSnapshot(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool, preparations ...*providerPreparation) error {
+	return r.compactSnapshotWithInstructions(ctx, sessionID, turnID, model, agentID, convCtx, snapshot, force, "", preparations...)
 }
 
-func (r *sessionRunner) compactSnapshotWithInstructions(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool, instructions string) error {
-	return compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.CompactionPolicy(), Force: force, Instructions: instructions, ModelMaxTokens: inference.ModelMaxTokens(model)}, convCtx, compaction.RuntimeOps{BackgroundContext: func() context.Context { return context.WithoutCancel(ctx) }, Summarize: r.compactionSummarizer(turnID, model), BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
+func (r *sessionRunner) compactSnapshotWithInstructions(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool, instructions string, preparations ...*providerPreparation) error {
+	settings := r.engine.CompactionPolicy()
+	summarizer := r.compactionSummarizer(turnID, model)
+	if len(preparations) > 0 && preparations[0] != nil && preparations[0].initialized {
+		p := preparations[0]
+		settings = p.cfg.Compaction
+		switch r.engine.autoCompactionOverride.Load() {
+		case 1:
+			settings.Enabled = true
+		case 2:
+			settings.Enabled = false
+		}
+		summarizer = func(ctx context.Context, req compaction.SummaryRequest) (compaction.SummaryResponse, error) {
+			return summarizeWith(ctx, model, p.thinking, req, goai.Transport(p.cfg.Transport))
+		}
+	}
+	return compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: settings, Force: force, Instructions: instructions, ModelMaxTokens: inference.ModelMaxTokens(model)}, convCtx, compaction.RuntimeOps{BackgroundContext: func() context.Context { return context.WithoutCancel(ctx) }, Summarize: summarizer, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
 		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
 		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
 	}, AfterCompact: func(ctx context.Context, payload map[string]any) {

@@ -69,3 +69,29 @@ func (s *Store) AppendTurnEffectEvent(ctx context.Context, turnID, sessionID, ev
 	}
 	return nil
 }
+
+// RecordTurnPromptSections commits an owned preparation's prompt-policy record
+// only while that exact turn claim is running. A superseded builder must not
+// replace the successor's session policy while its provider admission is fenced.
+func (s *Store) RecordTurnPromptSections(ctx context.Context, sessionID, turnID string, sections any) error {
+	token, err := turnWriterToken(ctx, sessionID, turnID)
+	if err != nil {
+		return err
+	}
+	raw, err := marshalJSON(map[string]any{"system_prompt_sections": sections})
+	if err != nil {
+		return err
+	}
+	result, err := s.db.ExecContext(ctx, `update sessions set state_json=json_patch(coalesce(nullif(state_json,''),'{}'),json(?)),updated_at=`+defaultNow+` where id=? and exists(select 1 from turns t join session_active_turns a on a.session_id=t.session_id and a.turn_id=t.id where t.id=? and t.session_id=sessions.id and t.status='running' and (?='' or a.claim_token=?))`, raw, sessionID, turnID, token, token)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrQueueConflict
+	}
+	return nil
+}

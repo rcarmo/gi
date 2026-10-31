@@ -36,7 +36,15 @@ AgentsInTheCloud's managed Pi settings use `sse`. Gi honours that preference ins
 Pi settings accept `retry.enabled`, `retry.maxRetries`, `retry.baseDelayMs` and
 `retry.maxAgentDelayMs`. Defaults are `true`, `3`, `2000` and `60000`. Explicit
 false/zero values are honoured. Retry counts are bounded to 0–100 and delays to
-0–60000 ms; negative values use their defaults.
+0–60000 ms; negative values use their defaults. Global settings apply below
+project settings.
+
+Before committing a retry decision, file-backed policy is reloaded. Before the
+next provider call, preparation reloads committed history, instructions, session
+model/thinking, registered tools and generation policy. Disabled retries, a
+lower count or malformed settings prevent that next call. The persisted deadline
+still controls an already scheduled wait. Once-only lifecycle policy is retained;
+lifecycle hooks and earlier tools are not replayed.
 
 These generation retries are separate from provider-controlled transport
 retries. Eligibility uses go-ai's assistant-error classifier at the provider
