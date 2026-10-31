@@ -7141,6 +7141,9 @@ func TestToolCallHookCanMutateArgumentsDuringExecution(t *testing.T) {
 	if _, err := s.CreateTurnWithStatus(ctx, "turn_tool_mutate", "session_tool_mutate", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
 		t.Fatalf("create turn: %v", err)
 	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_tool_mutate", "turn_tool_mutate", "fixture", "claim"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
 	executedValue := ""
 	if err := e.RegisterTool(tools.RegisteredTool{Name: "echo_test", Description: "Echo", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 		executedValue = internalx.StringValue(call.Arguments["value"], "")

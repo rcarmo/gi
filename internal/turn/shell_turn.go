@@ -26,8 +26,12 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	if len(run.initialSteering) > 0 {
 		r.persistSteeringMessages(ctx, run.sessionID, run.turnID, run.initialSteering)
 	}
-	r.engine.PublishRuntimeToolEvent("tool_started", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"occurrence_id": toolOccurrenceID, "phase": "tool", "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}})
-	logutil.WarnIfErr("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
+	intent := map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}, "prompt": run.prompt, "replay_safe": false}
+	if err := s.AdmitTurnEffect(ctx, run.sessionID, run.turnID, "waiting_on_tools", "tool.started", intent); err != nil {
+		r.finishTurn(s, run.turnID, run.sessionID, run.agentID, run.model, "failed", "Admit shell intent: "+err.Error(), "persistence_error")
+		return
+	}
+	r.engine.PublishRuntimeToolEvent("tool_started", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, intent)
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 
 	reportOutput, closeOutput := r.toolOutputReporter(run.turnID, run.sessionID, "", toolOccurrenceID)

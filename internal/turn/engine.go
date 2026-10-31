@@ -2563,29 +2563,13 @@ func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, t
 	return injected
 }
 
-func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, toolCalls []goai.ToolCall, start int) {
-	for i := start; i < len(toolCalls); i++ {
-		call := toolCalls[i]
-		goai.AppendToolResult(convCtx, call.ID, call.Name, skippedDueToQueuedUserMessage, true)
-		logutil.WarnIfErr("append tool.skipped event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
-			"phase":        "tool",
-			"checkpoint":   true,
-			"tool":         call.Name,
-			"tool_call_id": call.ID,
-			"reason":       "queued user steering message",
-		}))
-		logutil.WarnIfErr("add skipped tool_result message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", skippedDueToQueuedUserMessage, map[string]any{
-			"kind":         "tool_result",
-			"tool_call_id": call.ID,
-			"tool_name":    call.Name,
-			"is_error":     true,
-			"turn_id":      turnID,
-			"skipped":      true,
-			"skip_reason":  "queued user steering message",
-		}))
-		r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": "queued user steering message"})
-		r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, "", call.Name, call.ID, 0, nil, map[string]any{"reason": "queued user steering message", "phase": "tool"})
+func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, toolCalls []goai.ToolCall, start int) error {
+	for _, call := range toolCalls[start:] {
+		if err := r.settleSkippedTool(ctx, sessionID, turnID, "", 0, convCtx, call, "queued user steering message", skippedDueToQueuedUserMessage, ""); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func steeringMediaFromMetadata(metadata map[string]any) []string {
@@ -4175,7 +4159,7 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 
 // executeToolWithImages also collects images the tool attaches (nil: tools
 // describe images in text instead).
-func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.ToolCall, sessionID, turnID string, onOutput func(string) error, images *toolExtras) (string, error) {
+func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.ToolCall, sessionID, turnID string, onOutput func(string) error, images *toolExtras, prepared ...tools.RegisteredTool) (string, error) {
 	if call.ArgumentsError != "" {
 		return "", fmt.Errorf("Invalid tool arguments: %s", call.ArgumentsError)
 	}
@@ -4189,6 +4173,10 @@ func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.Too
 		}
 	}
 	tool, ok := r.engine.tools.GetRegistered(call.Name)
+	if len(prepared) > 0 {
+		tool = prepared[0]
+		ok = tool.Executor != nil
+	}
 	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", call.Name)
 	}
@@ -4901,19 +4889,10 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	// Phase-only conditional transition cannot overwrite concurrent cancelling.
-	if err := s.SetClaimedRunningPhase(ctx, sessionID, turnID, "running"); err != nil {
-		return nil, err
-	}
-	r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
-	logutil.WarnIfErr("append inference.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter, "checkpoint": true}))
+	// Admission below pins each actual attempt before host entry. Context hooks
+	// may have changed the request; retry attempts need their own durable intent.
 	iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 	log.Printf("inference [%s]: calling %s", iterLabel, model)
-
-	r.engine.broadcast(sessionID, map[string]any{
-		"type": "agent_status", "chat_jid": "gi:" + sessionID,
-		"title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID,
-	})
 
 	turnSnapshot, err := s.GetTurn(ctx, turnID)
 	if err != nil {
@@ -4927,6 +4906,16 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 	result, inferErr := retryProviderRequest(ctx, r.engine.runtimeCfg.Retry.Policy(), func() (*inference.StreamResult, error, bool) {
 		progress, hookFailed := false, false
 		responseObserved = false
+		requestID := store.NowID("inference")
+		intent, intentErr := sanitizedProviderIntent(map[string]any{"model": model, "context": requestCtx, "thinking": thinking, "transport": r.engine.runtimeCfg.Transport})
+		if intentErr != nil {
+			return nil, intentErr, true
+		}
+		if intentErr = s.AdmitTurnEffect(ctx, sessionID, turnID, "running", "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter, "checkpoint": true, "request_id": requestID, "intent": intent}); intentErr != nil {
+			return nil, intentErr, true
+		}
+		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
+		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID})
 		result, inferErr := streamWithToolsWithHooks(ctx, model, requestCtx, func(ev map[string]any) {
 			ev["chat_jid"] = "gi:" + sessionID
 			ev["turn_id"] = turnID
@@ -4972,7 +4961,15 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 					return nil, abortErr
 				}
 				if replacement, ok := providerRequestReplacementFromHook(resp); ok {
-					return replacement, nil
+					payload = replacement
+				}
+				prepared, err := sanitizedProviderIntent(payload)
+				if err == nil {
+					err = s.AdmitTurnEffect(ctx, sessionID, turnID, "running", "inference.request_prepared", map[string]any{"phase": "inference", "iteration": iter, "request_id": requestID, "intent": prepared})
+				}
+				if err != nil {
+					hookFailed = true
+					return nil, err
 				}
 				return payload, nil
 			},
@@ -5044,6 +5041,12 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			continue
 		}
+		originalCall, originalErr := json.Marshal(call)
+		if originalErr != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Pin tool provenance: "+originalErr.Error(), "persistence_error")
+			outcome.terminated = true
+			return outcome
+		}
 		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
 			log.Printf("hook tool_call error: %v", err)
 		} else {
@@ -5069,7 +5072,6 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				}
 			}
 			if injectedResult, ok := directToolResultFromHook(resp); ok {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
 				displayResult, outputDiagnostics := boundToolOutput(injectedResult)
 				// Hook results have no execution boundary or measured duration.
 				hookOccurrence := store.NowID("tool")
@@ -5081,6 +5083,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 					outcome.terminated = true
 					return outcome
 				}
+				r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(injectedResult)})
 				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
 				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
@@ -5090,21 +5093,12 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			if resp.Block {
 				reason := internalx.StringValue(resp.Reason, "tool call blocked")
+				if err := r.settleSkippedTool(ctx, sessionID, turnID, agentID, iter, convCtx, call, reason, "Error: blocked by hook: "+reason, "tool_call"); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle denied tool: "+err.Error(), "persistence_error")
+					outcome.terminated = true
+					return outcome
+				}
 				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": reason})
-				logutil.WarnIfErr("append hook-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
-					"phase":        "tool",
-					"checkpoint":   true,
-					"tool":         call.Name,
-					"tool_call_id": call.ID,
-					"reason":       reason,
-					"hook_phase":   "tool_call",
-				}))
-				r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
-				toolErr := fmt.Errorf("blocked by hook: %s", reason)
-				errText := fmt.Sprintf("Error: %v", toolErr)
-				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "tool_call", "arguments": call.Arguments, "output": errText})
-				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				logutil.WarnIfErr("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID, "skipped": true, "skip_reason": reason, "hook_phase": "tool_call"}))
 				continue
 			}
 		}
@@ -5119,21 +5113,12 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			if resp.Block {
 				reason := internalx.StringValue(resp.Reason, "tool not approved")
+				if err := r.settleSkippedTool(ctx, sessionID, turnID, agentID, iter, convCtx, call, reason, "Error: blocked by hook: "+reason, "approve_tool"); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle denied tool: "+err.Error(), "persistence_error")
+					outcome.terminated = true
+					return outcome
+				}
 				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": reason})
-				logutil.WarnIfErr("append approve-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
-					"phase":        "tool",
-					"checkpoint":   true,
-					"tool":         call.Name,
-					"tool_call_id": call.ID,
-					"reason":       reason,
-					"hook_phase":   "approve_tool",
-				}))
-				r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
-				toolErr := fmt.Errorf("blocked by hook: %s", reason)
-				errText := fmt.Sprintf("Error: %v", toolErr)
-				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "approve_tool", "arguments": call.Arguments, "output": errText})
-				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				logutil.WarnIfErr("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID, "skipped": true, "skip_reason": reason, "hook_phase": "approve_tool"}))
 				continue
 			}
 			if resp.ToolCall != nil {
@@ -5154,13 +5139,17 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		}
 
 		toolOccurrenceID := store.NowID("tool")
-		logutil.WarnIfErr("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
+		registered, _ := r.engine.tools.GetRegistered(call.Name)
+		if err := s.AdmitTurnEffect(ctx, sessionID, turnID, "waiting_on_tools", "tool.started", map[string]any{
+			"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "iteration": iter, "preview": store.ToolActivityPreview(call.Arguments),
+			"original_call": json.RawMessage(originalCall), "prepared_call": call, "schema": registered.Parameters, "replay_safe": registered.ReplaySafe,
+		}); err != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Admit tool intent: "+err.Error(), "persistence_error")
+			outcome.terminated = true
+			return outcome
+		}
 		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "waiting_on_tools", map[string]any{"reason": "tool_execution", "tool": call.Name, "iteration": iter})
 		r.engine.PublishRuntimeToolEvent("tool_started", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"occurrence_id": toolOccurrenceID, "phase": "tool", "arguments": call.Arguments})
-		logutil.WarnIfErr("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
-			"phase": "tool", "tool": call.Name, "checkpoint": true,
-			"tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "iteration": iter, "preview": store.ToolActivityPreview(call.Arguments),
-		}))
 		r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 
 		r.engine.broadcast(sessionID, map[string]any{
@@ -5172,7 +5161,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		defer closeOutput()
 		images := &toolExtras{occurrenceID: toolOccurrenceID}
 		executionStart := time.Now()
-		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images)
+		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images, registered)
 		durationMS := time.Since(executionStart).Milliseconds()
 		if totalUsage != nil {
 			addUsage(totalUsage, images.usage) // model calls made by the tool (codemode models.*)

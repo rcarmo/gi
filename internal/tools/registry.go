@@ -68,6 +68,9 @@ type RegisteredTool struct {
 	// they reach the model only when loaded (tool_search) or listed explicitly
 	// in the active set (Pi's deferred/codemode exposure).
 	Deferred bool
+	// ReplaySafe permits host replay only when both the committed intent and
+	// current registration opt in. Tools are unsafe by default.
+	ReplaySafe bool
 	// ModelOnly tools (codemode, tool_search) cannot be called from codemode
 	// scripts.
 	ModelOnly bool
