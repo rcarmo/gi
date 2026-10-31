@@ -340,6 +340,8 @@ func (e *Engine) codemodeModelGlobals(rt tools.ToolRuntime, calls *codemodeCallL
 		calls.mu.Unlock()
 		if parsed.Usage != nil && rt.AddUsage != nil {
 			rt.AddUsage(*parsed.Usage)
+		} else if parsed.Usage == nil && rt.UnknownUsage != nil {
+			rt.UnknownUsage()
 		}
 		return result, nil
 	}

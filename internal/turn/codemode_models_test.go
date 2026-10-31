@@ -48,7 +48,8 @@ func TestCodemodeModelsAPI(t *testing.T) {
 	e := codemodeTestEngine(t)
 	var details map[string]any
 	var usage goai.Usage
-	rt := tools.ToolRuntime{Store: e.store, ToolCallID: "tc_m", SetDetails: func(d map[string]any) { details = d }, AddUsage: func(u goai.Usage) { usage.Cost.Total += u.Cost.Total }}
+	unknown := 0
+	rt := tools.ToolRuntime{Store: e.store, ToolCallID: "tc_m", SetDetails: func(d map[string]any) { details = d }, AddUsage: func(u goai.Usage) { usage.Cost.Total += u.Cost.Total }, UnknownUsage: func() { unknown++ }}
 	run := func(code string) (string, error) {
 		return e.executeCodemode(context.Background(), rt, goai.ToolCall{ID: "tc_m", Name: codemodeToolName, Arguments: map[string]any{"code": code}})
 	}
@@ -76,9 +77,15 @@ return { choice: r.answers.sentiment.choice, images: avail.map((m) => m.id) };`)
 			t.Fatalf("%s: %v (want %q)", code, err, want)
 		}
 	}
+	if unknown != 0 {
+		t.Fatal("local validation or known counters marked unknown", unknown)
+	}
 	out, err = run(`const r = await models.generateImages({ provider: "openrouter", id: "painter" }, { input: [{ type: "text", text: "fox" }] }); return r.output.length;`)
 	if err != nil || !strings.Contains(out, "Note: models.generateImages() returned 1 image that the script did not show.") {
 		t.Fatalf("image note: %q %v", out, err)
+	}
+	if unknown != 1 {
+		t.Fatal("remote model call without usage treated as known zero", unknown)
 	}
 }
 

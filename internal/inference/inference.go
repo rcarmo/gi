@@ -440,9 +440,11 @@ func loadAuth(provider string) (string, string, error) {
 
 // StreamResult holds the full result from a streaming inference call.
 type StreamResult struct {
-	Message *goai.Message
-	Usage   *goai.Usage
-	Text    string
+	// OccurrenceID is assigned by Gi's turn owner, not the remote provider.
+	OccurrenceID string `json:"-"`
+	Message      *goai.Message
+	Usage        *goai.Usage
+	Text         string
 }
 
 type StreamHooks struct {

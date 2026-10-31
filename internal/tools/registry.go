@@ -51,6 +51,8 @@ type ToolRuntime struct {
 	// AddUsage adds model usage made by the tool (codemode's models.*) to
 	// the turn's usage and cost (nil outside turns).
 	AddUsage func(goai.Usage)
+	// UnknownUsage marks a completed remote model call whose counters were lost.
+	UnknownUsage func()
 }
 
 type ToolExecutor func(context.Context, ToolRuntime, goai.ToolCall) (string, error)

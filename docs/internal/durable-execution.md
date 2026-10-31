@@ -35,3 +35,27 @@ Streaming adapters require exactly one terminal, reject contradictory stop
 metadata and drain the provider channel through closure before returning. The
 OpenCode-compatible SSE path requires a final finish reason; `[DONE]` alone
 cannot turn an incomplete response into success.
+
+## Receipt settlement and accounting
+
+Provider response adoption commits the assistant row, context measurement,
+occurrence-keyed usage and successor checkpoint in one SQLite transaction.
+Repeated settlement preserves the first receipt and counts its usage once.
+Terminal settlement commits status, finish time, sub-turn/failure projections,
+system message, accounting/finish events and idle session state together. Runtime
+publication follows a successful commit.
+
+Tool runtime `AddUsage` reports counters from nested model calls. `UnknownUsage`
+marks a remote call whose counters were unavailable. Both affect the enclosing
+tool receipt; known counters survive later tool/provider failure or cancellation.
+`unknown_receipts` also counts interrupted admitted work without a receipt and
+provider results with absent or all-zero counters. It does not estimate missing
+billing. Raw late responses retain their remote terminal reason; `adopted: false`
+excludes them from model context when cancellation wins.
+
+See [ADR 0061](../adr/0061-receipt-accounting-and-terminal-settlement.md) for the
+transaction boundaries and historical-accounting limitation.
+
+Iteration-end completion hooks run before settlement so Escape/steering can still
+win. Their completion proposal carries `settled: false`. The agent-end hook reads
+the stored terminal status; failed settlement reports `reason: "unsettled"`.

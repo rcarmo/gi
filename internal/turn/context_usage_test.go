@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -49,9 +50,16 @@ func TestProviderRequestContextMeasurementIsNotCumulativeTurnUsage(t *testing.T)
 		t.Fatal(err)
 	}
 	runner := e.runner("context-origin")
-	runner.persistContextMeasurement(s, "context-turn", "context-origin", "provider/model", &goai.Usage{Input: 100, CacheRead: 20, CacheWrite: 30, Output: 400, TotalTokens: 550}, 1)
-	runner.persistContextMeasurement(s, "context-turn", "context-origin", "provider/model", &goai.Usage{Input: 140, CacheRead: 40, CacheWrite: 10, Output: 700, TotalTokens: 890}, 2)
-	runner.persistUsage(s, "context-turn", "context-origin", &goai.Usage{Input: 240, CacheRead: 60, CacheWrite: 40, Output: 1100, TotalTokens: 1440}, 2)
+	if err := s.UpdateTurnStatus(ctx, "context-turn", "running"); err != nil {
+		t.Fatal(err)
+	}
+	for i, u := range []*goai.Usage{{Input: 100, CacheRead: 20, CacheWrite: 30, Output: 400, TotalTokens: 550}, {Input: 140, CacheRead: 40, CacheWrite: 10, Output: 700, TotalTokens: 890}} {
+		id := fmt.Sprintf("response-%d", i)
+		if err := runner.settleProviderResponse(s, "context-turn", "context-origin", "provider/model", i+1, &inference.StreamResult{OccurrenceID: id, Usage: u}, id, "response", map[string]any{"turn_id": "context-turn"}, "reply_boundary"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runner.finishTurnOK(s, "context-turn", "context-origin", "", "provider/model", 2)
 	measurement, err := s.LatestContextMeasurement(ctx, "context-origin")
 	if err != nil {
 		t.Fatal(err)
@@ -66,9 +74,11 @@ func TestProviderRequestContextMeasurementIsNotCumulativeTurnUsage(t *testing.T)
 	if usage["tokens"] != 190 || usage["percent"] != float64(19) {
 		t.Fatalf("inflated context: %+v", usage)
 	}
-	runner.persistContextMeasurement(s, "context-turn", "context-origin", "provider/model", nil, 3)
-	runner.persistContextMeasurement(s, "context-turn", "context-origin", "provider/model", &goai.Usage{}, 3)
-	runner.persistContextMeasurement(s, "context-turn", "context-origin", "provider/model", &goai.Usage{Input: -1}, 3)
+	for _, u := range []*goai.Usage{nil, {}, {Input: -1}} {
+		if responseContextMeasurement("provider/model", u, 3) != nil {
+			t.Fatal("invalid/unknown usage produced a measurement")
+		}
+	}
 	measurement, _ = s.LatestContextMeasurement(ctx, "context-origin")
 	if measurement.Iteration != 2 {
 		t.Fatal("invalid usage replaced measurement")
