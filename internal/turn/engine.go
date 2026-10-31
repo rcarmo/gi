@@ -5070,16 +5070,13 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			if injectedResult, ok := directToolResultFromHook(resp); ok {
 				r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
-				displayResult := injectedResult
-				if len(displayResult) > 100000 {
-					displayResult = displayResult[:100000] + "\n... (truncated)"
-				}
+				displayResult, outputDiagnostics := boundToolOutput(injectedResult)
 				// Hook results have no execution boundary or measured duration.
 				hookOccurrence := store.NowID("tool")
 				if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished",
 					map[string]any{"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"},
 					store.NowID("msg"), displayResult,
-					map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "occurrence_id": hookOccurrence, "source": "hook", "hook_phase": "tool_call"}); err != nil {
+					withOutputDiagnostics(map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "occurrence_id": hookOccurrence, "source": "hook", "hook_phase": "tool_call"}, outputDiagnostics)); err != nil {
 					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Hook result settlement failed: "+err.Error(), "persistence_error")
 					outcome.terminated = true
 					return outcome
@@ -5171,7 +5168,8 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			"title": fmt.Sprintf("Running: %s", call.Name), "status": "running", "turn_id": turnID,
 		})
 
-		reportOutput := r.toolOutputReporter(turnID, sessionID, call.ID, toolOccurrenceID)
+		reportOutput, closeOutput := r.toolOutputReporter(turnID, sessionID, call.ID, toolOccurrenceID)
+		defer closeOutput()
 		images := &toolExtras{occurrenceID: toolOccurrenceID}
 		executionStart := time.Now()
 		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images)
@@ -5179,7 +5177,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		if totalUsage != nil {
 			addUsage(totalUsage, images.usage) // model calls made by the tool (codemode models.*)
 		}
-		if outputErr := reportOutput(toolResult, true); outputErr != nil {
+		if outputErr := reportOutput(toolResult, false); outputErr != nil {
 			r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool output: "+outputErr.Error(), "persistence_error")
 			outcome.terminated = true
@@ -5187,6 +5185,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		}
 		if toolErr != nil {
 			if ctx.Err() != nil || isCancellationError(toolErr) {
+				_ = reportOutput(toolResult, true)
 				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "cancelled", durationMS)
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled during tool execution", "")
 				outcome.terminated = true
@@ -5198,12 +5197,19 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if errors.As(toolErr, &resultErr) {
 				errText = resultErr.Text // the complete result, e.g. shell output + exit status (Pi)
 			}
+			errText, outputDiagnostics := boundToolOutput(errText)
+			if outputErr := reportOutput(errText, true); outputErr != nil {
+				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool output: "+outputErr.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
 			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "error": toolErr.Error(),
-			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withReplay(map[string]any{
+			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withReplay(withOutputDiagnostics(map[string]any{
 				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
-			}, errText, true)); err != nil {
+			}, outputDiagnostics), errText, true)); err != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
 				outcome.terminated = true
 				return outcome
@@ -5239,16 +5245,19 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 					toolResult = *resp.ToolResult
 				}
 			}
-			displayResult := toolResult
-			if len(displayResult) > 100000 {
-				displayResult = displayResult[:100000] + "\n... (truncated)"
+			displayResult, outputDiagnostics := boundToolOutput(toolResult)
+			if outputErr := reportOutput(displayResult, true); outputErr != nil {
+				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool output: "+outputErr.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
 			}
 			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "output_length": len(toolResult),
-			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withReplay(map[string]any{
+			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withReplay(withOutputDiagnostics(map[string]any{
 				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
-			}, displayResult, false)); err != nil {
+			}, outputDiagnostics), displayResult, false)); err != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Tool result settlement failed: "+err.Error(), "persistence_error")
 				outcome.terminated = true
 				return outcome
