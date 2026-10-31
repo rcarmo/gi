@@ -3328,7 +3328,7 @@ func TestCancelTurnDuringToolExecutionMarksCancelled(t *testing.T) {
 }
 
 func TestCancelActiveParentTurnPropagatesToChildSubTurns(t *testing.T) {
-	s := openTestStore(t)
+	s := openChildJoinStore(t)
 	defer s.Close()
 	ctx := context.Background()
 	if _, err := s.CreateSession(ctx, "session_parent_cancel_runtime", "Parent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
@@ -3348,6 +3348,7 @@ func TestCancelActiveParentTurnPropagatesToChildSubTurns(t *testing.T) {
 		return nil, ctx.Err()
 	})
 	engine := New(s)
+	defer engine.Close()
 	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_cancel_runtime", Prompt: "stream parent", Model: "mock-stream"})
 	if err != nil {
 		t.Fatalf("submit parent prompt: %v", err)
@@ -3360,17 +3361,15 @@ func TestCancelActiveParentTurnPropagatesToChildSubTurns(t *testing.T) {
 			return false
 		}
 	}, "parent streaming start")
-	childTurn, err := s.CreateTurnWithStatus(ctx, "turn_child_cancel_runtime", "session_child_cancel_runtime", "running", "child", map[string]any{"intent": "prompt", "parent_turn_id": result.TurnID})
+	child, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_cancel_runtime", Prompt: "child", Model: "mock-stream", ParentTurnID: result.TurnID})
 	if err != nil {
-		t.Fatalf("create child turn: %v", err)
-	}
-	if _, err := s.CreateSubTurn(ctx, result.TurnID, "session_parent_cancel_runtime", childTurn.ID, "session_child_cancel_runtime", "async", 1, map[string]any{"intent": "prompt"}); err != nil {
-		t.Fatalf("create subturn link: %v", err)
+		t.Fatal(err)
 	}
 	var childCancelled atomic.Int32
 	runnerChild := engine.runner("session_child_cancel_runtime")
 	runnerChild.mu.Lock()
-	runnerChild.current = &runningTurn{turnID: childTurn.ID, cancel: func() { childCancelled.Add(1) }}
+	cancelChild := runnerChild.current.cancel
+	runnerChild.current.cancel = func() { childCancelled.Add(1); cancelChild() }
 	runnerChild.mu.Unlock()
 	if err := engine.CancelTurn(ctx, "session_parent_cancel_runtime", result.TurnID); err != nil {
 		t.Fatalf("cancel parent turn: %v", err)
@@ -3380,9 +3379,9 @@ func TestCancelActiveParentTurnPropagatesToChildSubTurns(t *testing.T) {
 		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
 	}, "parent turn cancellation")
 	waitForCondition(t, 2*time.Second, func() bool {
-		turnRec, err := s.GetTurn(ctx, childTurn.ID)
-		return err == nil && turnRec.Status == "cancelling"
-	}, "child turn cancellation propagation")
+		turnRec, err := s.GetTurn(ctx, child.TurnID)
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
+	}, "child settled before parent cancellation")
 	waitForCondition(t, 2*time.Second, func() bool {
 		return childCancelled.Load() == 1
 	}, "child cancel callback propagation")

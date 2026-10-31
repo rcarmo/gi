@@ -17,6 +17,9 @@ type TurnSettlement struct {
 	FailureKind    string
 	Payload        map[string]any
 	Accounting     TurnAccounting
+	// A changed cancellation decision requires the coordinator to join the
+	// newly required critical children before publishing terminal cleanup.
+	ChildrenStatus string
 }
 
 func (s *Store) SettleRunningTurn(ctx context.Context, turnID, sessionID string, in TurnSettlement) (TurnSettlement, error) {
@@ -62,6 +65,9 @@ func (s *Store) SettleRunningTurn(ctx context.Context, turnID, sessionID string,
 		out.Message = "Turn cancelled"
 		out.Payload = nil
 		out.MessagePayload = map[string]any{"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": in.MessagePayload["agent_id"], "content_blocks": []any{map[string]any{"type": "turn_outcome_marker", "kind": "cancelled", "severity": "warning", "label": "cancelled"}}}
+	}
+	if in.ChildrenStatus != "" && out.Status != in.ChildrenStatus {
+		return out, ErrQueueConflict
 	}
 	if out.Message != "" && out.MessageID == "" {
 		return out, fmt.Errorf("terminal message requires an identity")

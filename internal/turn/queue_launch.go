@@ -51,11 +51,13 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 		}
 	}
 	if runner.current != nil && runner.current.turnID == turnID {
-		if err := e.store.AppendTurnEvent(opCtx, turnID, turnSessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancel_requested", "status": "cancelling", "turn_phase": "cancelling", "failure_kind": ""}); err != nil {
+		marked, err := e.store.RequestTurnCancellation(opCtx, turnID, turnSessionID)
+		if err != nil {
 			return err
 		}
-		if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelling", "cancelling"); err != nil {
-			return err
+		if !marked {
+			runner.current.cancel()
+			return nil
 		}
 		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, agentID, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
 		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, agentID, model, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
@@ -66,11 +68,10 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 		return nil
 	}
 	if turn.Status == "queued" {
-		if queuedOnly {
-			if err := e.store.CancelQueuedTurn(opCtx, turnSessionID, turnID); err != nil {
-				return err
-			}
-		} else if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelled", "aborted"); err != nil {
+		if err := e.store.CancelQueuedTurn(opCtx, turnSessionID, turnID); err != nil {
+			return err
+		}
+		if err := e.store.UpdateSubTurnStatusByChild(opCtx, turnID, "cancelled"); err != nil {
 			return err
 		}
 		if err := e.store.MarkTurnFinished(opCtx, turnID); err != nil {
@@ -303,8 +304,10 @@ func (e *Engine) launchQueueActionLocked(ctx context.Context, runner *sessionRun
 	}
 	logutil.WarnIfErr("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))
 	e.runs.Add(1)
+	runner.registerHostFenceLocked(active, runCtx)
 	go func() {
 		defer e.runs.Done()
+		defer runner.finishHostFence(active)
 		// Submission and queued launch callers hold runner.mu until their
 		// durable admission events are written. Do not emit turn.started (or
 		// run tools) before turn.submitted has a sequence number.

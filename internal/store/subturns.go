@@ -31,15 +31,23 @@ func insertSubTurn(ctx context.Context, db interface {
 	if err != nil {
 		return err
 	}
-	_, err = db.ExecContext(ctx, `
+	result, err := db.ExecContext(ctx, `
 		insert into subturns (
 			parent_turn_id, parent_session_id, child_turn_id, child_session_id,
 			delivery_mode, status, depth, metadata_json, created_at, updated_at
 		)
-		values (?, ?, ?, ?, ?, 'running', ?, ?, `+defaultNow+`, `+defaultNow+`)
-	`, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode, depth, metadataJSON)
+		select ?, ?, ?, ?, ?, 'running', ?, ?, `+defaultNow+`, `+defaultNow+`
+		where not exists(select 1 from turns p where p.id=? and p.status in ('running','cancelling') and p.phase in ('settling','cancelling'))
+	`, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode, depth, metadataJSON, parentTurnID)
 	if err != nil {
 		return fmt.Errorf("create subturn: %w", err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrQueueConflict
 	}
 	return nil
 }
