@@ -4,10 +4,12 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+
+	goai "github.com/rcarmo/go-ai"
 )
 
 func TestToolSettlementAtomicReopen(t *testing.T) {
-	for _, target := range []string{"messages", "turn_events", "turns", "sessions"} {
+	for _, target := range []string{"messages", "turn_events", "turn_receipts", "turns", "sessions"} {
 		t.Run(target, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "settle.db")
 			s, err := Open(path)
@@ -30,7 +32,7 @@ func TestToolSettlementAtomicReopen(t *testing.T) {
 				t.Fatal(err)
 			}
 			settle := func(ctx context.Context) error {
-				return s.SettleToolResult(ctx, "t", "s", "tool.finished", map[string]any{"occurrence_id": "o", "tool_call_id": "call"}, "m", "result", map[string]any{"kind": "tool_result", "occurrence_id": "o", "turn_id": "t"})
+				return s.SettleToolResult(ctx, "t", "s", "tool.finished", map[string]any{"occurrence_id": "o", "tool_call_id": "call"}, "m", "result", map[string]any{"kind": "tool_result", "occurrence_id": "o", "turn_id": "t", "usage": goai.Usage{Input: 3}})
 			}
 			if err := settle(ctx); err == nil {
 				t.Fatal("expected injected failure")
@@ -43,6 +45,10 @@ func TestToolSettlementAtomicReopen(t *testing.T) {
 				if count != 0 {
 					t.Fatalf("partial settlement in %s", table)
 				}
+			}
+			a, err := s.TurnAccounting(ctx, "t")
+			if err != nil || a.Usage.Input != 0 {
+				t.Fatal("tool accounting escaped rollback", a, err)
 			}
 			if _, err := s.db.Exec(`drop trigger fail_settlement`); err != nil {
 				t.Fatal(err)
@@ -62,7 +68,14 @@ func TestToolSettlementAtomicReopen(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, table := range []string{"messages", "turn_events"} {
+			a, err = s.TurnAccounting(ctx, "t")
+			if err != nil || a.Usage.Input != 3 {
+				t.Fatal("tool usage missing after reopen", a, err)
+			}
+			if err := settle(ctx); err != nil {
+				t.Fatal("idempotent tool retry", err)
+			}
+			for _, table := range []string{"messages", "turn_events", "turn_receipts"} {
 				var count int
 				if err := s.db.QueryRow(`select count(*) from ` + table).Scan(&count); err != nil {
 					t.Fatal(err)

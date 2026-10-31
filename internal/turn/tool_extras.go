@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rcarmo/gi/internal/store"
+
 	"github.com/rcarmo/gi/internal/mcp"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -24,19 +26,31 @@ type toolExtras struct {
 	notes        []string       // transcript lines describing each image
 	added        []string       // tools loaded by this call
 	details      map[string]any // structured result details for renderers (codemode calls)
-	usage        goai.Usage     // model usage made by the tool (codemode models.*)
+	mu           sync.Mutex
+	unknownUsage bool
+	usageError   string
+	usage        goai.Usage // model usage made by the tool (codemode models.*)
 }
 
 func (t *toolExtras) addUsageFunc() func(goai.Usage) {
 	if t == nil {
 		return nil
 	}
-	var mu sync.Mutex
 	return func(u goai.Usage) {
-		mu.Lock()
-		defer mu.Unlock()
-		addUsage(&t.usage, u)
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		if err := store.AddReceiptUsage(&t.usage, u); err != nil {
+			t.unknownUsage = true
+			t.usageError = err.Error()
+		}
 	}
+}
+
+func (t *toolExtras) unknownUsageFunc() func() {
+	if t == nil {
+		return nil
+	}
+	return func() { t.mu.Lock(); t.unknownUsage = true; t.mu.Unlock() }
 }
 
 // addUsage adds u to total (tokens and cost).
@@ -46,6 +60,10 @@ func addUsage(total *goai.Usage, u goai.Usage) {
 	total.TotalTokens += u.TotalTokens
 	total.CacheRead += u.CacheRead
 	total.CacheWrite += u.CacheWrite
+	total.CacheWrite1h += u.CacheWrite1h
+	total.Reasoning += u.Reasoning
+	total.Cost.CacheRead += u.Cost.CacheRead
+	total.Cost.CacheWrite += u.Cost.CacheWrite
 	total.Cost.Input += u.Cost.Input
 	total.Cost.Output += u.Cost.Output
 	total.Cost.Total += u.Cost.Total
@@ -62,6 +80,13 @@ func (t *toolExtras) setDetailsFunc() func(map[string]any) {
 func (t *toolExtras) withReplay(payload map[string]any, text string, failed bool) map[string]any {
 	blocks := []goai.ContentBlock{{Type: "text", Text: text}}
 	if t != nil {
+		t.mu.Lock()
+		payload["usage"] = t.usage
+		payload["usage_unknown"] = t.unknownUsage
+		if t.usageError != "" {
+			payload["usage_error"] = t.usageError
+		}
+		t.mu.Unlock()
 		blocks = append(blocks, t.blocks...)
 		if !failed && len(t.added) > 0 {
 			payload["added_tool_names"] = append([]string(nil), t.added...)

@@ -135,6 +135,17 @@ func initSchema(db *sql.DB) error {
 		);`,
 		`create index if not exists idx_turns_session_status on turns(session_id, status, updated_at desc);`,
 		`create index if not exists idx_turns_session_phase on turns(session_id, phase, updated_at desc);`,
+		`create table if not exists turn_receipts (
+			turn_id text not null references turns(id) on delete cascade,
+			occurrence_id text not null,
+			kind text not null,
+			message_id text,
+			usage_json text,
+			usage_unknown integer not null default 0,
+			decision_json text not null,
+			created_at text not null,
+			primary key(turn_id, occurrence_id)
+		);`,
 		`create index if not exists idx_turns_metadata_intent on turns(json_extract(metadata_json, '$.intent'));`,
 
 		`create table if not exists subturns (

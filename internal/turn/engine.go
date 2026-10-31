@@ -3984,21 +3984,24 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Turn context error: %v", err), "context_error")
 		return
 	}
-	agentEndReason := "completed"
 	defer func() {
+		agentEndReason := "unsettled"
+		if rec, err := s.GetTurn(r.engine.backgroundContext(), turnID); err == nil && isTerminalSubTurnStatus(rec.Status) {
+			agentEndReason = rec.Status
+		} else {
+			agentEndReason = "unsettled"
+		}
 		_, _ = r.engine.emitHook(r.engine.backgroundContext(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
 	}()
 
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "Thinking…", "status": "running", "turn_id": turnID})
 
-	var totalUsage goai.Usage
 	lastToolFailureSig := ""
 	repeatedToolFailureCount := 0
 	pendingSteering := append([]store.SteeringMessage(nil), initialSteering...)
 
 	for iter := 1; iter <= maxIter; iter++ {
 		if ctx.Err() != nil {
-			agentEndReason = "cancelled"
 			r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 			return
 		}
@@ -4007,10 +4010,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering)
 		if prepareErr != nil {
 			if ctx.Err() != nil || isCancellationError(prepareErr) || errors.Is(prepareErr, store.ErrCompactionInactive) {
-				agentEndReason = "cancelled"
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 			} else {
-				agentEndReason = "failed"
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Context preparation error: %v", prepareErr), "compaction_error")
 			}
 			return
@@ -4018,53 +4019,52 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx)
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {
+			if result != nil && result.OccurrenceID != "" {
+				if err := r.settleProviderFailure(s, turnID, sessionID, model, iter, result, inferErr); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Provider receipt settlement: "+err.Error(), "persistence_error")
+					return
+				}
+			}
 			if ctx.Err() != nil || isCancellationError(inferErr) {
-				agentEndReason = "cancelled"
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 				return
 			}
 			var abortErr hookAbortError
 			if errors.As(inferErr, &abortErr) {
 				logutil.WarnIfErr("append inference.aborted event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.aborted", map[string]any{"phase": "inference", "checkpoint": true, "error": abortErr.Error(), "iteration": iter, "hard_abort": abortErr.hard}))
-				agentEndReason = "aborted"
 				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 				return
 			}
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
 			logutil.WarnIfErr("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter}))
-			agentEndReason = "failed"
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Inference error: %v", inferErr), "provider_error")
 			return
 		}
 		if result == nil || result.Message == nil {
 			if ctx.Err() != nil {
-				agentEndReason = "cancelled"
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 				return
 			}
+			if settleErr := r.settleProviderFailure(s, turnID, sessionID, model, iter, result, fmt.Errorf("provider returned no result")); settleErr != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle empty provider receipt: "+settleErr.Error(), "persistence_error")
+				return
+			}
 			log.Printf("inference [%s]: nil result", iterLabel)
-			agentEndReason = "failed"
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Inference returned no result", "provider_invalid_result")
 			return
 		}
 
+		if result.Usage == nil {
+			result.Usage = result.Message.Usage
+		}
 		if terminalErr := inference.ValidateAssistantResult(result); terminalErr != nil {
-			agentEndReason = "failed"
+			if settleErr := r.settleProviderFailure(s, turnID, sessionID, model, iter, result, terminalErr); settleErr != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle invalid provider receipt: "+settleErr.Error(), "persistence_error")
+				return
+			}
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Invalid provider terminal: "+terminalErr.Error(), "provider_invalid_result")
 			return
 		}
-		if result.Usage != nil {
-			r.persistContextMeasurement(s, turnID, sessionID, model, result.Usage, iter)
-			totalUsage.Input += result.Usage.Input
-			totalUsage.Output += result.Usage.Output
-			totalUsage.TotalTokens += result.Usage.TotalTokens
-			totalUsage.CacheRead += result.Usage.CacheRead
-			totalUsage.CacheWrite += result.Usage.CacheWrite
-			totalUsage.Cost.Input += result.Usage.Cost.Input
-			totalUsage.Cost.Output += result.Usage.Cost.Output
-			totalUsage.Cost.Total += result.Usage.Cost.Total
-		}
-
 		assistantMsg := result.Message
 		textContent := goai.GetTextContent(assistantMsg)
 		toolCalls := goai.GetToolCalls(assistantMsg)
@@ -4082,7 +4082,11 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			messagePayload["provider_message"] = result.Message
 			r.addResponseRecord(ctx, s, turnID, model, result, messagePayload)
 			r.addRecoveryMarker(ctx, sessionID, turnID, messagePayload)
-			if err := s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, messagePayload); err != nil {
+			if err := r.settleProviderResponse(s, turnID, sessionID, model, iter, result, msgID, textContent, messagePayload, "reply_boundary"); err != nil {
+				if errors.Is(err, context.Canceled) {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
+					return
+				}
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist assistant response: "+err.Error(), "persistence_error")
 				return
 			}
@@ -4095,9 +4099,9 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				continue
 			}
 			log.Printf("inference [%s]: final response (%d chars, %d iterations)", iterLabel, len(textContent), iter)
-			agentEndReason = "completed"
-			r.persistUsage(s, turnID, sessionID, &totalUsage, iter)
-			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "completed"}})
+			// Iteration-end hooks can still steer/cancel the proposed completion.
+			// Durable completion is published only by successful settlement below.
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "completed", "settled": false}})
 			r.finishTurnOK(s, turnID, sessionID, agentID, model, iter)
 			return
 		}
@@ -4129,12 +4133,16 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 		callsPayload["provider_message"] = result.Message
 		r.addResponseRecord(ctx, s, turnID, model, result, callsPayload)
-		if err := s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, callsPayload); err != nil {
+		if err := r.settleProviderResponse(s, turnID, sessionID, model, iter, result, store.NowID("msg"), toolCallSummary, callsPayload, "tools"); err != nil {
+			if errors.Is(err, context.Canceled) {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
+				return
+			}
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist assistant tool calls: "+err.Error(), "persistence_error")
 			return
 		}
 
-		outcome := r.executeToolCallsPhase(ctx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, &totalUsage)
+		outcome := r.executeToolCallsPhase(ctx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, nil)
 		if outcome.terminated {
 			return
 		}
@@ -4148,8 +4156,6 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	}
 
 	log.Printf("inference: max iterations (%d) reached for turn %s", maxIter, turnID)
-	agentEndReason = "completed"
-	r.persistUsage(s, turnID, sessionID, &totalUsage, maxIter)
 	r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, "completed", fmt.Sprintf("Reached maximum iteration limit (%d). The task may be incomplete.", maxIter), "", map[string]any{"iterations": maxIter, "completion_kind": "max_iterations"})
 }
 
@@ -4201,28 +4207,58 @@ func (r *sessionRunner) executeToolWithImages(ctx context.Context, call goai.Too
 		ToolCallID:       call.ID,
 		SetDetails:       images.setDetailsFunc(),
 		AddUsage:         images.addUsageFunc(),
+		UnknownUsage:     images.unknownUsageFunc(),
 		PublishMessage:   r.engine.publishWidgetMessage,
 		PublishPlan:      r.engine.PublishPlanChanged,
 	}, call)
 }
 
-// persistUsage records cumulative usage for the turn.
-// go-ai reports uncached input and cache components separately. Keep the
-// latest provider request independent of the cumulative turn billing counters.
-func (r *sessionRunner) persistContextMeasurement(s *store.Store, turnID, sessionID, model string, usage *goai.Usage, iteration int) {
+// Latest request occupancy is independent of cumulative turn billing.
+func responseContextMeasurement(model string, usage *goai.Usage, iteration int) map[string]any {
 	if usage == nil || usage.Input < 0 || usage.CacheRead < 0 || usage.CacheWrite < 0 {
-		return
+		return nil
 	}
-	// Some providers return an allocated, empty Usage when no counters arrived.
 	if usage.Input == 0 && usage.CacheRead == 0 && usage.CacheWrite == 0 && usage.Output == 0 && usage.TotalTokens == 0 {
-		return
+		return nil
 	}
-	payload := map[string]any{"tokens": usage.Input + usage.CacheRead + usage.CacheWrite, "input": usage.Input, "cache_read": usage.CacheRead, "cache_write": usage.CacheWrite, "model": model, "iteration": iteration, "phase": "inference"}
-	if err := s.AppendTurnEvent(r.engine.backgroundContext(), turnID, sessionID, "context.measured", payload); err != nil {
-		logutil.WarnIfErr("persist provider context measurement", err)
-		return
+	return map[string]any{"tokens": usage.Input + usage.CacheRead + usage.CacheWrite, "input": usage.Input, "cache_read": usage.CacheRead, "cache_write": usage.CacheWrite, "model": model, "iteration": iteration, "phase": "inference"}
+}
+
+func (r *sessionRunner) settleProviderResponse(s *store.Store, turnID, sessionID, model string, iteration int, result *inference.StreamResult, messageID, content string, payload map[string]any, decision string) error {
+	measurement := responseContextMeasurement(model, result.Usage, iteration)
+	settled, err := s.SettleProviderAttempt(r.engine.backgroundContext(), turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: result.Usage, Unknown: providerUsageUnknown(result.Usage), Measurement: measurement, Decision: decision, Iteration: iteration})
+	if err != nil {
+		return err
 	}
-	r.engine.PublishRuntimeTurnEvent("context_measured", sessionID, turnID, "", "running", "inference", payload)
+	if settled.Applied {
+		if measurement != nil {
+			r.engine.PublishRuntimeTurnEvent("context_measured", sessionID, turnID, "", "running", "inference", measurement)
+		}
+		r.engine.PublishRuntimeTurnEvent("turn_usage", sessionID, turnID, "", "running", "inference", map[string]any{"usage": settled.Accounting.Map()})
+	}
+	if settled.Decision == "cancelled" {
+		return context.Canceled
+	}
+	return nil
+}
+
+func providerUsageUnknown(u *goai.Usage) bool {
+	return u == nil || (u.Input == 0 && u.Output == 0 && u.CacheRead == 0 && u.CacheWrite == 0 && u.TotalTokens == 0 && u.CacheWrite1h == 0 && u.Reasoning == 0)
+}
+
+func (r *sessionRunner) settleProviderFailure(s *store.Store, turnID, sessionID, model string, iteration int, result *inference.StreamResult, failure error) error {
+	if result == nil || result.OccurrenceID == "" {
+		return fmt.Errorf("missing provider attempt identity")
+	}
+	usage := result.Usage
+	if usage == nil && result.Message != nil {
+		usage = result.Message.Usage
+	}
+	if store.ValidateReceiptUsage(usage) != nil {
+		usage = nil
+	}
+	_, err := s.SettleProviderAttempt(r.engine.backgroundContext(), turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{Usage: usage, Unknown: providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration})
+	return err
 }
 
 // addResponseRecord keeps what a response was, as Pi's session entries do:
@@ -4267,24 +4303,6 @@ func (r *sessionRunner) addResponseRecord(ctx context.Context, s *store.Store, t
 			payload["thinking_level"] = level
 		}
 	}
-}
-
-func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, usage *goai.Usage, iterations int) {
-	bgCtx := r.engine.backgroundContext()
-	usageMap := map[string]any{
-		"input": usage.Input, "output": usage.Output,
-		"total":      usage.TotalTokens,
-		"cache_read": usage.CacheRead, "cache_write": usage.CacheWrite,
-		"cost_input": usage.Cost.Input, "cost_output": usage.Cost.Output,
-		"cost_total": usage.Cost.Total,
-		"iterations": iterations,
-	}
-	logutil.WarnIfErr("append inference.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "inference.finished", map[string]any{
-		"phase": "inference", "checkpoint": true, "usage": usageMap, "iterations": iterations,
-	}))
-	r.engine.PublishRuntimeTurnEvent("turn_usage", sessionID, turnID, "", "running", "inference", map[string]any{"usage": usageMap, "iterations": iterations})
-	log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f iterations=%d",
-		usage.Input, usage.Output, usage.TotalTokens, usage.Cost.Total, iterations)
 }
 
 // broadcastPost sends a new_post SSE event for the final assistant message.
@@ -4397,40 +4415,29 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	}
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	phase := terminalPhaseForStatus(status)
-	finalStatus, err := s.FinalizeRunningTurn(bgCtx, turnID, status, phase)
+	msgPayload := map[string]any{"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID}
+	if marker := turnOutcomeMarker(status, failureKind); marker != nil {
+		msgPayload["content_blocks"] = []any{marker}
+	}
+	settled, err := s.SettleRunningTurn(bgCtx, turnID, sessionID, store.TurnSettlement{
+		Status: status, Phase: phase, MessageID: store.NowID("msg"), Message: systemMsg,
+		MessagePayload: msgPayload, FailureKind: failureKind, Payload: payload,
+	})
 	if err != nil {
-		log.Printf("turn finalization conflict for %s: %v", turnID, err)
+		log.Printf("turn settlement conflict for %s: %v", turnID, err)
 		return
 	}
-	if finalStatus == "cancelled" && status != "cancelled" {
-		status, phase, systemMsg, failureKind = "cancelled", "aborted", "Turn cancelled", ""
-		payload = nil
+	if !settled.Applied {
+		return
 	}
+	status, phase, systemMsg, failureKind, payload = settled.Status, settled.Phase, settled.Message, settled.FailureKind, settled.Payload
 	if systemMsg != "" {
-		msgID := store.NowID("msg")
-		msgPayload := map[string]any{"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID}
-		var blocks []any
-		if marker := turnOutcomeMarker(status, failureKind); marker != nil {
-			blocks = []any{marker}
-			msgPayload["content_blocks"] = blocks
-		}
-		logutil.WarnIfErr("add terminal system message", s.AddMessage(bgCtx, msgID, sessionID, "system", systemMsg, msgPayload))
-		r.broadcastSystemPostWithBlocks(sessionID, turnID, msgID, systemMsg, blocks)
+		blocks, _ := settled.MessagePayload["content_blocks"].([]any)
+		r.broadcastSystemPostWithBlocks(sessionID, turnID, settled.MessageID, systemMsg, blocks)
 	}
-	if failureKind != "" {
-		logutil.WarnIfErr("turn failure mark", s.MarkTurnFailureWithFallbackErr(r.engine.backgroundContext(), nil, turnID, sessionID, failureKind, "none", systemMsg))
+	if settled.Accounting.Iterations > 0 || settled.Accounting.Unknown > 0 || settled.Accounting.Usage != (goai.Usage{}) {
+		r.engine.PublishRuntimeTurnEvent("turn_usage", sessionID, turnID, agentID, status, phase, map[string]any{"usage": settled.Accounting.Map()})
 	}
-	finishedPayload := cloneMap(payload)
-	if finishedPayload == nil {
-		finishedPayload = map[string]any{}
-	}
-	finishedPayload["phase"] = "turn"
-	finishedPayload["checkpoint"] = true
-	finishedPayload["status"] = status
-	finishedPayload["reason"] = tools.FirstNonEmpty(failureKind, status)
-	finishedPayload["failure_kind"] = failureKind
-	logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", finishedPayload))
-	logutil.WarnIfErr("mark turn finished", s.MarkTurnFinished(bgCtx, turnID))
 	turnEventType := "turn_terminal"
 	sessionIdleReason := "turn_terminal"
 	if status == "completed" && failureKind == "" {
@@ -4453,7 +4460,6 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, hookPayload)
 	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)
 	r.publishSubTurnLifecycle(bgCtx, turnID, status)
-	logutil.WarnIfErr("touch session idle", s.TouchSessionState(bgCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	sessionPayload := cloneMap(payload)
 	if sessionPayload == nil {
 		sessionPayload = map[string]any{}
@@ -4991,6 +4997,15 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 				}
 			},
 		})
+		if result == nil {
+			result = &inference.StreamResult{}
+		}
+		result.OccurrenceID = requestID
+		if inferErr != nil {
+			if err := r.settleProviderFailure(s, turnID, sessionID, model, iter, result, inferErr); err != nil {
+				return result, fmt.Errorf("provider receipt settlement: %w", err), true
+			}
+		}
 		if !responseObserved {
 			if _, err := r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"ok": inferErr == nil}}); err != nil {
 				log.Printf("hook after_provider_response error: %v", err)
@@ -5172,7 +5187,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			addUsage(totalUsage, images.usage) // model calls made by the tool (codemode models.*)
 		}
 		if outputErr := reportOutput(toolResult, false); outputErr != nil {
-			r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
+			r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool output: "+outputErr.Error(), "persistence_error")
 			outcome.terminated = true
 			return outcome
@@ -5180,7 +5195,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		if toolErr != nil {
 			if ctx.Err() != nil || isCancellationError(toolErr) {
 				_ = reportOutput(toolResult, true)
-				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "cancelled", durationMS)
+				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "cancelled", durationMS, images)
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled during tool execution", "")
 				outcome.terminated = true
 				return outcome
@@ -5193,7 +5208,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			errText, outputDiagnostics := boundToolOutput(errText)
 			if outputErr := reportOutput(errText, true); outputErr != nil {
-				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
+				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool output: "+outputErr.Error(), "persistence_error")
 				outcome.terminated = true
 				return outcome
@@ -5218,7 +5233,6 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if outcome.repeatedToolFailureCount >= repeatedToolFailureLimit {
 				msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", outcome.repeatedToolFailureCount, toolErr)
 				log.Printf("tool [%s] repeated failure guard tripped: %s", call.Name, msg)
-				r.persistUsage(s, turnID, sessionID, totalUsage, iter)
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", msg, "repeated_tool_failure")
 				outcome.terminated = true
 				return outcome
@@ -5228,7 +5242,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				log.Printf("hook tool_result error: %v", err)
 			} else {
 				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s result aborted by hook", call.Name)); abortErr != nil {
-					r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
+					r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
 					r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "reason": abortErr.Error()})
 					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 					outcome.terminated = true
@@ -5241,7 +5255,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			displayResult, outputDiagnostics := boundToolOutput(toolResult)
 			if outputErr := reportOutput(displayResult, true); outputErr != nil {
-				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS)
+				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool output: "+outputErr.Error(), "persistence_error")
 				outcome.terminated = true
 				return outcome
@@ -5273,7 +5287,6 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 	if responsePosted {
 		// Leave steering queued for the normal final checkpoint/handoff; do not
 		// dequeue it into a model continuation that this UI-only response replaces.
-		r.persistUsage(s, turnID, sessionID, totalUsage, iter)
 		r.finishTurnOK(s, turnID, sessionID, agentID, model, iter)
 		outcome.terminated = true
 		return outcome
@@ -5287,7 +5300,6 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			outcome.terminated = true
 			return outcome
 		} else if reset {
-			r.persistUsage(s, turnID, sessionID, totalUsage, iter)
 			r.finishTurnOK(s, turnID, sessionID, agentID, model, iter)
 			outcome.terminated = true
 			return outcome
