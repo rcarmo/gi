@@ -30,7 +30,8 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	logutil.WarnIfErr("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 
-	reportOutput := r.toolOutputReporter(run.turnID, run.sessionID, "", toolOccurrenceID)
+	reportOutput, closeOutput := r.toolOutputReporter(run.turnID, run.sessionID, "", toolOccurrenceID)
+	defer closeOutput()
 	var streamedOutput strings.Builder
 	executionStart := time.Now()
 	out, runErr, cancelled := tools.RunShellPrompt(ctx, run.prompt, nil, func(delta string) {
