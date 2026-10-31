@@ -150,6 +150,11 @@ func TestCompactionPersistsBeforeContextAndSuccessBroadcast(t *testing.T) {
 		},
 		Broadcast: func(_ string, ev map[string]any) {
 			kind := ev["type"].(string)
+			for _, key := range []string{"summary", "content", "text", "message"} {
+				if _, ok := ev[key]; ok {
+					t.Fatalf("internal summary exposed to live SSE: %+v", ev)
+				}
+			}
 			if kind != "compaction_started" && !persisted {
 				t.Fatal("broadcast before persistence")
 			}

@@ -116,3 +116,51 @@ func TestConversationNeverTreatsUserTextAsInternalToolMetadata(t *testing.T) {
 		}
 	}
 }
+
+func TestCompactionSummaryIsDurableButNeverConversationOutput(t *testing.T) {
+	s := compactionStore(t)
+	ctx := context.Background()
+	// Exercise the real persistence path used by manual and automatic compaction.
+	for _, trigger := range []string{"manual", "automatic"} {
+		seq, err := s.BeginCompaction(ctx, "A", "run", map[string]any{"trigger": trigger})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out, err := s.FinishCompaction(ctx, "A", "run", seq, "completed", "private compacted state", nil); err != nil || out != "completed" {
+			t.Fatal(out, err)
+		}
+	}
+	if err := s.AddMessage(ctx, "answer", "A", "assistant", "normal continuation", nil); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ { // Initial load and reconnect/reload use the same projection.
+		page, err := s.PageConversationMessages(ctx, "A", "", "", 1)
+		if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != "answer" || page.HasMore {
+			t.Fatalf("page: %+v %v", page, err)
+		}
+		prior, err := s.PageConversationMessages(ctx, "A", page.Before, "", 1)
+		if err != nil || len(prior.Messages) != 0 {
+			t.Fatalf("older page: %+v %v", prior, err)
+		}
+		matches, err := s.SearchConversationMessages(ctx, "A", "private compacted", "current", 10, 0)
+		if err != nil || len(matches) != 0 {
+			t.Fatalf("search leaked summary: %+v %v", matches, err)
+		}
+	}
+	raw, err := s.ListMessages(ctx, "A")
+	if err != nil || len(raw) != 3 {
+		t.Fatal(raw, err)
+	}
+	summaries := 0
+	for _, m := range raw {
+		if m.Payload["kind"] == "compaction" {
+			summaries++
+			if m.Content != "private compacted state" {
+				t.Fatal("durable summary lost", m)
+			}
+		}
+	}
+	if summaries != 2 {
+		t.Fatal("durable summaries missing", raw)
+	}
+}

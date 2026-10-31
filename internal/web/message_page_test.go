@@ -88,7 +88,7 @@ func TestConversationViewOptInPreservesRawMessageAPIs(t *testing.T) {
 	for i, m := range []struct {
 		role, text string
 		payload    map[string]any
-	}{{"user", "question", nil}, {"tool_result", "private needle", nil}, {"assistant", "Visible reply\n[tool_call: shell]", map[string]any{"kind": "tool_calls"}}, {"system", "notice", nil}} {
+	}{{"user", "question", nil}, {"tool_result", "private needle", nil}, {"assistant", "Visible reply\n[tool_call: shell]", map[string]any{"kind": "tool_calls"}}, {"system", "notice", nil}, {"assistant", "internal summary", map[string]any{"kind": "compaction"}}} {
 		if err := s.AddMessage(ctx, fmt.Sprint(i), "conversation", m.role, m.text, m.payload); err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +100,7 @@ func TestConversationViewOptInPreservesRawMessageAPIs(t *testing.T) {
 	for _, tc := range []struct {
 		url           string
 		count, status int
-	}{{"/api/sessions/conversation/messages", 4, 200}, {"/api/sessions/conversation/messages?limit=50", 4, 200}, {"/api/sessions/conversation/messages?view=conversation&limit=2", 2, 200}, {"/api/sessions/conversation/search?q=private", 1, 200}, {"/api/sessions/conversation/search?q=private&view=conversation", 0, 200}, {"/api/sessions/conversation/search?q=Visible&view=conversation", 1, 200}, {"/api/sessions/conversation/messages?view=unknown", 0, 400}, {"/api/sessions/conversation/search?q=Visible&view=unknown", 0, 400}} {
+	}{{"/api/sessions/conversation/messages", 5, 200}, {"/api/sessions/conversation/messages?limit=50", 5, 200}, {"/api/sessions/conversation/messages?view=conversation", 3, 200}, {"/api/sessions/conversation/search?q=internal", 1, 200}, {"/api/sessions/conversation/search?q=internal&view=conversation", 0, 200}, {"/api/sessions/conversation/messages?view=conversation&limit=2", 2, 200}, {"/api/sessions/conversation/search?q=private", 1, 200}, {"/api/sessions/conversation/search?q=private&view=conversation", 0, 200}, {"/api/sessions/conversation/search?q=Visible&view=conversation", 1, 200}, {"/api/sessions/conversation/messages?view=unknown", 0, 400}, {"/api/sessions/conversation/search?q=Visible&view=unknown", 0, 400}} {
 		rr := httptest.NewRecorder()
 		h.ServeHTTP(rr, httptest.NewRequest("GET", tc.url, nil))
 		if rr.Code != tc.status {
@@ -115,7 +115,7 @@ func TestConversationViewOptInPreservesRawMessageAPIs(t *testing.T) {
 			}
 			if strings.Contains(tc.url, "view=conversation") {
 				for _, m := range body.Messages {
-					if m.Role == "tool_result" || strings.Contains(m.Content, "[tool_call:") {
+					if m.Role == "tool_result" || m.Payload["kind"] == "compaction" || strings.Contains(m.Content, "[tool_call:") {
 						t.Fatal("internal record leaked", tc.url, m)
 					}
 				}
