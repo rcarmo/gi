@@ -246,14 +246,22 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 			messagePayload[k] = v
 		}
 		messagePayload["turn_id"] = turnID
+		messagePayload["request_id"] = occurrenceID
 		messagePayload["adopted"] = status == "running" && (receipt.Decision == "tools" || receipt.Decision == "reply_boundary")
 		payload, err := marshalJSON(messagePayload)
 		if err != nil {
 			return out, err
 		}
-		if _, err = tx.ExecContext(ctx, `insert into messages(id,session_id,role,content,payload_json,created_at) values(?,?,'assistant',?,?,`+defaultNow+`)`, receipt.MessageID, sessionID, receipt.Content, payload); err != nil {
+		written, err := tx.ExecContext(ctx, `insert into messages(id,session_id,role,content,payload_json,created_at) values(?,?,'assistant',?,?,`+defaultNow+`) on conflict(id) do update set content=excluded.content,payload_json=excluded.payload_json where messages.session_id=excluded.session_id and json_extract(messages.payload_json,'$.partial')=1 and json_extract(messages.payload_json,'$.request_id')=? and json_extract(messages.payload_json,'$.turn_id')=?`, receipt.MessageID, sessionID, receipt.Content, payload, occurrenceID, turnID)
+		if err != nil {
 			return out, err
 		}
+		if n, err := written.RowsAffected(); err != nil {
+			return out, err
+		} else if n != 1 {
+			return out, fmt.Errorf("provider message identity conflict")
+		}
+
 	}
 	if err = insertReceiptTx(ctx, tx, turnID, occurrenceID, "provider", receipt.MessageID, receipt.Usage, receipt.Unknown, decision); err != nil {
 		return out, err

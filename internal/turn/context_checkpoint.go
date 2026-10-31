@@ -58,7 +58,8 @@ func (r *sessionRunner) rawContextSnapshot(ctx context.Context, sessionID string
 		}
 		// Receipt storage preserves the remote message even when cancellation
 		// wins adoption. Exclude that receipt only in the context projection.
-		if adopted, explicit := m.Payload["adopted"].(bool); explicit && !adopted && messages[len(messages)-1].Role == goai.RoleAssistant {
+		if adopted, explicit := m.Payload["adopted"].(bool); explicit && !adopted && m.Role == "assistant" {
+			messages[len(messages)-1].Role = goai.RoleAssistant
 			messages[len(messages)-1].StopReason = goai.StopReasonAborted
 		}
 		// Legacy receipts may carry their terminal reason only in display metadata.
