@@ -20,6 +20,7 @@ type TurnSettlement struct {
 	// A changed cancellation decision requires the coordinator to join the
 	// newly required critical children before publishing terminal cleanup.
 	ChildrenStatus string
+	ClaimToken     string // optional for legacy callers; runtime owners fence their incarnation
 }
 
 func (s *Store) SettleRunningTurn(ctx context.Context, turnID, sessionID string, in TurnSettlement) (TurnSettlement, error) {
@@ -39,6 +40,9 @@ func (s *Store) SettleRunningTurn(ctx context.Context, turnID, sessionID string,
 		return out, err
 	}
 	defer tx.Rollback()
+	if err = validateTerminalClaimTx(ctx, tx, turnID, sessionID, in.ClaimToken); err != nil {
+		return out, err
+	}
 	var owner, status string
 	if err = tx.QueryRowContext(ctx, `select session_id,status from turns where id=?`, turnID).Scan(&owner, &status); err != nil {
 		return out, err

@@ -2,6 +2,8 @@ package turn
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -83,6 +85,15 @@ func (r *sessionRunner) joinRequiredChildren(ctx context.Context, parentTurnID, 
 					return store.ErrQueueConflict
 				case <-ctx.Done():
 					return ctx.Err()
+				}
+			}
+			if done == nil {
+				activeID, _, err := r.store.GetSessionActiveTurn(ctx, sub.ChildSessionID)
+				if err == nil && activeID == sub.ChildTurnID {
+					return fmt.Errorf("required child %s still has an unjoined owner", sub.ChildTurnID)
+				}
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return err
 				}
 			}
 			r.engine.joinTurnHooks(sub.ChildTurnID, false)
