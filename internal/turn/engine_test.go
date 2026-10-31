@@ -7372,6 +7372,7 @@ done
 	s := openTestStore(t)
 	defer s.Close()
 	e := NewWithRuntimeConfig(s, config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", Agents: config.AgentsConfig{List: []config.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}, "")
+	defer e.Close()
 	ctx := context.Background()
 	if _, err := s.CreateSession(ctx, "session_process_hook", "ProcessHook", map[string]any{"model": "bootstrap"}); err != nil {
 		t.Fatalf("create session: %v", err)
@@ -7380,7 +7381,7 @@ done
 		t.Fatalf("create turn: %v", err)
 	}
 	spec := scripting.EventHookSpec{Name: HookToolCall, Engine: "process", Command: hookPath, Source: "process-test"}
-	if _, err := e.RegisterHook(HookToolCall, spec.Source, newProcessHookHandler(root, spec)); err != nil {
+	if _, err := e.registerProcessHook(root, spec); err != nil {
 		t.Fatalf("register process hook: %v", err)
 	}
 	resp, err := e.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: "session_process_hook", TurnID: "turn_process_hook", ToolCall: &goai.ToolCall{Type: "toolCall", ID: "tc_orig", Name: "read", Arguments: map[string]any{"path": "original.md"}}})
@@ -7424,7 +7425,9 @@ done
 	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write hook script: %v", err)
 	}
-	handler := newProcessHookHandler(root, scripting.EventHookSpec{Name: HookToolCall, Engine: "process", Command: hookPath, Source: "mounted-process-test"})
+	mounted := &mountedProcessHook{workspaceRoot: root, spec: scripting.EventHookSpec{Name: HookToolCall, Engine: "process", Command: hookPath, Source: "mounted-process-test"}}
+	defer mounted.close()
+	handler := mounted.invoke
 	for i := 0; i < 2; i++ {
 		resp, err := handler(context.Background(), HookRequest{Name: HookToolCall, SessionID: "session_mounted_process_hook", TurnID: fmt.Sprintf("turn_%d", i), ToolCall: &goai.ToolCall{Type: "toolCall", ID: fmt.Sprintf("tc_%d", i), Name: "read", Arguments: map[string]any{"path": "original.md"}}})
 		if err != nil {
