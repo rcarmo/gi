@@ -175,7 +175,7 @@ test-web-basic-send: test-instance-start
 
 # PROFILING=1 captures CPU/allocation profiles for pre-release analysis.
 test: $(TESTPROFILE)
-	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
 # Bounded compatibility checks for the Piclaw v3.3.0 shared UI pin.
 .PHONY: test-ui-pin-compatibility

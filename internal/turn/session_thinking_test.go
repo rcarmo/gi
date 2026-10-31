@@ -52,7 +52,7 @@ func TestSessionThinkingCapturedAtAdmissionNotRuntimeOrCallerMetadata(t *testing
 				return nil, ctx.Err()
 			}
 		}
-		msg := goai.Message{Role: "assistant", Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}
+		msg := goai.Message{Role: "assistant", StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}
 		return &inference.StreamResult{Message: &msg, Text: "done"}, nil
 	}
 	first, err := e.SubmitPrompt(ctx, RunInput{SessionID: "A", Prompt: "one", Model: model, Metadata: map[string]any{"selected_thinking_level": "high", "selected_thinking_model": model}})

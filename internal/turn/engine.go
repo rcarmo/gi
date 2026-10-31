@@ -4048,6 +4048,11 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			return
 		}
 
+		if terminalErr := inference.ValidateAssistantResult(result); terminalErr != nil {
+			agentEndReason = "failed"
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Invalid provider terminal: "+terminalErr.Error(), "provider_invalid_result")
+			return
+		}
 		if result.Usage != nil {
 			r.persistContextMeasurement(s, turnID, sessionID, model, result.Usage, iter)
 			totalUsage.Input += result.Usage.Input
@@ -4066,7 +4071,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		log.Printf("inference [%s]: stop=%q toolCalls=%d text=%d", iterLabel, assistantMsg.StopReason, len(toolCalls), len(textContent))
 		goai.AppendAssistantMessage(convCtx, assistantMsg)
 
-		needsToolExecution := goai.NeedsToolExecution(assistantMsg) || len(toolCalls) > 0
+		needsToolExecution := len(toolCalls) > 0
 		if !needsToolExecution {
 			// A direct reply is a completed assistant message even when steering
 			// keeps this run active for another model request. Persist it before
