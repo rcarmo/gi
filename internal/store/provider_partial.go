@@ -32,6 +32,9 @@ func (s *Store) SaveProviderPartial(ctx context.Context, turnID, sessionID, occu
 		return err
 	}
 	defer tx.Rollback()
+	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
+		return err
+	}
 	var owner, status string
 	if err = tx.QueryRowContext(ctx, `select session_id,status from turns where id=?`, turnID).Scan(&owner, &status); err != nil {
 		return err

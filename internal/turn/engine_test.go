@@ -5683,8 +5683,9 @@ func TestSubmitPeerMessageUsesExistingTargetSession(t *testing.T) {
 }
 
 func TestConcurrentSubmitDifferentSessionsRunsConcurrently(t *testing.T) {
-	s := openTestStore(t)
-	defer s.Close()
+	// Exercise production WAL transactions; shared-cache memory SQLite cannot
+	// provide this concurrent writer/reader workload (SQLITE_LOCKED).
+	s := openChildJoinStore(t)
 	ctx := context.Background()
 	if _, err := s.CreateSession(ctx, "session_a", "A", map[string]any{"model": "bootstrap"}); err != nil {
 		t.Fatalf("create session a: %v", err)
@@ -5693,6 +5694,7 @@ func TestConcurrentSubmitDifferentSessionsRunsConcurrently(t *testing.T) {
 		t.Fatalf("create session b: %v", err)
 	}
 	engine := New(s)
+	defer engine.Close()
 
 	start := make(chan struct{})
 	errCh := make(chan error, 2)

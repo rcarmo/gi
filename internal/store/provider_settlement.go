@@ -209,6 +209,9 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 		return out, err
 	}
 	defer tx.Rollback()
+	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
+		return out, err
+	}
 	var owner, status string
 	if err = tx.QueryRowContext(ctx, `select session_id,status from turns where id=?`, turnID).Scan(&owner, &status); err != nil {
 		return out, err

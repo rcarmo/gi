@@ -138,7 +138,7 @@ func TestCancellationRetainsLateReceiptWithoutAdoptingIt(t *testing.T) {
 	message := replayAnswer("late answer")
 	message.StopReason = goai.StopReasonStop
 	result := &inference.StreamResult{OccurrenceID: "late", Message: &message, Usage: &goai.Usage{Input: 7}}
-	err := e.runner("A").settleProviderResponse(s, "t", "A", "provider/model", 1, result, "late-message", "late answer", map[string]any{"provider_message": message}, "reply_boundary")
+	err := e.runner("A").settleProviderResponse(context.Background(), s, "t", "A", "provider/model", 1, result, "late-message", "late answer", map[string]any{"provider_message": message}, "reply_boundary")
 	if err != context.Canceled {
 		t.Fatal("late receipt adopted", err)
 	}

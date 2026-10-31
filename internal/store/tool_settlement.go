@@ -34,6 +34,9 @@ func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventTy
 		return err
 	}
 	defer tx.Rollback()
+	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
+		return err
+	}
 	// Foreign keys validate each ID separately, not their ownership relation.
 	var owner string
 	if err := tx.QueryRowContext(ctx, `select session_id from turns where id=?`, turnID).Scan(&owner); err != nil {
