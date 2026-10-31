@@ -154,6 +154,9 @@ func TestMixedAndHookModifiedInvalidCalls(t *testing.T) {
 			if _, err := s.CreateTurn(ctx, "t", "s", "prompt", nil); err != nil {
 				t.Fatal(err)
 			}
+			if ok, err := s.ClaimSessionActiveTurn(ctx, "s", "t", "fixture", "claim"); err != nil || !ok {
+				t.Fatal(ok, err)
+			}
 			effects := 0
 			approvalIDs := []string{}
 			counts := []int{}

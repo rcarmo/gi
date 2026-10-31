@@ -8,7 +8,7 @@ import (
 // SettleToolResult commits the replay result and its terminal boundary together.
 // Callers must not publish completion or continue the provider before it succeeds.
 func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventType string, event map[string]any, messageID, content string, payload map[string]any) error {
-	if eventType != "tool.finished" && eventType != "tool.failed" {
+	if eventType != "tool.finished" && eventType != "tool.failed" && eventType != "tool.skipped" {
 		return fmt.Errorf("invalid tool settlement event %q", eventType)
 	}
 	eventJSON, err := marshalJSON(event)

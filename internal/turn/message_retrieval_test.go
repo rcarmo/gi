@@ -38,6 +38,9 @@ func TestMessageRetrievalNativeToolPhaseQuotesDataAndKeepsRuntimeScope(t *testin
 	if _, err := s.CreateTurnWithStatus(ctx, "retrieval-turn", "retrieval-A", "running", "retrieve", map[string]any{"model": "bootstrap"}); err != nil {
 		t.Fatal(err)
 	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "retrieval-A", "retrieval-turn", "fixture", "claim"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
 	calls := 0
 	if err := e.RegisterTool(tools.RegisteredTool{Name: "shell", Executor: func(context.Context, tools.ToolRuntime, goai.ToolCall) (string, error) {
 		calls++
