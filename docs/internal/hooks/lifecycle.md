@@ -110,7 +110,17 @@ Runtime configuration controls hook execution behavior:
 - `hooks.on_error` (default `error`)
 - `hooks.on_timeout` (default `continue`)
 
-Hook failures surface as typed execution errors with hook name/source, failure kind (`handler_error`, `timeout`, or `panic`), trace metadata, and durable audit rows when a turn/session context is available.
+Each invocation uses the earlier of the caller deadline and `hooks.timeout_ms`. A timeout or cancellation revokes response adoption. The configured policy controls whether the caller continues; it does not detach the callback's lifetime from the engine.
+
+Hook failures surface as typed execution errors with hook name/source, failure kind (`handler_error`, `timeout`, `panic`, `invalid_input`, or `invalid_response`), trace metadata, and durable audit rows when a turn/session context is available.
+
+## Input and lifetime ownership
+
+Handlers receive detached request data. Successful responses are detached before adoption. Maps, slices, pointers and raw JSON do not alias the caller's mutable request or the handler's retained response. Concrete scalar types are preserved. Functions, channels, hidden struct state and cyclic or excessively deep graphs are rejected. Return supported response fields to request a mutation; changing request data in place has no effect on the caller.
+
+Turn finalisation joins outstanding turn hook callbacks before committing its outcome. Terminal observer hooks are then joined before turn cleanup releases the claim. `Engine.Close` fences hook admission and joins all admitted callbacks, including timed-out handlers that ignore cancellation, before returning. Such a handler can delay shutdown indefinitely. In-process Go handlers are trusted code and must use the supplied context for external effects; Gi cannot revoke references captured outside the request envelope.
+
+The engine owns mounted process hooks until unregister, `ClearHooks` or `Close`. Teardown closes pipes, waits for the process and joins stderr/JSON readers. Cancellation interrupts blocked request writes as well as response reads. Unix teardown kills the process group, including wrapper descendants; other platforms terminate the direct process. A closed mount cannot restart.
 
 ## Audit and topics
 

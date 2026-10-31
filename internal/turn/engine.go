@@ -63,6 +63,11 @@ type Engine struct {
 	launchMu                          sync.Mutex     // host admission versus shutdown
 	closeOnce                         sync.Once
 	closeErr                          error
+	hookMu                            sync.Mutex
+	hooksClosed                       bool
+	hookRuns                          sync.WaitGroup
+	hookHosts                         map[string]*hookHostGroup
+	hookProcesses                     map[*mountedProcessHook]struct{}
 	runs                              sync.WaitGroup // in-flight runTurn goroutines
 	sideMu                            sync.Mutex     // serialises side admission with Close
 	sideRuns                          sync.WaitGroup
@@ -336,10 +341,10 @@ func (e *Engine) toolDefsForMetadata(metadata map[string]any) []goai.Tool {
 // Close continues joining after it expires.
 const shutdownGrace = 5 * time.Second
 
-// Close fences launches and joins main, side and maintenance hosts. Concurrent
-// callers share the shutdown barrier and its result. The grace interval controls
-// diagnostics only; it never releases a live main or side host.
-// TODO(#86): join hook hosts and separate graceful close from user abort.
+// Close fences launches and joins main, hook, side and maintenance hosts.
+// Concurrent callers share the shutdown barrier and its result. The grace
+// interval controls diagnostics only; it never releases a live owned host.
+// TODO(#86): separate graceful close from user abort.
 func (e *Engine) Close() error {
 	if e == nil {
 		return nil
@@ -350,6 +355,7 @@ func (e *Engine) Close() error {
 		e.launchMu.Unlock()
 		e.abortActiveTurns(shutdownGrace)
 		e.runs.Wait()
+		e.closeHookHosts()
 		// Fence side admission before waiting. Preserve main-turn finalisation
 		// ordering, then cancel background work and independent side requests.
 		e.sideMu.Lock()
@@ -868,7 +874,9 @@ func (e *Engine) AbortActiveAndRestoreTUITextDraft(ctx context.Context, sessionI
 func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx context.Context, cancel context.CancelFunc, active *runningTurn) {
 	defer cancel()
 	defer func() {
+		r.engine.joinTurnHooks(turnID, true)
 		r.cleanupTurnRun(sessionID, active.claimToken, active)
+		r.engine.forgetTurnHooks(turnID)
 	}()
 
 	run, err := r.setupTurnRun(ctx, s, sessionID, turnID)
@@ -2874,10 +2882,24 @@ func (r *HookRegistry) Infos() []HookInfo {
 }
 
 func (e *Engine) RegisterHook(name, source string, handler HookHandler) (func(), error) {
+	e.hookMu.Lock()
+	defer e.hookMu.Unlock()
+	if e.hooksClosed {
+		return nil, context.Canceled
+	}
 	return e.hooks.Register(name, source, handler)
 }
 
-func (e *Engine) ClearHooks() { e.hooks.Clear() }
+func (e *Engine) ClearHooks() {
+	e.hookMu.Lock()
+	e.hooks.Clear()
+	processes := e.hookProcesses
+	e.hookProcesses = nil
+	e.hookMu.Unlock()
+	for process := range processes {
+		process.close()
+	}
+}
 
 func nextHookTrace() HookTrace {
 	seq := hookTraceSeq.Add(1)
@@ -2915,11 +2937,19 @@ func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item re
 	if timeoutMS <= 0 {
 		timeoutMS = 1500
 	}
-	hookCtx := ctx
-	var cancel context.CancelFunc
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		hookCtx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
-		defer cancel()
+	hookCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+	defer cancel()
+	if err := hookCtx.Err(); err != nil {
+		return HookResponse{}, int(time.Since(startedAt).Milliseconds()), err
+	}
+	group, err := e.admitHookHost(req)
+	if err != nil {
+		return HookResponse{}, int(time.Since(startedAt).Milliseconds()), err
+	}
+	detached, err := detachHookEnvelope(req)
+	if err != nil {
+		e.finishHookHost(group)
+		return HookResponse{}, int(time.Since(startedAt).Milliseconds()), HookExecutionError{Name: req.Name, Source: item.source, Kind: "invalid_input", Trace: req.Trace, Cause: err}
 	}
 	type hookResult struct {
 		resp HookResponse
@@ -2927,18 +2957,27 @@ func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item re
 	}
 	resultCh := make(chan hookResult, 1)
 	go func() {
+		defer e.finishHookHost(group)
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				resultCh <- hookResult{err: HookExecutionError{Name: req.Name, Source: item.source, Kind: "panic", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: fmt.Errorf("%v", recovered)}}
 			}
 		}()
-		resp, err := item.handler(hookCtx, req)
+		resp, err := item.handler(hookCtx, detached)
 		if err != nil {
 			kind := "handler_error"
 			if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
 				kind = "timeout"
 			}
 			resultCh <- hookResult{err: HookExecutionError{Name: req.Name, Source: item.source, Kind: kind, Trace: req.Trace, TimeoutMS: timeoutMS, Cause: err}}
+			return
+		}
+		if hookCtx.Err() != nil {
+			return
+		} // the expired invocation has no response authority
+		resp, err = detachHookEnvelope(resp)
+		if err != nil {
+			resultCh <- hookResult{err: HookExecutionError{Name: req.Name, Source: item.source, Kind: "invalid_response", Trace: req.Trace, Cause: err}}
 			return
 		}
 		resultCh <- hookResult{resp: resp}
@@ -2951,6 +2990,12 @@ func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item re
 		}
 		return HookResponse{}, durationMS, HookExecutionError{Name: req.Name, Source: item.source, Kind: "timeout", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: hookCtx.Err()}
 	case res := <-resultCh:
+		if hookCtx.Err() != nil {
+			if ctx.Err() != nil {
+				return HookResponse{}, int(time.Since(startedAt).Milliseconds()), ctx.Err()
+			}
+			return HookResponse{}, int(time.Since(startedAt).Milliseconds()), HookExecutionError{Name: req.Name, Source: item.source, Kind: "timeout", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: hookCtx.Err()}
+		}
 		return res.resp, int(time.Since(startedAt).Milliseconds()), res.err
 	}
 }
@@ -3274,37 +3319,69 @@ type mountedProcessHook struct {
 	workspaceRoot string
 	spec          scripting.EventHookSpec
 
-	mu        sync.Mutex
-	started   bool
-	nextID    int
-	stderrGen uint64
-	cmd       *exec.Cmd
-	stdin     io.WriteCloser
-	stdout    io.ReadCloser
-	enc       *json.Encoder
-	dec       *json.Decoder
-	stderrMu  sync.Mutex
-	stderr    bytes.Buffer
+	mu          sync.Mutex
+	started     bool
+	closed      bool
+	ioHosts     sync.WaitGroup
+	stopContext func()
+	stderr      bytes.Buffer
+	nextID      int
+	stderrGen   uint64
+	cmd         *exec.Cmd
+	stdin       io.WriteCloser
+	stdout      io.ReadCloser
+	enc         *json.Encoder
+	dec         *json.Decoder
+	stderrMu    sync.Mutex
+	stderrPipe  io.ReadCloser
 }
 
-func newProcessHookHandler(workspaceRoot string, spec scripting.EventHookSpec) HookHandler {
+func (e *Engine) registerProcessHook(workspaceRoot string, spec scripting.EventHookSpec) (func(), error) {
 	mounted := &mountedProcessHook{workspaceRoot: workspaceRoot, spec: spec}
-	return func(ctx context.Context, req HookRequest) (HookResponse, error) {
-		return mounted.invoke(ctx, req)
+	e.hookMu.Lock()
+	if e.hooksClosed {
+		e.hookMu.Unlock()
+		return nil, context.Canceled
 	}
+	unregister, err := e.hooks.Register(spec.Name, tools.FirstNonEmpty(spec.Source, "process"), mounted.invoke)
+	if err != nil {
+		e.hookMu.Unlock()
+		return nil, err
+	}
+	if e.hookProcesses == nil {
+		e.hookProcesses = make(map[*mountedProcessHook]struct{})
+	}
+	e.hookProcesses[mounted] = struct{}{}
+	e.hookMu.Unlock()
+	return func() {
+		unregister()
+		mounted.close()
+		e.hookMu.Lock()
+		delete(e.hookProcesses, mounted)
+		e.hookMu.Unlock()
+	}, nil
 }
 
-func invokeProcessHook(ctx context.Context, workspaceRoot string, spec scripting.EventHookSpec, req HookRequest) (HookResponse, error) {
-	mounted := &mountedProcessHook{workspaceRoot: workspaceRoot, spec: spec}
-	return mounted.invoke(ctx, req)
+func (m *mountedProcessHook) close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.closed = true
+	m.closeLocked()
 }
 
 func (m *mountedProcessHook) invoke(ctx context.Context, req HookRequest) (HookResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.closed {
+		return HookResponse{}, context.Canceled
+	}
+	if err := ctx.Err(); err != nil {
+		return HookResponse{}, err
+	}
 	if err := m.ensureStartedLocked(ctx, req); err != nil {
 		return HookResponse{}, err
 	}
+	defer m.watchContextLocked(ctx)()
 	m.nextID++
 	invokeReq := processHookRPCRequest{
 		JSONRPC: "2.0",
@@ -3362,6 +3439,7 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 		return err
 	}
 	cmd := exec.Command(command, m.spec.Args...)
+	configureHookProcess(cmd)
 	cmd.Dir = resolveProcessHookDir(m.workspaceRoot, m.spec.CWD)
 	cmd.Env = appendProcessHookEnv(os.Environ(), m.spec, req, m.workspaceRoot)
 	stdin, err := cmd.StdinPipe()
@@ -3370,10 +3448,13 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		_ = stdin.Close()
 		return fmt.Errorf("process hook stdout: %w", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		_ = stdin.Close()
+		_ = stdout.Close()
 		return fmt.Errorf("process hook stderr: %w", err)
 	}
 	m.stderrMu.Lock()
@@ -3381,7 +3462,16 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 	m.stderrGen++
 	stderrGen := m.stderrGen
 	m.stderrMu.Unlock()
+	if err := cmd.Start(); err != nil {
+		_ = stdin.Close()
+		_ = stdout.Close()
+		_ = stderr.Close()
+		return fmt.Errorf("start process hook: %w", err)
+	}
+	m.stderrPipe = stderr
+	m.ioHosts.Add(1)
 	go func(gen uint64) {
+		defer m.ioHosts.Done()
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, stderr)
 		m.stderrMu.Lock()
@@ -3391,9 +3481,6 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 		}
 		_, _ = m.stderr.Write(buf.Bytes())
 	}(stderrGen)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start process hook: %w", err)
-	}
 	m.cmd = cmd
 	m.stdin = stdin
 	m.stdout = stdout
@@ -3401,6 +3488,7 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 	m.enc.SetEscapeHTML(false)
 	m.dec = json.NewDecoder(stdout)
 	m.started = true
+	defer m.watchContextLocked(ctx)()
 	m.nextID = 1
 	helloReq := processHookRPCRequest{
 		JSONRPC: "2.0",
@@ -3448,7 +3536,9 @@ func (m *mountedProcessHook) decodeResponseLocked(ctx context.Context) (processH
 		return processHookRPCResponse{}, fmt.Errorf("process hook decoder not initialized")
 	}
 	ch := make(chan decoded, 1)
+	m.ioHosts.Add(1)
 	go func(decoder *json.Decoder) {
+		defer m.ioHosts.Done()
 		var resp processHookRPCResponse
 		err := decoder.Decode(&resp)
 		ch <- decoded{resp: resp, err: err}
@@ -3468,7 +3558,35 @@ func (m *mountedProcessHook) stderrStringLocked() string {
 	return strings.TrimSpace(m.stderr.String())
 }
 
+// Cancellation must also interrupt request writes, not just response reads.
+// Join the watcher before Wait releases the PID, so it cannot signal a reused
+// process identity. All mutable mount state remains protected by m.mu.
+func (m *mountedProcessHook) watchContextLocked(ctx context.Context) func() {
+	cmd, stdin, stdout, stderr := m.cmd, m.stdin, m.stdout, m.stderrPipe
+	done := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		defer close(done)
+		killHookProcess(cmd)
+		_ = stdin.Close()
+		_ = stdout.Close()
+		_ = stderr.Close()
+	})
+	var once sync.Once
+	join := func() {
+		once.Do(func() {
+			if !stop() {
+				<-done
+			}
+		})
+	}
+	m.stopContext = join
+	return join
+}
 func (m *mountedProcessHook) closeLocked() {
+	if m.stopContext != nil {
+		m.stopContext()
+		m.stopContext = nil
+	}
 	m.stderrMu.Lock()
 	m.stderrGen++
 	m.stderrMu.Unlock()
@@ -3478,12 +3596,15 @@ func (m *mountedProcessHook) closeLocked() {
 	if m.stdout != nil {
 		_ = m.stdout.Close()
 	}
+	if m.stderrPipe != nil {
+		_ = m.stderrPipe.Close()
+	}
 	if m.cmd != nil {
-		if m.cmd.Process != nil {
-			_ = m.cmd.Process.Kill()
-		}
+		killHookProcess(m.cmd)
 		_ = m.cmd.Wait()
 	}
+	m.ioHosts.Wait()
+	m.stderrPipe = nil
 	m.started = false
 	m.cmd = nil
 	m.stdin = nil
@@ -3683,7 +3804,7 @@ func (e *Engine) registerDefaultTools() {
 	scriptTool.SetAgenticCallbacks(
 		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) (func(), error) {
 			if isProcessHookSpec(hook) {
-				return e.RegisterHook(hook.Name, tools.FirstNonEmpty(hook.Source, "process"), newProcessHookHandler(e.runtimeCfg.WorkspaceRoot, hook))
+				return e.registerProcessHook(e.runtimeCfg.WorkspaceRoot, hook)
 			}
 			return e.RegisterHook(hook.Name, tools.FirstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
 				payload := hookScriptPayload(req)
@@ -4465,6 +4586,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 			model = resolvedModel
 		}
 	}
+	r.engine.joinTurnHooks(turnID, false)
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	phase := terminalPhaseForStatus(status)
 	msgPayload := map[string]any{"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID}
