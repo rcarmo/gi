@@ -196,6 +196,16 @@ func initSchema(db *sql.DB) error {
 		`create trigger if not exists session_claim_token_insert after insert on session_active_turns begin
 			insert into session_claim_tokens(session_id,claim_token) values(new.session_id,new.claim_token);
 		end;`,
+		`create trigger if not exists session_claim_token_rotate after update of claim_token on session_active_turns when old.claim_token<>new.claim_token begin
+			insert into session_claim_tokens(session_id,claim_token) values(new.session_id,new.claim_token);
+		end;`,
+		// Retain recovery writer fencing after claim release. Legacy lost-claim
+		// cancellation may still retire a turn which has never been recovered.
+		`create table if not exists turn_recovery_fences (
+			turn_id text primary key references turns(id) on delete cascade,
+			session_id text not null references sessions(id) on delete cascade,
+			claim_token text not null
+		);`,
 		// Persist claim order after release; timestamps cannot fence replaced runs.
 		`create table if not exists session_last_run (
 			session_id text primary key references sessions(id) on delete cascade,

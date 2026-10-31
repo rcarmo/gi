@@ -2,10 +2,30 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 )
 
 const turnTerminalReceiptQuery = `select exists(select 1 from turns t join turn_events e on e.turn_id=t.id where t.id=? and coalesce(t.finished_at,'')<>'' and t.status in ('completed','failed','cancelled','aborted') and ((e.event_type='turn.finished' and json_extract(e.payload_json,'$.status')=t.status) or (e.event_type='turn.cancelled' and t.status='cancelled' and json_extract(e.payload_json,'$.queued')=1)))`
+
+func validateTerminalClaimTx(ctx context.Context, tx *sql.Tx, turnID, sessionID, token string) error {
+	if token == "" {
+		return nil
+	}
+	// A disappearing legacy claim cancels its host; that host must still be
+	// able to retire the abandoned turn. A recovery takeover, unlike mere
+	// release, permanently revokes the previous writer even after cleanup.
+	var replaced bool
+	if err := tx.QueryRowContext(ctx, `select
+	 exists(select 1 from session_active_turns where session_id=? and turn_id=? and claim_token<>?)
+	 or exists(select 1 from turn_recovery_fences where turn_id=? and (session_id<>? or claim_token<>?))`, sessionID, turnID, token, turnID, sessionID, token).Scan(&replaced); err != nil {
+		return err
+	}
+	if replaced {
+		return ErrQueueConflict
+	}
+	return nil
+}
 
 func (s *Store) HasTurnTerminalReceipt(ctx context.Context, turnID string) (bool, error) {
 	var exists bool
@@ -31,6 +51,9 @@ func (s *Store) StageTurnTerminal(ctx context.Context, turnID, sessionID string,
 		return "", false, err
 	}
 	defer tx.Rollback()
+	if err = validateTerminalClaimTx(ctx, tx, turnID, sessionID, in.ClaimToken); err != nil {
+		return "", false, err
+	}
 	var owner, previousPhase string
 	if err = tx.QueryRowContext(ctx, `select session_id,status,phase from turns where id=?`, turnID).Scan(&owner, &status, &previousPhase); err != nil {
 		return "", false, err

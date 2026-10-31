@@ -105,12 +105,13 @@ type sessionRunner struct {
 }
 
 type runningTurn struct {
-	turnID          string
-	claimToken      string
-	cancel          context.CancelFunc
-	done            chan struct{}
-	cancelled       <-chan struct{}
-	terminalPending bool // guarded by sharedSessionCoord.mu
+	turnID            string
+	claimToken        string
+	cancel            context.CancelFunc
+	done              chan struct{}
+	cancelled         <-chan struct{}
+	terminalPending   bool // guarded by sharedSessionCoord.mu
+	recoveredTerminal *store.TurnSettlement
 }
 
 type ExtensionInfo struct {
@@ -883,6 +884,13 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		r.engine.forgetTurnHooks(turnID)
 	}()
 
+	if active.recoveredTerminal != nil {
+		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
+		agentID, model := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
+		decision := active.recoveredTerminal
+		r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, decision.Status, decision.Message, decision.FailureKind, decision.Payload)
+		return
+	}
 	run, err := r.setupTurnRun(ctx, s, sessionID, turnID)
 	if err != nil {
 		agentID, model := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
@@ -894,7 +902,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		return
 	}
 	sessionID = run.sessionID
-	go r.heartbeatActiveTurn(ctx, sessionID, active.claimToken, cancel)
+	defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
 	r.runPreparedTurn(ctx, s, run)
 }
 
@@ -2044,6 +2052,9 @@ const InterruptedFailureKind = "recovery_interrupted"
 
 func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveTurnClaim) error {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
+	if handled, err := e.recoverStagedTerminal(opCtx, claim); handled || err != nil {
+		return err
+	}
 	disposition := recoveryDispositionForClaim(claim)
 	status := claim.Status
 	phase := claim.Phase
@@ -4597,7 +4608,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	if marker := turnOutcomeMarker(status, failureKind); marker != nil {
 		msgPayload["content_blocks"] = []any{marker}
 	}
-	decision := store.TurnSettlement{Status: status, Phase: phase, MessageID: store.NowID("msg"), Message: systemMsg, MessagePayload: msgPayload, FailureKind: failureKind, Payload: payload}
+	decision := r.ownedTerminalDecision(turnID, store.TurnSettlement{Status: status, Phase: phase, MessageID: store.NowID("msg"), Message: systemMsg, MessagePayload: msgPayload, FailureKind: failureKind, Payload: payload})
 	var settled store.TurnSettlement
 	for {
 		childrenStatus, pending, err := s.StageTurnTerminal(bgCtx, turnID, sessionID, decision)

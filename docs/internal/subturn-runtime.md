@@ -137,7 +137,9 @@ The parent commits `turn.terminal_staged` and phase `settling` before requesting
 
 Before terminal commit, the coordinator joins required child hosts through their hook/cleanup boundary and checks committed terminal receipts. Critical children may continue after a completed or non-timeout failed parent. Hard abort and timeout require all children. An abort received during a graceful join upgrades the decision and joins critical children too. Cancellation marks and their checkpoints commit atomically; a late cancellation cannot reopen a terminal child.
 
-Missing child receipts, ownership cycles or failed settlement leave the parent checkpoint and claim intact without a live worker. Recovery or review must resolve them before new work passes that ownership. The runtime does not force foreign children terminal or replay their effects. Automatic checkpoint recovery is tracked in #92.
+Missing child receipts, ownership cycles or failed settlement leave the parent checkpoint and claim intact without a live worker. A required foreign child with an active claim also lacks joined-host proof, even if its terminal receipt exists. Recovery or review must resolve these before new work passes that ownership. The runtime does not force foreign children terminal or replay their effects.
+
+Stale-claim recovery can resume a committed terminal decision under a fresh, atomically fenced claim. It preserves the staged message identity and usage, bypasses prompt setup and effect dispatch, and repeats the required-child join before terminal commit. Fresh heartbeats and live local hosts prevent takeover; superseded recovery writers cannot settle after the successor releases ownership. General generation/tool recovery and restart parking require further #92 work. Main hosts stop and join their heartbeat writers before claim cleanup.
 
 #### Cancellation audit markers
 When a parent-triggered child cancellation is requested, subturn metadata is patched with:

@@ -30,13 +30,37 @@ turn before the update.
 Missing foreign receipts, ownership cycles and failed settlement retain the
 parent claim and checkpoint, clear its in-process worker pointer and record a
 cleanup diagnostic. The coordinator does not manufacture child completion or
-replay effects. Automatic recovery of these checkpoints is work for #92.
-Ordinary `Close` still uses abort semantics until checkpoint-preserving close
-and recovery are implemented; #86 and #87 stay open.
+replay effects. Staged-terminal recovery uses the retained decision as described
+below. Ordinary `Close` still uses abort semantics until checkpoint-preserving
+close is implemented; #86 and #87 stay open.
 
 Async results arriving during a staged parent decision use orphan handling,
 with a notice that the parent was ending. They do not imply the parent terminal
 transaction has already committed.
+
+## Staged terminal recovery
+
+Recovery adopts a staged decision only after comparing the stale claim's token
+and heartbeat with the current SQLite row. Claim rotation, token-history
+registration, a persistent `turn_recovery_fences` writer fence and
+`turn.recovery_admitted` commit together. Fresh heartbeats, replaced claims and
+live local hosts prevent takeover. A failed transaction retains the old claim.
+
+The recovered main host bypasses prompt setup, routing and provider/tool
+dispatch. It preserves the staged message identity, payload and committed usage,
+then applies the existing child policy and terminal transaction. Explicit abort
+still wins. Missing or malformed decisions retain ownership without replay.
+Runtime terminal writers supply their claim incarnation; a superseded recovery
+writer cannot stage or settle even after the successor releases its claim.
+Legacy lost-claim cancellation can still retire an unrecovered abandoned turn.
+
+An unowned child with a terminal receipt and an active claim has no joined host
+proof. Its parent retains the checkpoint until that owner releases the claim.
+Each main host now stops and joins its heartbeat writer before claim cleanup.
+
+Generation/tool continuation, replay-safety pairs, retry sleep and
+progress-based restart parking still require #92/#90 implementation. Existing
+whole-turn holds cover those interruptions.
 
 ## Verification
 

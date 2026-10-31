@@ -183,6 +183,16 @@ test-provider-partials: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial' ./internal/turn
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestStreamProgress|TestCompatProgress' ./internal/inference
 
+.PHONY: test-durable-recovery
+test-durable-recovery: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestStagedTerminalRecovery|TestActiveEscapeRestoreFencesAndCancelsBeforeCleanup|TestHeartbeatCancelsTurnWhenActiveClaimDisappears|TestParentTerminal|TestParentAbort' ./internal/store ./internal/turn
+
+# Recovery classification must not materialise a long tool-progress journal.
+.PHONY: bench-durable-recovery
+RECOVERY_BENCH_TIME ?= 1s
+bench-durable-recovery: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkTerminalRecoveryClassification$$' -benchtime=$(RECOVERY_BENCH_TIME) -benchmem $(BENCH_ARGS) ./internal/turn
+
 # Bounded compatibility checks for the Piclaw v3.3.0 shared UI pin.
 .PHONY: test-ui-pin-compatibility
 test-ui-pin-compatibility: $(TESTPROFILE)
