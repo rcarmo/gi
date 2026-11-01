@@ -66,10 +66,32 @@ conservative abort settlement until they have verified continuation routes.
 Embedding hosts call `Engine.ResumeInterruptedWork(ctx)` after registering
 runtime tools/hooks and enabling MCP. HTTP and TUI startup do this explicitly;
 normal prompt admission also opens the barrier after waiting for MCP. The
-constructor does not dispatch retry continuations. Cancellation while waiting
+constructor does not dispatch effectful continuations. Cancellation while waiting
 still ends the lifecycle once. General generation/tool continuation and graceful
 close are separate work; see the
 [retry continuation audit](../implementation/audits/provider-retry-continuation.md).
+
+## Generation-ready continuation
+
+A version-one `generation.ready` frontier can resume before provider admission.
+The writer commits it after context preparation and verifies that all preceding
+provider/tool admissions have atomic receipts. Recovery rotates the stale claim
+and fences the old writer in the same transaction. Unsupported policies, later
+unrecognised events, cancellation and held/resolved failures reject the route.
+
+The resumed host bypasses prompt setup, start hooks and completed tools. It
+rebuilds context and tool definitions from current committed sources, reapplies
+accepted lifecycle policy, and retains iteration and repeated-tool-failure
+budgets. The current iteration limit cannot expand the saved limit. Current
+generation/request hooks run during fresh preparation; the old prepared request
+is never dispatched again.
+
+At most five automatic admissions are allowed without an intervening atomic
+provider/tool receipt. Rewriting a ready frontier is not progress. Exhaustion
+uses the existing conservative hold; explicit parked-checkpoint retry remains
+separate work. Graceful Close still preserves only the verified retry phases.
+Mid-request and mid-tool recovery remain conservative. See the
+[generation-ready audit](../implementation/audits/generation-ready-continuation.md).
 
 ## Explicit pre-admission recovery
 
