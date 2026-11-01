@@ -30,7 +30,13 @@ and interruption accounting. Unknown stages, malformed receipts and legacy
 frontiers retain conservative whole-turn holds. Explicit retry requeues a proven
 native root checkpoint on its original turn and resets only its crash budget;
 it never resubmits the prompt. Parent-linked or terminal frontiers stay held.
-Tool-aware `Close` and parent ownership still require further work.
+For a proven native tool batch, `Close` reserves a new writer incarnation and
+cancels the executor without publishing a terminal. Bounded SDK output and usage
+recorders remain bound to that physical host while it joins. Only after all owned
+work and the closing heartbeat join does the controller publish a queued tool
+checkpoint. Recorder or commit failures return an error and leave the reservation
+unpublished. Graceful shutdown neither spends nor resets the crash budget.
+Unlaunched-checkpoint cancellation and parent ownership still require further work.
 
 Executed, rejected, denied, skipped and hook-supplied tool results commit their
 terminal event and replay message in one transaction. Model continuation and

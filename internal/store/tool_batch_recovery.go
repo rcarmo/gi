@@ -78,6 +78,15 @@ func decodeToolCall(raw json.RawMessage) (goai.ToolCall, error) {
 	return call, err
 }
 
+// ContentBlock omits empty arguments in provider-message JSON. ToolCall does
+// not. Compare their empty objects semantically without changing prepared calls.
+func sameBatchToolCall(a, b goai.ToolCall) bool {
+	if len(a.Arguments) == 0 && len(b.Arguments) == 0 {
+		a.Arguments, b.Arguments = nil, nil
+	}
+	return reflect.DeepEqual(a, b)
+}
+
 // toolBatchCheckpointTx accepts only the append-only native batch grammar.
 // A phase or an isolated tool intent is not sufficient continuation evidence.
 func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID string) (*ToolBatchRecovery, error) {
@@ -191,6 +200,11 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 			continue
 		}
 		switch kind {
+		case "turn.checkpoint_queued":
+			if h.Phase != ClosedToolBatchPhase || !h.Checkpoint || h.Reason != "graceful_close" {
+				return nil, nil
+			}
+			continue
 		case "tool.batch_recovered", "tool.batch_resumed":
 			if h.Phase != "tool_batch" || !h.Checkpoint {
 				return nil, nil
@@ -256,7 +270,7 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 				return nil, nil
 			}
 			original, e := decodeToolCall(h.OriginalCall)
-			if e != nil || !reflect.DeepEqual(original, call.Original) {
+			if e != nil || !sameBatchToolCall(original, call.Original) {
 				return nil, nil
 			}
 			prepared, e := decodeToolCall(h.PreparedCall)

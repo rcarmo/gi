@@ -11,8 +11,8 @@ import (
 
 // Each reporter owns its coalescing timer. Closing joins any in-flight write;
 // terminal replacement bypasses pacing, even for an empty final result.
-func (r *sessionRunner) toolOutputReporter(ctx context.Context, turnID, sessionID, callID, occurrence string) (func(string, bool) error, func()) {
-	ctx = context.WithoutCancel(ctx)
+func (r *sessionRunner) toolOutputReporter(ctx context.Context, turnID, sessionID, callID, occurrence string) (func(string, bool) error, func() error) {
+	persist := r.checkpointProgressPersistence(ctx, sessionID, turnID)
 	var mu sync.Mutex
 	var workers sync.WaitGroup
 	var timer *time.Timer
@@ -30,7 +30,9 @@ func (r *sessionRunner) toolOutputReporter(ctx context.Context, turnID, sessionI
 			preview = map[string]any{"output_preview": "", "output_total_lines": 0, "output_preview_lines": 0, "output_truncated": false}
 		}
 		preview["tool_call_id"], preview["occurrence_id"], preview["final"] = callID, occurrence, final
-		failure = r.store.AppendTurnEffectEvent(ctx, turnID, sessionID, "tool.output", preview)
+		failure = persist(func(writeCtx context.Context) error {
+			return r.store.AppendTurnEffectEvent(writeCtx, turnID, sessionID, "tool.output", preview)
+		})
 		if failure != nil {
 			return
 		}
@@ -98,7 +100,7 @@ func (r *sessionRunner) toolOutputReporter(ctx context.Context, turnID, sessionI
 		mu.Unlock()
 		return err
 	}
-	close := func() {
+	close := func() error {
 		mu.Lock()
 		if !stopped {
 			stopped = true
@@ -108,8 +110,10 @@ func (r *sessionRunner) toolOutputReporter(ctx context.Context, turnID, sessionI
 			}
 		}
 		pending, previous = "", ""
+		err := failure
 		mu.Unlock()
 		workers.Wait()
+		return err
 	}
 	return report, close
 }

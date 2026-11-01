@@ -161,8 +161,19 @@ func TestCloseBarrierWaitsForCancellationIgnoringTool(t *testing.T) {
 			t.Fatal("tool settlement not joined")
 		}
 	}
-	total, err := s.TurnAccounting(ctx, run.TurnID)
-	if err != nil || total.Usage.Input != 17 {
-		t.Fatal("tool receipt lost at shutdown", total, err)
+	// Graceful Close preserves the native frontier rather than fabricating an
+	// abort receipt. Usage arriving during cancellation stays in its physical
+	// execution snapshot until checkpoint recovery settles that occurrence.
+	row, err := s.GetTurn(ctx, run.TurnID)
+	if err != nil || row.Status != "queued" || row.Phase != store.ClosedToolBatchPhase || row.FinishedAt != "" {
+		t.Fatal("checkpoint lost at shutdown", row, err)
+	}
+	var received int
+	if err = s.DB().QueryRow(`select json_extract(payload_json,'$.received_usage.input') from turn_events where turn_id=? and event_type='tool.usage_received' order by seq desc limit 1`, run.TurnID).Scan(&received); err != nil || received != 17 {
+		t.Fatal("received usage lost at shutdown", received, err)
+	}
+	terminal, err := s.HasTurnTerminalReceipt(ctx, run.TurnID)
+	if err != nil || terminal {
+		t.Fatal("Close invented terminal settlement", terminal, err)
 	}
 }
