@@ -18,7 +18,8 @@ func (r *sessionRunner) rejectInvalidToolArguments(ctx context.Context, s *store
 	if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.failed", event, store.NowID("msg"), text, payload); err != nil {
 		return err
 	}
-	goai.AppendToolResult(conv, call.ID, call.Name, text, true)
+	wire := toolResultWireCall(ctx, turnID, call)
+	goai.AppendToolResult(conv, wire.ID, wire.Name, text, true)
 	r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, errors.New(text), event)
 	return nil
 }

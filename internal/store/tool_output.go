@@ -8,7 +8,8 @@ import (
 // ToolOutputPreview follows the Piclaw 3.2.5 status window: the last
 // 100 source lines, then the final 12 KiB decoded as text. The decoded UTF-8
 // can be up to six bytes longer when orphaned continuation bytes become U+FFFD. This is
-// a preview, never model history.
+// a status preview, not a successful model result. Recovery may retain a
+// committed SDK-reported tail only inside an explicit interrupted error result.
 func ToolOutputPreview(text string) map[string]any {
 	text = strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n")
 	if text == "" {

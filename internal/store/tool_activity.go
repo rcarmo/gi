@@ -17,7 +17,7 @@ func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed 
 	var seq int64
 	err := tx.QueryRowContext(ctx, `select a.seq,a.payload_json,a.created_at,b.created_at,b.event_type,b.payload_json,t.status
  from turns t join turn_events a on a.id=(select id from turn_events where turn_id=t.id and event_type='tool.started' order by seq desc limit 1)
- left join turn_events b on b.id=(select id from turn_events where turn_id=t.id and seq>a.seq and event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted')
+ left join turn_events b on b.id=(select id from turn_events where turn_id=t.id and seq>a.seq and event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted','tool.interrupted')
  and coalesce(json_extract(payload_json,'$.tool_call_id'),'')=coalesce(json_extract(a.payload_json,'$.tool_call_id'),'')
  and coalesce(json_extract(payload_json,'$.occurrence_id'),'')=coalesce(json_extract(a.payload_json,'$.occurrence_id'),'') order by seq asc limit 1)
  where t.id=?`, turnID).Scan(&seq, &startRaw, &started, &ended, &endType, &endRaw, &status)
@@ -53,6 +53,10 @@ func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed 
 			state = "cancelled"
 		case "tool.aborted":
 			state = "aborted"
+		case "tool.interrupted":
+			state = "interrupted"
+			// Recovery observed uncertainty, not the instant execution stopped.
+			finished = ""
 		default:
 			state = "completed"
 		}

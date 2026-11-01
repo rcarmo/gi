@@ -24,7 +24,7 @@ type GenerationReadyCheckpoint struct {
 }
 
 func (p *GenerationReadyCheckpoint) Validate() error {
-	if p == nil || p.Version != 1 || p.Iteration < 1 || p.MaxIterations < p.Iteration || strings.TrimSpace(p.Model) == "" || p.RepeatedToolFailures < 0 {
+	if p == nil || p.Version != 1 || p.Iteration < 1 || p.MaxIterations < p.Iteration || strings.TrimSpace(p.Model) == "" || p.RepeatedToolFailures < 0 || p.RepeatedToolFailures >= RepeatedToolFailureLimit || (p.RepeatedToolFailures == 0) != (p.LastToolFailureSignature == "") {
 		return fmt.Errorf("invalid generation-ready continuation")
 	}
 	return p.Lifecycle.Validate()
@@ -93,7 +93,7 @@ func (s *Store) AcquireGenerationReadyRecovery(ctx context.Context, claim Active
 	}
 	// Rewriting preparation is not progress. Graceful restart is not a crash.
 	var recoveries int
-	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and event_type='generation.recovered' and seq>coalesce((select max(seq) from turn_events where turn_id=? and event_type in ('inference.settled','tool.finished','tool.failed','tool.skipped','tool.cancelled','tool.aborted')),0)`, claim.TurnID, claim.TurnID).Scan(&recoveries); err != nil {
+	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and event_type in ('generation.recovered','tool.batch_recovered') and seq>coalesce((select max(seq) from turn_events where turn_id=? and event_type in ('inference.settled','tool.finished','tool.failed','tool.skipped','tool.cancelled','tool.aborted')),0)`, claim.TurnID, claim.TurnID).Scan(&recoveries); err != nil {
 		return nil, err
 	}
 	if !closed && recoveries >= generationReadyRecoveryLimit {

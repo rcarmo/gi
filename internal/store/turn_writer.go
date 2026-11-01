@@ -38,6 +38,9 @@ func validateTurnWriterTx(ctx context.Context, tx *sql.Tx, sessionID, turnID str
 // AppendTurnEffectEvent fences an owned progress/boundary write in the same
 // transaction as its journal entry. Administrative events use AppendTurnEvent.
 func (s *Store) AppendTurnEffectEvent(ctx context.Context, turnID, sessionID, eventType string, payload map[string]any) error {
+	if eventType == "tool.output" {
+		payload = toolBatchEvent(ctx, turnID, payload)
+	}
 	ctx, err := admitToolSettlement(ctx)
 	if err != nil {
 		return err

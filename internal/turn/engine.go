@@ -120,6 +120,7 @@ type runningTurn struct {
 	recoveredTerminal    *store.TurnSettlement
 	recoveredRetry       *store.ProviderRetryCheckpoint
 	recoveredGeneration  *store.GenerationReadyCheckpoint
+	recoveredToolBatch   *store.ToolBatchRecovery
 }
 
 type ExtensionInfo struct {
@@ -885,6 +886,13 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		r.engine.forgetTurnHooks(turnID)
 	}()
 
+	if active.recoveredToolBatch != nil {
+		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
+		agentID, _ := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
+		state := active.recoveredToolBatch
+		r.runAgentLoopFromCheckpoint(ctx, s, turnID, sessionID, state.Checkpoint.Generation.Model, agentID, nil, nil, state.Checkpoint.Generation, state)
+		return
+	}
 	if active.recoveredGeneration != nil {
 		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
 		agentID, _ := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
@@ -2072,6 +2080,9 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		return err
 	}
 	if handled, err := e.recoverProviderRetry(opCtx, claim); handled || err != nil {
+		return err
+	}
+	if handled, err := e.recoverToolBatch(opCtx, claim); handled || err != nil {
 		return err
 	}
 	if handled, err := e.recoverGenerationReady(opCtx, claim); handled || err != nil {
@@ -4137,7 +4148,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	r.runAgentLoopFromCheckpoint(ctx, s, turnID, sessionID, model, agentID, initialSteering, retry, nil)
 }
 
-func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage, retry *store.ProviderRetryCheckpoint, generation *store.GenerationReadyCheckpoint) {
+func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage, retry *store.ProviderRetryCheckpoint, generation *store.GenerationReadyCheckpoint, batchRecovery ...*store.ToolBatchRecovery) {
 	maxIter := r.engine.runtimeCfg.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 64
@@ -4157,7 +4168,12 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 		if rec, err := s.GetTurn(r.engine.backgroundContext(), turnID); err == nil && isTerminalSubTurnStatus(rec.Status) {
 			agentEndReason = rec.Status
 		}
-		_, _ = r.engine.emitHook(r.engine.backgroundContext(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
+		cleanupCtx := context.WithoutCancel(ctx)
+		if err := s.AppendTurnEvent(cleanupCtx, turnID, sessionID, "turn.agent_end_started", map[string]any{"phase": "agent_end", "checkpoint": true}); err != nil {
+			log.Printf("persist agent-end attempt: %v", err)
+			return
+		}
+		_, _ = r.engine.emitHook(cleanupCtx, HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
 	}()
 	if generation != nil {
 		providerState, convCtx, err = r.restoreGenerationPreparation(ctx, s, turnID, sessionID, agentID, generation)
@@ -4202,6 +4218,10 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 
 		var prepareErr error
 		if !resumed || iter != firstIteration {
+			if err := s.AdmitTurnEffect(ctx, sessionID, turnID, "running", "generation.preparing", map[string]any{"phase": "generation_preparing", "iteration": iter, "checkpoint": true}); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist generation preparation: "+err.Error(), "persistence_error")
+				return
+			}
 			pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering, providerState)
 		}
 		if prepareErr != nil {
@@ -4213,6 +4233,26 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 			return
 		}
 		providerState.lastToolFailureSig, providerState.repeatedToolFailureCount = lastToolFailureSig, repeatedToolFailureCount
+		if len(batchRecovery) > 0 && batchRecovery[0] != nil && iter == firstIteration {
+			state := batchRecovery[0]
+			calls := make([]goai.ToolCall, len(state.Calls))
+			for i, saved := range state.Calls {
+				calls[i] = saved.Original
+			}
+			batchCtx := store.WithToolBatch(ctx, turnID, state.Checkpoint.ProviderOccurrenceID)
+			outcome := r.executeToolCallsPhase(batchCtx, s, turnID, sessionID, model, agentID, iter, convCtx, calls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, nil, state)
+			if outcome.terminated {
+				return
+			}
+			pendingSteering, lastToolFailureSig, repeatedToolFailureCount = outcome.pendingSteering, outcome.lastToolFailureSig, outcome.repeatedToolFailureCount
+			if !outcome.skipRemainingTools && len(pendingSteering) == 0 {
+				if err := r.emitToolBatchBoundary(batchCtx, s, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "tools"}}, "turn_end"); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist recovered tool turn-end boundary: "+err.Error(), "persistence_error")
+					return
+				}
+			}
+			continue
+		}
 		// A sleeping/woken retry already has its dedicated frontier. Ordinary
 		// generations commit only after preparation and all prior effects settle.
 		if retry == nil || iter != firstIteration {
@@ -4351,7 +4391,19 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 			return
 		}
 
-		outcome := r.executeToolCallsPhase(ctx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, nil)
+		callIDs := make([]string, len(toolCalls))
+		for i, call := range toolCalls {
+			callIDs[i] = call.ID
+		}
+		batch := &store.ToolBatchCheckpoint{Version: 1, ProviderOccurrenceID: result.OccurrenceID, CallIDs: callIDs,
+			Generation: &store.GenerationReadyCheckpoint{Version: 1, Model: model, Iteration: iter, MaxIterations: maxIter, LastToolFailureSignature: lastToolFailureSig, RepeatedToolFailures: repeatedToolFailureCount, Lifecycle: providerState.lifecyclePolicy()},
+		}
+		if err := s.SaveToolBatch(ctx, sessionID, turnID, batch); err != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool batch: "+err.Error(), "persistence_error")
+			return
+		}
+		batchCtx := store.WithToolBatch(ctx, turnID, result.OccurrenceID)
+		outcome := r.executeToolCallsPhase(batchCtx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, nil)
 		if outcome.terminated {
 			return
 		}
@@ -4361,7 +4413,10 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 		if outcome.skipRemainingTools || len(pendingSteering) > 0 {
 			continue
 		}
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "tools"}})
+		if err := r.emitToolBatchBoundary(batchCtx, s, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "tools"}}, "turn_end"); err != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool turn-end boundary: "+err.Error(), "persistence_error")
+			return
+		}
 	}
 
 	log.Printf("inference: max iterations (%d) reached for turn %s", maxIter, turnID)
@@ -5413,8 +5468,8 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 	return result, inferErr
 }
 
-func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter int, convCtx *goai.Context, toolCalls []goai.ToolCall, pendingSteering []store.SteeringMessage, lastToolFailureSig string, repeatedToolFailureCount int, totalUsage *goai.Usage) toolExecutionOutcome {
-	outcome := toolExecutionOutcome{
+func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter int, convCtx *goai.Context, toolCalls []goai.ToolCall, pendingSteering []store.SteeringMessage, lastToolFailureSig string, repeatedToolFailureCount int, totalUsage *goai.Usage, batchRecovery ...*store.ToolBatchRecovery) (outcome toolExecutionOutcome) {
+	outcome = toolExecutionOutcome{
 		pendingSteering:          pendingSteering,
 		lastToolFailureSig:       lastToolFailureSig,
 		repeatedToolFailureCount: repeatedToolFailureCount,
@@ -5426,19 +5481,72 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		}
 	}
 	if executableCalls > 0 {
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}})
+		if err := r.emitToolBatchBoundary(ctx, s, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}}, "execution_start"); err != nil {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool start boundary: "+err.Error(), "persistence_error")
+			outcome.terminated = true
+			return outcome
+		}
 		defer func() {
-			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}})
+			err := r.emitToolBatchBoundary(ctx, s, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"count": executableCalls}}, "execution_end")
+			if err != nil && !outcome.terminated && ctx.Err() == nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool end boundary: "+err.Error(), "persistence_error")
+				outcome.terminated = true
+			}
 		}()
 	}
 	responsePosted := false
-	for _, call := range toolCalls {
+	batchID := store.ToolBatchID(ctx, turnID)
+	for index, call := range toolCalls {
+		ctx := ctx
 		if ctx.Err() != nil {
 			r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled during tool execution", "")
 			outcome.terminated = true
 			return outcome
 		}
-
+		var saved *store.ToolBatchCall
+		if len(batchRecovery) > 0 && batchRecovery[0] != nil {
+			saved = &batchRecovery[0].Calls[index]
+		}
+		if saved != nil && saved.Done {
+			outcome.lastToolFailureSig, outcome.repeatedToolFailureCount = saved.FailureSignature, saved.RepeatedFailures
+			if saved.ResultEvent == "tool.finished" && saved.CompletesTurn {
+				responsePosted = true
+			}
+			if outcome.repeatedToolFailureCount >= repeatedToolFailureLimit {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Repeated tool failure guard restored from committed outcome", "repeated_tool_failure")
+				outcome.terminated = true
+				return outcome
+			}
+			continue
+		}
+		replayPrepared := false
+		var replayTool tools.RegisteredTool
+		if batchID != "" {
+			ctx = store.WithToolBatchSlot(ctx, turnID, batchID, index, iter, outcome.lastToolFailureSig, outcome.repeatedToolFailureCount, call)
+			if saved != nil && saved.Preparing {
+				var err error
+				replayPrepared, replayTool, err = r.resolveInterruptedToolCall(ctx, s, sessionID, turnID, agentID, iter, *saved, convCtx)
+				if err != nil {
+					status := "failed"
+					if ctx.Err() != nil {
+						status = "cancelled"
+					}
+					r.finishTurn(s, turnID, sessionID, agentID, model, status, "Persist interrupted tool disposition: "+err.Error(), "persistence_error")
+					outcome.terminated = true
+					return outcome
+				}
+				if !replayPrepared {
+					continue
+				}
+			}
+			if !replayPrepared {
+				if err := s.AdmitTurnEffect(ctx, sessionID, turnID, "waiting_on_tools", "tool.preparing", map[string]any{"phase": "tool", "iteration": iter, "checkpoint": true, "tool_call_id": call.ID}); err != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool preparation boundary: "+err.Error(), "persistence_error")
+					outcome.terminated = true
+					return outcome
+				}
+			}
+		}
 		if call.ArgumentsError != "" {
 			if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
@@ -5453,102 +5561,110 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			outcome.terminated = true
 			return outcome
 		}
-		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
-			log.Printf("hook tool_call error: %v", err)
+		if replayPrepared {
+			call = saved.Prepared
 		} else {
-			if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s aborted by hook", call.Name)); abortErr != nil {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": abortErr.Error()})
-				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
-				outcome.terminated = true
-				return outcome
-			}
-			if resp.ToolCall != nil {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
-				call = *resp.ToolCall
-				if call.Arguments == nil {
-					call.Arguments = map[string]any{}
+			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
+				log.Printf("hook tool_call error: %v", err)
+			} else {
+				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s aborted by hook", call.Name)); abortErr != nil {
+					r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": abortErr.Error()})
+					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
+					outcome.terminated = true
+					return outcome
 				}
-				if call.ArgumentsError != "" {
-					if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
-						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+				if resp.ToolCall != nil {
+					r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
+					call = *resp.ToolCall
+					if call.Arguments == nil {
+						call.Arguments = map[string]any{}
+					}
+					if call.ArgumentsError != "" {
+						if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
+							r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+							outcome.terminated = true
+							return outcome
+						}
+						continue
+					}
+				}
+				if injectedResult, ok := directToolResultFromHook(resp); ok {
+					displayResult, outputDiagnostics := boundToolOutput(injectedResult)
+					// Hook results have no execution boundary or measured duration.
+					hookOccurrence := store.NowID("tool")
+					if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished",
+						map[string]any{"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call", "failure_signature": "", "repeated_tool_failures": 0},
+						store.NowID("msg"), displayResult,
+						withOutputDiagnostics(map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "occurrence_id": hookOccurrence, "source": "hook", "hook_phase": "tool_call"}, outputDiagnostics)); err != nil {
+						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Hook result settlement failed: "+err.Error(), "persistence_error")
 						outcome.terminated = true
 						return outcome
 					}
+					r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
+					r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(injectedResult)})
+					r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
+					wireCall := toolResultWireCall(ctx, turnID, call)
+					goai.AppendToolResult(convCtx, wireCall.ID, wireCall.Name, displayResult, false)
+					outcome.lastToolFailureSig = ""
+					outcome.repeatedToolFailureCount = 0
 					continue
 				}
-			}
-			if injectedResult, ok := directToolResultFromHook(resp); ok {
-				displayResult, outputDiagnostics := boundToolOutput(injectedResult)
-				// Hook results have no execution boundary or measured duration.
-				hookOccurrence := store.NowID("tool")
-				if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished",
-					map[string]any{"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"},
-					store.NowID("msg"), displayResult,
-					withOutputDiagnostics(map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "occurrence_id": hookOccurrence, "source": "hook", "hook_phase": "tool_call"}, outputDiagnostics)); err != nil {
-					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Hook result settlement failed: "+err.Error(), "persistence_error")
-					outcome.terminated = true
-					return outcome
-				}
-				r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
-				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(injectedResult)})
-				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "occurrence_id": hookOccurrence, "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
-				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
-				outcome.lastToolFailureSig = ""
-				outcome.repeatedToolFailureCount = 0
-				continue
-			}
-			if resp.Block {
-				reason := internalx.StringValue(resp.Reason, "tool call blocked")
-				if err := r.settleSkippedTool(ctx, sessionID, turnID, agentID, iter, convCtx, call, reason, "Error: blocked by hook: "+reason, "tool_call"); err != nil {
-					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle denied tool: "+err.Error(), "persistence_error")
-					outcome.terminated = true
-					return outcome
-				}
-				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": reason})
-				continue
-			}
-		}
-		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
-			log.Printf("hook approve_tool error: %v", err)
-		} else {
-			if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s approval aborted by hook", call.Name)); abortErr != nil {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": abortErr.Error()})
-				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
-				outcome.terminated = true
-				return outcome
-			}
-			if resp.Block {
-				reason := internalx.StringValue(resp.Reason, "tool not approved")
-				if err := r.settleSkippedTool(ctx, sessionID, turnID, agentID, iter, convCtx, call, reason, "Error: blocked by hook: "+reason, "approve_tool"); err != nil {
-					r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle denied tool: "+err.Error(), "persistence_error")
-					outcome.terminated = true
-					return outcome
-				}
-				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": reason})
-				continue
-			}
-			if resp.ToolCall != nil {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
-				call = *resp.ToolCall
-				if call.Arguments == nil {
-					call.Arguments = map[string]any{}
-				}
-				if call.ArgumentsError != "" {
-					if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
-						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+				if resp.Block {
+					reason := internalx.StringValue(resp.Reason, "tool call blocked")
+					if err := r.settleSkippedTool(ctx, sessionID, turnID, agentID, iter, convCtx, call, reason, "Error: blocked by hook: "+reason, "tool_call"); err != nil {
+						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle denied tool: "+err.Error(), "persistence_error")
 						outcome.terminated = true
 						return outcome
 					}
+					r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": reason})
 					continue
 				}
 			}
-		}
+			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
+				log.Printf("hook approve_tool error: %v", err)
+			} else {
+				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s approval aborted by hook", call.Name)); abortErr != nil {
+					r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": abortErr.Error()})
+					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
+					outcome.terminated = true
+					return outcome
+				}
+				if resp.Block {
+					reason := internalx.StringValue(resp.Reason, "tool not approved")
+					if err := r.settleSkippedTool(ctx, sessionID, turnID, agentID, iter, convCtx, call, reason, "Error: blocked by hook: "+reason, "approve_tool"); err != nil {
+						r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Settle denied tool: "+err.Error(), "persistence_error")
+						outcome.terminated = true
+						return outcome
+					}
+					r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": reason})
+					continue
+				}
+				if resp.ToolCall != nil {
+					r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
+					call = *resp.ToolCall
+					if call.Arguments == nil {
+						call.Arguments = map[string]any{}
+					}
+					if call.ArgumentsError != "" {
+						if err := r.rejectInvalidToolArguments(ctx, s, sessionID, turnID, agentID, iter, convCtx, call); err != nil {
+							r.finishTurn(s, turnID, sessionID, agentID, model, "failed", err.Error(), "persistence_error")
+							outcome.terminated = true
+							return outcome
+						}
+						continue
+					}
+				}
+			}
 
+		}
 		toolOccurrenceID := store.NowID("tool")
 		registered, _ := r.engine.tools.GetRegistered(call.Name)
+		if replayPrepared {
+			registered = replayTool
+		}
 		if err := s.AdmitTurnEffect(ctx, sessionID, turnID, "waiting_on_tools", "tool.started", map[string]any{
 			"phase": "tool", "tool": call.Name, "checkpoint": true, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "iteration": iter, "preview": store.ToolActivityPreview(call.Arguments),
-			"original_call": json.RawMessage(originalCall), "prepared_call": call, "schema": registered.Parameters, "replay_safe": registered.ReplaySafe,
+			"original_call": json.RawMessage(originalCall), "prepared_call": call, "schema": registered.Parameters, "replay_safe": registered.ReplaySafe, "completes_turn": registered.CompletesTurn,
 		}); err != nil {
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Admit tool intent: "+err.Error(), "persistence_error")
 			outcome.terminated = true
@@ -5566,9 +5682,26 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		reportOutput, closeOutput := r.toolOutputReporter(ctx, turnID, sessionID, call.ID, toolOccurrenceID)
 		defer closeOutput()
 		images := &toolExtras{occurrenceID: toolOccurrenceID}
+		if batchID != "" {
+			images.usageRecorder = func(usage goai.Usage, unknown, returned bool) error {
+				return s.SaveToolUsage(ctx, sessionID, turnID, toolOccurrenceID, usage, unknown, returned)
+			}
+			r.mu.Lock()
+			if active := r.current; active != nil && active.turnID == turnID {
+				images.usageCaptureCancel = active.cancel
+			}
+			r.mu.Unlock()
+		}
 		executionStart := time.Now()
 		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images, registered)
 		durationMS := time.Since(executionStart).Milliseconds()
+		usageCaptureErr := images.finishUsageCapture()
+		if usageCaptureErr != nil && !isCancellationError(usageCaptureErr) {
+			r.persistStoppedTool(ctx, s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist received tool usage: "+usageCaptureErr.Error(), "persistence_error")
+			outcome.terminated = true
+			return outcome
+		}
 		if totalUsage != nil {
 			addUsage(totalUsage, images.usage) // model calls made by the tool (codemode models.*)
 		}
@@ -5599,9 +5732,11 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				outcome.terminated = true
 				return outcome
 			}
+			nextSig, nextCount := nextRepeatedToolFailureCount(outcome.lastToolFailureSig, outcome.repeatedToolFailureCount, call, toolErr)
 			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "error": toolErr.Error(),
+				"failure_signature": nextSig, "repeated_tool_failures": nextCount,
 			}, store.NowID("msg"), errText+images.transcriptSuffix(), images.withReplay(withOutputDiagnostics(map[string]any{
 				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
 			}, outputDiagnostics), errText, true)); err != nil {
@@ -5613,9 +5748,9 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output": errText}))
 
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
-			appendToolResultWithImages(convCtx, call, errText, true, images)
+			appendToolResultWithImages(convCtx, toolResultWireCall(ctx, turnID, call), errText, true, images)
 
-			outcome.lastToolFailureSig, outcome.repeatedToolFailureCount = nextRepeatedToolFailureCount(outcome.lastToolFailureSig, outcome.repeatedToolFailureCount, call, toolErr)
+			outcome.lastToolFailureSig, outcome.repeatedToolFailureCount = nextSig, nextCount
 			if outcome.repeatedToolFailureCount >= repeatedToolFailureLimit {
 				msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", outcome.repeatedToolFailureCount, toolErr)
 				log.Printf("tool [%s] repeated failure guard tripped: %s", call.Name, msg)
@@ -5624,19 +5759,28 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				return outcome
 			}
 		} else {
-			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, ToolResult: toolResult, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "is_error": false}}); err != nil {
-				log.Printf("hook tool_result error: %v", err)
-			} else {
-				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s result aborted by hook", call.Name)); abortErr != nil {
-					r.persistStoppedTool(ctx, s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
-					r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "reason": abortErr.Error()})
-					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
-					outcome.terminated = true
-					return outcome
-				}
-				if resp.ToolResult != nil {
-					r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "output_length": len(*resp.ToolResult)})
-					toolResult = *resp.ToolResult
+			runResultHook, claimErr := r.claimToolBatchHook(ctx, s, HookRequest{SessionID: sessionID, TurnID: turnID}, fmt.Sprintf("result:%d", index))
+			if claimErr != nil {
+				r.persistStoppedTool(ctx, s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist tool result-policy boundary: "+claimErr.Error(), "persistence_error")
+				outcome.terminated = true
+				return outcome
+			}
+			if runResultHook {
+				if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, ToolResult: toolResult, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "is_error": false}}); err != nil {
+					log.Printf("hook tool_result error: %v", err)
+				} else {
+					if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s result aborted by hook", call.Name)); abortErr != nil {
+						r.persistStoppedTool(ctx, s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
+						r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "reason": abortErr.Error()})
+						r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
+						outcome.terminated = true
+						return outcome
+					}
+					if resp.ToolResult != nil {
+						r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "output_length": len(*resp.ToolResult)})
+						toolResult = *resp.ToolResult
+					}
 				}
 			}
 			displayResult, outputDiagnostics := boundToolOutput(toolResult)
@@ -5649,6 +5793,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			if err := s.SettleToolResult(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"duration_ms": durationMS, "tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "output_length": len(toolResult),
+				"failure_signature": "", "repeated_tool_failures": 0,
 			}, store.NowID("msg"), displayResult+images.transcriptSuffix(), images.withReplay(withOutputDiagnostics(map[string]any{
 				"duration_ms": durationMS, "occurrence_id": toolOccurrenceID, "kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
 			}, outputDiagnostics), displayResult, false)); err != nil {
@@ -5660,10 +5805,10 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, images.withDetails(map[string]any{"occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult}))
 
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
-			appendToolResultWithImages(convCtx, call, displayResult, false, images)
+			appendToolResultWithImages(convCtx, toolResultWireCall(ctx, turnID, call), displayResult, false, images)
 			r.engine.declareLoadedTools(convCtx, images.added)
 
-			if tool, ok := r.engine.tools.GetRegistered(call.Name); ok && tool.CompletesTurn {
+			if registered.CompletesTurn {
 				responsePosted = true
 			}
 			outcome.lastToolFailureSig = ""

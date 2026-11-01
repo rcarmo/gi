@@ -43,13 +43,13 @@ func (s *Store) ListTerminalToolResults(ctx context.Context, sessionID string) (
 
 // Shared occurrence fencing for terminal display projections.
 const terminalToolEventsSQL = `select e.id,e.turn_id,e.event_type,e.payload_json,e.created_at
- from turn_events e where e.session_id=? and e.event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted')
- and json_type(e.payload_json,'$.duration_ms') in ('integer','real')
+ from turn_events e where e.session_id=? and e.event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted','tool.interrupted')
+ and (e.event_type='tool.interrupted' or json_type(e.payload_json,'$.duration_ms') in ('integer','real'))
  and exists(select 1 from turn_events a where a.turn_id=e.turn_id and a.seq<e.seq and a.event_type='tool.started'
  and json_extract(a.payload_json,'$.occurrence_id')=json_extract(e.payload_json,'$.occurrence_id')
  and coalesce(json_extract(a.payload_json,'$.tool_call_id'),'')=coalesce(json_extract(e.payload_json,'$.tool_call_id'),''))
  and not exists(select 1 from turn_events b where b.turn_id=e.turn_id and b.seq<e.seq
- and b.event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted')
+ and b.event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted','tool.interrupted')
  and json_extract(b.payload_json,'$.occurrence_id')=json_extract(e.payload_json,'$.occurrence_id')
  and coalesce(json_extract(b.payload_json,'$.tool_call_id'),'')=coalesce(json_extract(e.payload_json,'$.tool_call_id'),''))
  and not exists(select 1 from messages m where m.session_id=e.session_id
