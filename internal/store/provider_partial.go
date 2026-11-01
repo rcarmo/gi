@@ -146,9 +146,23 @@ func (s *Store) SealProviderPartial(ctx context.Context, turnID, sessionID, occu
 	payload["receipt_error"] = reason
 	payload["partial"] = true
 	payload["interrupted"] = true
+	usage := providerPartialUsage(record)
+	return s.SettleProviderAttempt(ctx, turnID, sessionID, occurrenceID, ProviderReceipt{MessageID: ProviderMessageID(occurrenceID), Content: providerPartialText(record), Payload: payload, Usage: usage, Unknown: true, Decision: "interrupted_boundary", Error: reason})
+}
+
+// A returned physical outcome may carry newer counters than committed progress.
+// It remains unadopted; the interruption receipt is still uncertain.
+func providerPartialUsage(record *ProviderPartialRecord) *goai.Usage {
+	if value, ok := record.Payload["provider_received_usage"]; ok {
+		raw, err := json.Marshal(value)
+		var usage *goai.Usage
+		if err == nil && json.Unmarshal(raw, &usage) == nil && usage != nil && ValidateReceiptUsage(usage) == nil && (usage.Input != 0 || usage.Output != 0 || usage.CacheRead != 0 || usage.CacheWrite != 0 || usage.TotalTokens != 0 || usage.CacheWrite1h != 0 || usage.Reasoning != 0) {
+			return usage
+		}
+	}
 	usage := record.Message.Usage
 	if ValidateReceiptUsage(usage) != nil {
-		usage = nil
+		return nil
 	}
-	return s.SettleProviderAttempt(ctx, turnID, sessionID, occurrenceID, ProviderReceipt{MessageID: ProviderMessageID(occurrenceID), Content: providerPartialText(record), Payload: payload, Usage: usage, Unknown: true, Decision: "interrupted_boundary", Error: reason})
+	return usage
 }

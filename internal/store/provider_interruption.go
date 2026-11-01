@@ -111,10 +111,7 @@ func interruptProviderTx(ctx context.Context, tx *sql.Tx, sessionID, turnID, req
 		receipt.Payload = record.Payload
 		receipt.Payload["receipt_error"] = reason
 		receipt.Payload["interrupted"] = true
-		receipt.Usage = record.Message.Usage
-		if ValidateReceiptUsage(receipt.Usage) != nil {
-			receipt.Usage = nil
-		}
+		receipt.Usage = providerPartialUsage(record)
 	}
 	if err := validateProviderReceipt(requestID, receipt); err != nil {
 		return err

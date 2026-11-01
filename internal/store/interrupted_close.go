@@ -82,6 +82,9 @@ func (s *Store) CommitInterruptedClose(ctx context.Context, sessionID, turnID, t
 	if owner != token || worker != InterruptedClosingWorker {
 		return ErrQueueConflict
 	}
+	if err = sealClosingProviderProgressTx(WithTurnWriter(ctx, sessionID, turnID, token), tx, sessionID, turnID); err != nil {
+		return err
+	}
 	if err = upsertTurnFailure(ctx, tx, turnID, sessionID, failure.FailureKind, "review", failure.Summary); err != nil {
 		return err
 	}
@@ -101,4 +104,41 @@ func (s *Store) CommitInterruptedClose(ctx context.Context, sessionID, turnID, t
 		return err
 	}
 	return tx.Commit()
+}
+
+// The shared join barrier has ended these physical hosts. Seal captured progress
+// even if Close won the writer fence just before normal receipt settlement.
+func sealClosingProviderProgressTx(ctx context.Context, tx *sql.Tx, sessionID, turnID string) error {
+	rows, err := tx.QueryContext(ctx, `select distinct json_extract(e.payload_json,'$.request_id'),coalesce(json_extract(e.payload_json,'$.iteration'),0) from turn_events e
+where e.turn_id=? and e.session_id=? and e.event_type='inference.started'
+and not exists(select 1 from turn_receipts r where r.turn_id=e.turn_id and r.kind='provider' and r.occurrence_id=json_extract(e.payload_json,'$.request_id'))
+and exists(select 1 from messages m where m.session_id=e.session_id and json_extract(m.payload_json,'$.turn_id')=e.turn_id and json_extract(m.payload_json,'$.request_id')=json_extract(e.payload_json,'$.request_id') and json_extract(m.payload_json,'$.partial')=1)`, turnID, sessionID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	type pending struct {
+		id        string
+		iteration int
+	}
+	var attempts []pending
+	for rows.Next() {
+		var p pending
+		if err = rows.Scan(&p.id, &p.iteration); err != nil {
+			return err
+		}
+		attempts = append(attempts, p)
+	}
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	if err = rows.Close(); err != nil {
+		return err
+	}
+	for _, p := range attempts {
+		if err = interruptProviderTx(ctx, tx, sessionID, turnID, p.id, p.iteration); err != nil {
+			return err
+		}
+	}
+	return nil
 }

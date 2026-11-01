@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	goai "github.com/rcarmo/go-ai"
 	"strings"
 	"testing"
@@ -98,5 +100,61 @@ func TestProviderPartialTerminalUpdateRollbackAndBounds(t *testing.T) {
 	}
 	if err = s.SaveProviderPartial(ctx, "t", "s", "huge", "huge", partialPayload(strings.Repeat("x", 513<<10))); err == nil {
 		t.Fatal("unbounded partial accepted")
+	}
+}
+
+func TestProviderPartialReceivedTerminalReopenPrivacyAndUsage(t *testing.T) {
+	for _, input := range []int{23, 0, -1} {
+		t.Run(fmt.Sprintf("input%d", input), func(t *testing.T) {
+			s, path := settlementFixture(t)
+			ctx := context.Background()
+			if err := s.AppendTurnEvent(ctx, "t", "s", "inference.started", map[string]any{"request_id": "request"}); err != nil {
+				t.Fatal(err)
+			}
+			payload := partialPayload("visible committed prefix")
+			payload["provider_received_terminal"] = &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Usage: &goai.Usage{Input: 23}, Content: []goai.ContentBlock{{Type: "text", Text: "private late terminal"}}}
+			payload["provider_received_usage"] = &goai.Usage{Input: input}
+			if err := s.SaveProviderPartial(ctx, "t", "s", "request", "visible committed prefix", payload); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Close(); err != nil {
+				t.Fatal(err)
+			}
+			s, err := Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			page, err := s.PageConversationMessages(ctx, "s", "", "", 50)
+			if err != nil || len(page.Messages) != 1 {
+				t.Fatal(page, err)
+			}
+			found, err := s.SearchConversationMessages(ctx, "s", "visible", "current", 50, 0)
+			if err != nil || len(found) != 1 {
+				t.Fatal(found, err)
+			}
+			for _, projected := range []any{page, found, conversationPayload(payload)} {
+				raw, err := json.Marshal(projected)
+				if err != nil || strings.Contains(string(raw), "private late terminal") || strings.Contains(string(raw), "provider_received_terminal\"") {
+					t.Fatal("terminal leaked into conversation", string(raw), err)
+				}
+			}
+			rawMessages, err := s.ListMessages(ctx, "s")
+			if err != nil || len(rawMessages) != 1 || rawMessages[0].Payload["provider_received_terminal"] == nil {
+				t.Fatal("raw diagnostic lost", rawMessages, err)
+			}
+			sealed, err := s.SealProviderPartial(ctx, "t", "s", "request", "closed owner joined")
+			want := 17
+			if input == 23 {
+				want = 23
+			}
+			if err != nil || !sealed.Applied || sealed.Accounting.Unknown != 1 || sealed.Accounting.Usage.Input != want {
+				t.Fatal(sealed, err)
+			}
+			again, err := s.SealProviderPartial(ctx, "t", "s", "request", "repeat")
+			if err != nil || again.Applied || again.Accounting.Usage.Input != want {
+				t.Fatal("duplicated physical usage", again, err)
+			}
+		})
 	}
 }

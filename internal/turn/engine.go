@@ -4333,6 +4333,12 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 			}
 			return
 		}
+		if r.checkpointClosing(turnID) {
+			if result != nil && (result.Message != nil || !providerUsageUnknown(result.Usage)) {
+				_ = r.captureClosingProviderOutcome(ctx, s, sessionID, turnID, model, result)
+			}
+			return
+		}
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {
 			if result != nil && result.OccurrenceID != "" {
@@ -4559,6 +4565,10 @@ func (r *sessionRunner) settleProviderResponse(ctx context.Context, s *store.Sto
 	measurement := responseContextMeasurement(model, result.Usage, iteration)
 	settled, err := s.SettleProviderAttempt(context.WithoutCancel(ctx), turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: result.Usage, Unknown: providerUsageUnknown(result.Usage), Measurement: measurement, Decision: decision, Iteration: iteration})
 	if err != nil {
+		// Close may reserve between the caller's check and this settlement.
+		if r.checkpointClosing(turnID) {
+			_ = r.captureClosingProviderOutcome(ctx, s, sessionID, turnID, model, result)
+		}
 		return err
 	}
 	if settled.Applied {
@@ -4670,6 +4680,9 @@ func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Stor
 		next = retryWait[0]
 	}
 	settled, err := s.SettleProviderAttempt(bgCtx, turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: usage, Unknown: partial || result.Incomplete || usageFromPartial || providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration, RetryWait: next})
+	if err != nil && r.checkpointClosing(turnID) {
+		_ = r.captureClosingProviderOutcome(ctx, s, sessionID, turnID, model, result)
+	}
 	if err == nil && next != nil && settled.Decision != "cancelled" {
 		if settled.RetryWait == nil {
 			return store.ErrQueueConflict

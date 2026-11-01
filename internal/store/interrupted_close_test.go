@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+
+	goai "github.com/rcarmo/go-ai"
 )
 
 func TestInterruptedCloseFencesAndAtomicallyHolds(t *testing.T) {
@@ -95,5 +97,49 @@ func TestInterruptedClosePreservesUserCancellation(t *testing.T) {
 	_, token, err := s.GetSessionActiveTurn(ctx, "s")
 	if err != nil || token != old {
 		t.Fatal(token, err)
+	}
+}
+
+func TestInterruptedCloseSealsFencedProviderOutcomeAtomically(t *testing.T) {
+	s, ctx, _ := generationReadyFixture(t)
+	base, err := s.TurnAccounting(ctx, "t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AppendTurnEvent(ctx, "t", "s", "inference.started", map[string]any{"request_id": "pending", "iteration": 2}); err != nil {
+		t.Fatal(err)
+	}
+	payload := partialPayload("committed prefix")
+	payload["provider_received_usage"] = &goai.Usage{Input: 23}
+	if err = s.SaveProviderPartial(ctx, "t", "s", "pending", "committed prefix", payload); err != nil {
+		t.Fatal(err)
+	}
+	_, old, err := s.GetSessionActiveTurn(ctx, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ReserveInterruptedClose(ctx, "s", "t", old, "closing"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
+	if _, err = s.DB().Exec(`create trigger reject_hold before update on turns when new.phase='held_for_retry_or_skip' begin select raise(abort,'hold rejected');end`); err != nil {
+		t.Fatal(err)
+	}
+	failure := TurnFailure{FailureKind: "recovery_interrupted", Summary: "joined fenced outcome"}
+	if err = s.CommitInterruptedClose(ctx, "s", "t", "closing", failure); err == nil {
+		t.Fatal("hold fault lost")
+	}
+	after, err := s.TurnAccounting(ctx, "t")
+	if err != nil || after.Usage.Input != base.Usage.Input {
+		t.Fatal("receipt escaped failed hold transaction", after, err)
+	}
+	if _, err = s.DB().Exec(`drop trigger reject_hold`); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CommitInterruptedClose(ctx, "s", "t", "closing", failure); err != nil {
+		t.Fatal(err)
+	}
+	after, err = s.TurnAccounting(ctx, "t")
+	if err != nil || after.Usage.Input != base.Usage.Input+23 || after.Unknown != base.Unknown+1 {
+		t.Fatal("fenced received outcome lost", base, after, err)
 	}
 }

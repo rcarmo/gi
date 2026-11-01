@@ -17,7 +17,7 @@ import (
 )
 
 func TestGenerationCloseJoinsThenResumesWithoutLifecycleReplay(t *testing.T) {
-	for _, mode := range []string{"ready", "silent", "partial", "commit-fault", "invalid"} {
+	for _, mode := range []string{"ready", "silent", "partial", "empty", "no-terminal-usage", "commit-fault", "invalid"} {
 		t.Run(mode, func(t *testing.T) {
 			s := openTestStore(t)
 			defer s.Close()
@@ -54,7 +54,7 @@ func TestGenerationCloseJoinsThenResumesWithoutLifecycleReplay(t *testing.T) {
 			withStreamWithToolsHookStub(t, func(_ context.Context, model string, conv *goai.Context, _ func(map[string]any), hooks *inference.StreamHooks) (*inference.StreamResult, error) {
 				n := requests.Add(1)
 				if mode != "ready" && n == 1 {
-					if mode == "partial" {
+					if mode == "partial" || mode == "empty" || mode == "no-terminal-usage" {
 						partial := &goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: "committed interrupted prefix"}, {Type: "thinking", Thinking: "private thought", ThinkingSignature: "preserved signature"}}, Usage: &goai.Usage{Input: 17}}
 						if err := hooks.OnProgress(partial); err != nil {
 							return nil, err
@@ -62,7 +62,14 @@ func TestGenerationCloseJoinsThenResumesWithoutLifecycleReplay(t *testing.T) {
 					}
 					close(entered)
 					<-release // Deliberately ignore cancellation.
-					return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: "late response must not commit"}}, StopReason: goai.StopReasonStop, Usage: &goai.Usage{Input: 19}}}, nil
+					message := &goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: "late response must not commit"}}, StopReason: goai.StopReasonStop, Usage: &goai.Usage{Input: 19}}
+					if mode == "empty" {
+						message.Content = nil
+					}
+					if mode == "no-terminal-usage" {
+						message.Usage = nil
+					}
+					return &inference.StreamResult{Message: message}, nil
 				}
 				raw, err := json.Marshal(conv)
 				if err != nil {
@@ -163,6 +170,24 @@ func TestGenerationCloseJoinsThenResumesWithoutLifecycleReplay(t *testing.T) {
 			} else if err != nil || row.Status != "queued" || row.Phase != store.ClosedGenerationReadyPhase || row.FinishedAt != "" {
 				t.Fatal(row, err)
 			}
+			if mode != "ready" {
+				var received int
+				wantReceived := 19
+				if mode == "no-terminal-usage" {
+					wantReceived = 0
+				}
+				if err = s.DB().QueryRow(`select coalesce(json_extract(payload_json,'$.provider_received_usage.input'),0) from messages where session_id='A' and role='assistant' order by created_at,id limit 1`).Scan(&received); err != nil || received != wantReceived {
+					t.Fatal("received terminal usage lost", received, err)
+				}
+				page, err := s.PageConversationMessages(ctx, "A", "", "", 50)
+				if err != nil {
+					t.Fatal(err)
+				}
+				raw, err := json.Marshal(page)
+				if err != nil || strings.Contains(string(raw), "late response must not commit") {
+					t.Fatal("raw terminal leaked into conversation", err)
+				}
+			}
 			wantRequests := int32(1)
 			if mode == "ready" {
 				wantRequests = 0
@@ -228,9 +253,11 @@ func TestGenerationCloseJoinsThenResumesWithoutLifecycleReplay(t *testing.T) {
 			unknown, input := 0, 11
 			if mode != "ready" {
 				unknown = 1
-			}
-			if mode == "partial" {
-				input += 17
+				if mode == "no-terminal-usage" {
+					input += 17
+				} else {
+					input += 19
+				} // Received counters supersede the earlier partial17.
 			}
 			if err != nil || accounting.Unknown != unknown || accounting.Usage.Input != input {
 				t.Fatal(accounting, err)
