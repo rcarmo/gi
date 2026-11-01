@@ -44,6 +44,22 @@ there is no new browser recovery control.
   invalidations; consumers must read stored state rather than count events as
   exactly-once receipts.
 
+## Automatic provider retry continuation
+
+A committed retry wait with versioned lifecycle policy can resume after a stale
+owner is fenced. It keeps its iteration, retry attempt, absolute deadline and
+tool-failure budget. Current context, settings and tool definitions are rebuilt;
+setup, the original prompt, start hooks and settled tools are not replayed.
+Legacy/invalid policy and unknown effects stay held for review.
+
+Embedding hosts call `Engine.ResumeInterruptedWork(ctx)` after registering
+runtime tools/hooks and enabling MCP. HTTP and TUI startup do this explicitly;
+normal prompt admission also opens the barrier after waiting for MCP. The
+constructor does not dispatch retry continuations. Cancellation while waiting
+still ends the lifecycle once. General generation/tool continuation and graceful
+close are separate work; see the
+[retry continuation audit](../implementation/audits/provider-retry-continuation.md).
+
 ## Explicit pre-admission recovery
 
 A crashed reservation without confirmed admission stays `retry_pending`.

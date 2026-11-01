@@ -1,8 +1,9 @@
 # Fresh provider retry preparation
 
 A provider retry now rebuilds its inputs from committed sources before host
-entry. Restart recovery still parks interrupted work. #90 is closed; #92 tracks
-remaining checkpoint continuation.
+entry. Versioned retry waits can also continue after restart; see
+[retry continuation](provider-retry-continuation.md). #90 is closed; #92 tracks
+general checkpoint continuation and interruption parking.
 
 ## Generation inputs
 
@@ -80,5 +81,6 @@ The measured full-policy cost was about 19 ms per local fixture turn; this
 experiment does not establish live-provider latency.
 
 Raw captures, matching binaries, fixtures and disposable logs are removed after
-analysis. Restart-safe retry sleep and general checkpoint continuation still
-need durable continuation preparation and interruption/replay-safety gates.
+analysis. Restart-safe retry sleep is covered by the separate continuation
+increment; general checkpoint continuation still needs interruption/replay-safety
+gates.

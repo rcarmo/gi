@@ -341,6 +341,7 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 	out.Decision, _ = decision["next"].(string)
 	if out.Decision == "retry_wait" {
 		p := *receipt.RetryWait
+		p.Lifecycle = receipt.RetryWait.Lifecycle.Clone()
 		out.RetryWait = &p
 	}
 	return out, nil

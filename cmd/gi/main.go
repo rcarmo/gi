@@ -158,6 +158,9 @@ func run() error {
 	engine.EnableMCP() // Pi mcp.json servers (.gi first, then .pi); connects in the background
 	defer engine.Close()
 	server := giweb.New(s, engine, runtimeCfg)
+	if err := engine.ResumeInterruptedWork(processCtx); err != nil {
+		log.Printf("checkpoint recovery: %v", err)
+	}
 	server.StartInboundWorkDispatcher(processCtx)
 	if err := server.StartWorkspaceIndex(processCtx); err != nil {
 		log.Printf("workspace index disabled: %v", err)

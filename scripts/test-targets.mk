@@ -185,7 +185,7 @@ test-provider-partials: $(TESTPROFILE)
 
 .PHONY: test-durable-recovery
 test-durable-recovery: $(TESTPROFILE)
-	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestTurnWriter|TestShellFinalizationFailureKeepsClaimAndQueuedWork|TestConcurrentSubmitDifferentSessionsRunsConcurrently|TestStagedTerminalRecovery|TestActiveEscapeRestoreFencesAndCancelsBeforeCleanup|TestHeartbeatCancelsTurnWhenActiveClaimDisappears|TestParentTerminal|TestParentAbort' ./internal/store ./internal/turn
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestTurnWriter|Test.*Close|TestProviderRetryRecovery|TestShellFinalizationFailureKeepsClaimAndQueuedWork|TestConcurrentSubmitDifferentSessionsRunsConcurrently|TestStagedTerminalRecovery|TestActiveEscapeRestoreFencesAndCancelsBeforeCleanup|TestHeartbeatCancelsTurnWhenActiveClaimDisappears|TestParentTerminal|TestParentAbort' ./internal/store ./internal/turn
 
 .PHONY: test-bootstrap-settlement test-bootstrap-settlement-profile
 test-bootstrap-settlement: $(TESTPROFILE)
@@ -321,6 +321,10 @@ RETRY_PREPARATION_COUNT ?= 1
 .PHONY: test-provider-retry-preparation
 test-provider-retry-preparation: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=$(RETRY_PREPARATION_COUNT) ./internal/turn -run '^TestProviderRetryFreshCommittedPreparationAndSubsequentToolPhase$$'
+
+.PHONY: test-provider-retry-running-guard
+test-provider-retry-running-guard: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/store -run '^TestProviderRetryRunningGuard$$' -bench '^BenchmarkProviderRetryRunningGuard$$' -benchmem -benchtime=1s
 
 test-provider-retry:
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/config ./internal/store ./internal/turn ./internal/tui -run 'TestProviderRetry|TestProviderHeaderTimeout|TestTransientProviderFailure|TestProviderIntentJSON|TestProviderPreparedIntent|TestProviderHostEntry|TestTurnWriter|TestSessionThinking|TestBeforeProviderRequest|TestAfterProviderResponse|TestAssembleAgentContext|TestCompaction|FuzzProviderIntentSanitizer'

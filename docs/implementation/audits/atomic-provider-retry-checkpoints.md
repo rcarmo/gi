@@ -1,6 +1,7 @@
 # Atomic provider retry checkpoints
 
-Status: verified checkpoint increment; #90 and #92 remain open.
+Status: checkpoint increment merged. #90 is closed; #92 tracks restart
+continuation.
 
 A failed provider receipt can carry a `ProviderRetryWait` successor. One SQLite
 transaction records its non-adopted history, known/unknown accounting, measured
@@ -21,8 +22,9 @@ Cancellation and hook aborts still suppress retries. Streamed progress remains a
 guard; returned partial text/tool prefixes, pending/deferred messages and
 incomplete results also suppress retry when an adapter emitted no deltas.
 Explicit zero delays and up to 100 retries are honoured; existing delay caps
-remain. This does not yet provide fresh committed preparation or restart-safe
-sleep/generation/tool continuation.
+remain. Fresh committed preparation is implemented in #109; see
+`fresh-provider-retry-preparation.md`. Restart-safe sleep/generation/tool
+continuation still needs implementation.
 
 ## Regressions
 
@@ -36,6 +38,22 @@ sleep/generation/tool continuation.
   before/after persistence comparison. Admission alone was not a stable barrier:
   legitimate main progress could insert that row during the side request. The
   original no-side-persistence and single-turn assertions remain.
+
+## Current-checkpoint wake guard (working tree)
+
+A new regression reproduced an old retry receipt waking a newer wait before its
+deadline. The wake transaction now requires its scheduled event to be current,
+with no later provider, tool, progress, wake or terminal boundary. Reused request
+IDs cannot bypass event ordering. This check precedes phase/event updates and
+does not dispatch any provider or tool.
+
+The superseded-wait and original eleven later-boundary cases failed before the
+change. `make test-provider-retry` then passed three race-enabled repetitions
+across config/store/turn/TUI. The final matrix also covers prepared-request and
+scheduled/resumed boundaries (fourteen later-boundary cases in total); the final
+wake matrix passes three race-enabled repetitions and the full Go suite passes.
+This working-tree increment has not been published and does not enable restart
+recovery.
 
 ## Profiling, 31 October 2026
 

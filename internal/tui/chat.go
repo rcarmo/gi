@@ -121,6 +121,9 @@ func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeCo
 	defer chat.programStatus.stop()
 	cleanup := chat.Init()
 	defer cleanup()
+	if err := engine.ResumeInterruptedWork(context.Background()); err != nil {
+		log.Printf("checkpoint recovery: %v", err)
+	}
 	chat.watchActiveTheme()
 	defer func() { chat.themeWatcher.stop() }()
 	app.SetRootComponent(chat)
