@@ -36,7 +36,7 @@ func (s *Store) searchMessages(ctx context.Context, sessionID, query, scope stri
 	}
 	payload := "m.payload_json"
 	if conversation {
-		payload = "json_remove(m.payload_json,'$.provider_message','$.provider_partial','$.provider_content_blocks','$.added_tool_names')"
+		payload = "json_remove(m.payload_json,'$.provider_message','$.provider_partial','$.provider_received_terminal','$.provider_content_blocks','$.added_tool_names')"
 	}
 	rows, err := s.db.QueryContext(ctx, `with recursive
  ancestors(id,parent_session_id) as (select id,parent_session_id from sessions where id=? union select s.id,s.parent_session_id from sessions s join ancestors a on a.parent_session_id=s.id),

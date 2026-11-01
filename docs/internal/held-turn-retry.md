@@ -135,6 +135,13 @@ lease alive until main, hook, side, maintenance, peering and lease hosts have
 joined. It then seals any uncertain request and publishes
 `checkpoint_generation_ready` with the original lifecycle and budgets.
 
+A terminal returned while that physical callback joins is retained as a separate,
+bounded diagnostic snapshot. Its received counters supersede earlier partial
+counters; absent or invalid received counters fall back to committed progress.
+Interruption accounting stays uncertain. The terminal body cannot replace the
+committed prefix, enter conversation projections or authorise SDK execution.
+Fencing that wins just before normal settlement uses the same capture path.
+
 The ordinary prompt queue cannot select or claim this phase, including after
 claim release. Runtime-ready recovery can adopt a completed Close immediately,
 without waiting for stale-owner expiry. `generation.close_resumed` preserves the
