@@ -186,6 +186,10 @@ test-provider-partials: $(TESTPROFILE)
 test-provider-interruption: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderInterruption|TestInterruptedProvider|TestGenerationReady|TestProviderPartial|TestProviderReceipt|TestStreamProgress|TestCompatProgress|TestProviderStream|TestConversationDoesNotExposeProviderReplayPayload' ./internal/store ./internal/turn ./internal/inference ./internal/web
 
+.PHONY: test-tool-batch
+test-tool-batch: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestToolBatch|TestPreparedToolReplay|TestToolUsageCapture' ./internal/store ./internal/turn
+
 .PHONY: test-generation-close
 test-generation-close: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestGenerationClose|TestGenerationReady|TestProviderInterruption|TestInterruptedProvider|TestProviderRetryClose|TestCloseWaits' ./internal/store ./internal/turn

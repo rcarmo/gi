@@ -14,9 +14,21 @@ unserialisable intent fails admission.
 
 Tool start events retain the original model call separately from the final
 hook-prepared call, current schema and replay-safety declaration. Go tool
-registrations default `ReplaySafe` to false. This metadata alone does not enable
-automatic replay; interrupted work remains held until checkpoint recovery can
-establish that resumption is safe.
+registrations default `ReplaySafe` to false. A committed tool-batch checkpoint
+pins the provider response, call order and prepared arguments. Recovery adopts
+settled receipts without repeating their effects. A started call can execute
+again only when both saved and current registrations permit replay and current
+tool permissions allow it. As in go-ai v1.4.0's pi-durable execute phase, replay
+uses the saved prepared arguments directly; it skips preparation and replacement
+schema validation.
+
+Interrupted preparation or unsafe execution produces an explicit interrupted
+error result. Committed SDK output remains part of that error, with no invented
+completion time. Gi records result-hook attempts before entry and never repeats
+an attempted result hook. Each physical execution retains separate received usage
+and interruption accounting. Unknown stages, malformed receipts and legacy
+frontiers retain conservative whole-turn holds. Tool-aware `Close` and explicit
+retry of parked checkpoints require further work.
 
 Executed, rejected, denied, skipped and hook-supplied tool results commit their
 terminal event and replay message in one transaction. Model continuation and

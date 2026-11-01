@@ -26,12 +26,47 @@ func (s *Store) SettleToolResponse(ctx context.Context, turnID, sessionID, event
 }
 
 func (s *Store) settleToolResult(ctx context.Context, turnID, sessionID, eventType string, event map[string]any, messageID, content string, payload map[string]any, messageRole string) error {
-	if eventType != "tool.finished" && eventType != "tool.failed" && eventType != "tool.skipped" && eventType != "tool.cancelled" && eventType != "tool.aborted" {
+	if eventType != "tool.finished" && eventType != "tool.failed" && eventType != "tool.skipped" && eventType != "tool.cancelled" && eventType != "tool.aborted" && eventType != "tool.interrupted" {
 		return fmt.Errorf("invalid tool settlement event %q", eventType)
+	}
+	if eventType == "tool.interrupted" && ToolBatchID(ctx, turnID) == "" {
+		return fmt.Errorf("tool interruption requires a native batch")
+	}
+	occurrence, _ := event["occurrence_id"].(string)
+	if occurrence == "" {
+		occurrence, _ = payload["occurrence_id"].(string)
+	}
+	if occurrence == "" {
+		occurrence = "tool-message:" + messageID
+	}
+	if occurrence == "tool-message:" {
+		return fmt.Errorf("tool settlement requires an occurrence")
+	}
+	if supplied, _ := event["occurrence_id"].(string); supplied == "" {
+		owned := make(map[string]any, len(event)+1)
+		for key, value := range event {
+			owned[key] = value
+		}
+		owned["occurrence_id"] = occurrence
+		event = owned
+	}
+	event = toolBatchEvent(ctx, turnID, event)
+	if eventType == "tool.finished" && ToolBatchID(ctx, turnID) != "" {
+		if slot, _ := ctx.Value(toolBatchSlotKey{}).(toolBatchSlot); slot.Index >= 0 {
+			event["failure_signature"], event["repeated_tool_failures"] = "", 0
+		}
 	}
 	eventJSON, err := marshalJSON(event)
 	if err != nil {
 		return err
+	}
+	if wireID, wireName := ToolBatchWireCall(ctx, turnID); wireID != "" && messageRole == "tool_result" {
+		owned := make(map[string]any, len(payload)+2)
+		for key, value := range payload {
+			owned[key] = value
+		}
+		owned["tool_call_id"], owned["tool_name"] = wireID, wireName
+		payload = owned
 	}
 	resultJSON, err := marshalJSON(payload)
 	if err != nil {
@@ -72,16 +107,6 @@ func (s *Store) settleToolResult(ctx context.Context, turnID, sessionID, eventTy
 			return err
 		}
 	}
-	occurrence, _ := event["occurrence_id"].(string)
-	if occurrence == "" {
-		occurrence, _ = payload["occurrence_id"].(string)
-	}
-	if occurrence == "" {
-		occurrence = "tool-message:" + messageID
-	}
-	if occurrence == "tool-message:" {
-		return fmt.Errorf("tool settlement requires an occurrence")
-	}
 	var existingKind string
 	if err := tx.QueryRowContext(ctx, `select kind from turn_receipts where turn_id=? and occurrence_id=?`, turnID, occurrence).Scan(&existingKind); err == nil {
 		if existingKind != "tool" {
@@ -89,6 +114,9 @@ func (s *Store) settleToolResult(ctx context.Context, turnID, sessionID, eventTy
 		}
 		return nil
 	} else if err != sql.ErrNoRows {
+		return err
+	}
+	if err = checkToolBatchSlotTx(ctx, tx, sessionID, turnID); err != nil {
 		return err
 	}
 	usage := &goai.Usage{}
@@ -120,7 +148,10 @@ func (s *Store) settleToolResult(ctx context.Context, turnID, sessionID, eventTy
 			return err
 		}
 	} else if messageRole != "assistant" && eventType != "tool.cancelled" && eventType != "tool.aborted" {
-		return fmt.Errorf("tool result requires a message identity")
+		pending, _ := event["replay_pending"].(bool)
+		if eventType != "tool.interrupted" || !pending {
+			return fmt.Errorf("tool result requires a message identity")
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `update turns set updated_at=`+defaultNow+` where id=?`, turnID); err != nil {
 		return err

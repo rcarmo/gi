@@ -15,7 +15,8 @@ func (r *sessionRunner) settleSkippedTool(ctx context.Context, sessionID, turnID
 	if err := r.store.SettleToolResult(ctx, turnID, sessionID, "tool.skipped", event, store.NowID("msg"), text, payload); err != nil {
 		return err
 	}
-	goai.AppendToolResult(conv, call.ID, call.Name, text, true)
+	wire := toolResultWireCall(ctx, turnID, call)
+	goai.AppendToolResult(conv, wire.ID, wire.Name, text, true)
 	r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
 	r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, event)
 	return nil

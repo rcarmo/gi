@@ -198,6 +198,23 @@ func (s *Store) SteeringQueueLength(ctx context.Context, sessionID string) (int,
 }
 
 func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID, activeTurnID string) ([]SteeringMessage, error) {
+	if activeTurnID != "" {
+		token, err := turnWriterToken(ctx, sessionID, activeTurnID)
+		if err != nil {
+			return nil, err
+		}
+		locked, err := tx.ExecContext(ctx, `update turns set updated_at=updated_at where id=? and session_id=? and status='running' and (?='' or exists(select 1 from session_active_turns where session_id=? and turn_id=? and claim_token=?))`, activeTurnID, sessionID, token, sessionID, activeTurnID, token)
+		if err != nil {
+			return nil, err
+		}
+		count, err := locked.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		if count != 1 {
+			return nil, sql.ErrNoRows
+		}
+	}
 	row := tx.QueryRowContext(ctx, `
 		select id, queue_mode
 		from steering_queue
@@ -269,6 +286,11 @@ func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID, activeTurnID 
 	for _, id := range ids {
 		if _, err := tx.ExecContext(ctx, `update steering_queue set status = case when source_queue_id is null then 'dequeued' else 'claimed' end, updated_at = `+defaultNow+` where id = ?`, id); err != nil {
 			return nil, fmt.Errorf("mark steering dequeued: %w", err)
+		}
+	}
+	if activeTurnID != "" {
+		if err := receiptEventTx(ctx, tx, activeTurnID, sessionID, "turn.steering_dequeued", map[string]any{"phase": "steering", "checkpoint": true, "steering_ids": ids}); err != nil {
+			return nil, err
 		}
 	}
 	return out, nil

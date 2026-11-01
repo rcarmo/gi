@@ -52,11 +52,15 @@ Details:
 
 On the long real session, idle CPU went from about 21% to about 1%.
 
-## Every test run (scripts/testprofile)
+## Pre-release and diagnostic runs (scripts/testprofile)
 
-Every test run is profiled and analysed (AGENTS.md), including focused runs and fixture report checks. The Makefile dispatches test goals through a profiled recursive make, so prerequisites, server startup and cleanup are measured too. `GI_TEST_PROFILE_ACTIVE` is an internal recursion marker, not a user override. `TEST_PROFILE=0` no longer disables profiling.
+Set `PROFILING=1` for pre-release verification or a targeted diagnostic run.
+Ordinary development tests do not require profiling. Inspect CPU, `alloc_space`
+and `alloc_objects`, investigate material outliers and remeasure fixes with the
+same workload. The Makefile wrapper includes prerequisites, startup and cleanup.
+`GI_TEST_PROFILE_ACTIVE` is an internal recursion marker.
 
-- **`make test`**, with or without `TEST_RUN`: `testprofile go` runs each package with
+- **`PROFILING=1 make test`**, with or without `TEST_RUN`: `testprofile go` runs each package with
   tests on its own (`go test -json -cpuprofile -memprofile`; one package at a
   time, as the Makefile throttling requires), then prints:
   - packages, tests, failures, wall and CPU time (build included), peak RSS
@@ -78,14 +82,15 @@ Every test run is profiled and analysed (AGENTS.md), including focused runs and 
 
 ### Fixtures-vibes worker profiles
 
-The disposable `fixtures_vibes` build writes per-worker `cpu.pprof` and cumulative `mem.pprof` files when `GI_FIXTURE_PROFILE_DIR` is set. The Makefile passes `FIXTURES_RUNTIME_PROFILE_DIR` (default `test-results/fixtures-runtime-profile`) to both full and focused targets. Collection starts during fixture model registration and ends after graceful runtime teardown. Inspect CPU plus `alloc_space` and `alloc_objects` after every run; a killed worker without a heap profile fails the profiling check even if its browser tests passed. `make test-fixtures-profile-lifecycle` verifies startup, SIGTERM shutdown and retained profile analysis before a long run.
+The disposable `fixtures_vibes` build writes per-worker `cpu.pprof` and cumulative `mem.pprof` files when `GI_FIXTURE_PROFILE_DIR` is set. The Makefile passes `FIXTURES_RUNTIME_PROFILE_DIR` (default `test-results/fixtures-runtime-profile`) to both full and focused targets. Collection starts during fixture model registration and ends after graceful runtime teardown. During pre-release or diagnostic profiling, inspect CPU plus `alloc_space` and `alloc_objects`; a killed worker without a heap profile fails the profiling check even if its browser tests passed. `make test-fixtures-profile-lifecycle` verifies startup, SIGTERM shutdown and retained profile analysis before a long run.
 
 On 2026-10-05 this check completed in 2.7 seconds including build, with 10 ms sampled CPU, 11.9 MiB sampled allocations and about 70,500 objects. Joker native-variable metadata led object counts (46%); main startup and model/config setup led allocation bytes. This short startup check is separate from compliance workload measurements.
 
-Everything is kept in `~/.cache/gi-test-profile` (`GI_TEST_PROFILE_DIR`,
-`TEST_PROFILE_DIR`): `history.jsonl` (totals of every run), `latest-<suite>.json`
-(baselines) and the last five Go runs (`go-<time>/report.json` plus each
-package's `cpu.pprof` and `mem.pprof`, readable with `go tool pprof`).
+Scratch lives beneath the resolved project temporary root, in
+`runs/profiling/<worktree>`. Raw profiles and matching test binaries are disposed
+of after automatic analysis by default. Use `PROFILE_KEEP=1` only while manual
+analysis needs the captures; delete them and disposable logs immediately after
+comparison. Keep concise measurements and limitations, without raw archives.
 
 ## Findings acted on (#38)
 
@@ -107,3 +112,33 @@ package's `cpu.pprof` and `mem.pprof`, readable with `go tool pprof`).
   not its tests (about 100 MB); without Tailscale the peak is about 740 MB.
 - Result (warm cache): 1962 tests in 58 s wall and 30 s CPU, from 2m37s and
   3m6s.
+
+## Tool-checkpoint recovery (2026-11-01)
+
+`PROFILE_KEEP=1 PROFILING=1 make test-tool-batch RACE=` passed 48 reported tests
+(`-count=3`) in `internal/store` and `internal/turn`, using Go 1.27.3.
+CPU, `alloc_space` and `alloc_objects` were inspected for both packages.
+The seven hard-kill cases exercise recovery, usage and interrupted projections;
+profiles cover the surviving test processes, with stubbed model calls. Killed
+children cannot flush final profiles.
+
+The model-context assertions repeatedly converted the same JSON buffer to a
+string. Reusing one string per request removed that fixture allocation without
+changing its assertions:
+
+| Turn-package measurement | Before | After |
+|---|---:|---:|
+| Sampled allocated space | 67.13 MiB | 57.65 MiB (-14.1%) |
+| Assertion callback, flat allocated space | 6.81 MiB | 0 sampled |
+| Sampled allocated objects | 465,419 | 469,674 (+0.9%) |
+| Sampled CPU | 580 ms | 450 ms |
+| Build-inclusive peak RSS | 683 MiB | 695 MiB (+1.8%) |
+
+These short sampled runs do not establish a latency or production-memory
+improvement. SQLite/syscalls led CPU; test regexp compilation led allocation
+space. `AdmitTurnEffect`'s sampled 32,768 boxed SQL arguments accounted for
+0.5 MiB (1.8% of store-package allocations); its ownership and transaction
+checks were preserved. Sampled object counts and short CPU samples vary;
+build-inclusive RSS includes compilation. Raw captures and disposable logs were
+deleted after analysis. Subsequent full Go tests, focused tool and ownership
+race checks, vet, Bun checks and 204 web-adapter tests passed.

@@ -1,6 +1,7 @@
 package turn
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -21,15 +22,19 @@ const maxToolImageBytes = 20 << 20
 // become the result's AddedToolNames marker and are declared from the next
 // model call.
 type toolExtras struct {
-	occurrenceID string
-	blocks       []goai.ContentBlock
-	notes        []string       // transcript lines describing each image
-	added        []string       // tools loaded by this call
-	details      map[string]any // structured result details for renderers (codemode calls)
-	mu           sync.Mutex
-	unknownUsage bool
-	usageError   string
-	usage        goai.Usage // model usage made by the tool (codemode models.*)
+	occurrenceID       string
+	blocks             []goai.ContentBlock
+	notes              []string       // transcript lines describing each image
+	added              []string       // tools loaded by this call
+	details            map[string]any // structured result details for renderers (codemode calls)
+	mu                 sync.Mutex
+	unknownUsage       bool
+	usageError         string
+	usage              goai.Usage // model usage made by the tool (codemode models.*)
+	usageRecorder      func(goai.Usage, bool, bool) error
+	usageCaptureClosed bool
+	usageCaptureErr    error
+	usageCaptureCancel context.CancelFunc
 }
 
 func (t *toolExtras) addUsageFunc() func(goai.Usage) {
@@ -39,10 +44,14 @@ func (t *toolExtras) addUsageFunc() func(goai.Usage) {
 	return func(u goai.Usage) {
 		t.mu.Lock()
 		defer t.mu.Unlock()
+		if t.usageCaptureClosed {
+			return
+		}
 		if err := store.AddReceiptUsage(&t.usage, u); err != nil {
 			t.unknownUsage = true
 			t.usageError = err.Error()
 		}
+		t.recordUsageLocked(false)
 	}
 }
 
@@ -50,7 +59,15 @@ func (t *toolExtras) unknownUsageFunc() func() {
 	if t == nil {
 		return nil
 	}
-	return func() { t.mu.Lock(); t.unknownUsage = true; t.mu.Unlock() }
+	return func() {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		if t.usageCaptureClosed {
+			return
+		}
+		t.unknownUsage = true
+		t.recordUsageLocked(false)
+	}
 }
 
 // addUsage adds u to total (tokens and cost).
@@ -146,4 +163,38 @@ func appendToolResultWithImages(ctx *goai.Context, call goai.ToolCall, text stri
 		}
 	}
 	ctx.Messages = append(ctx.Messages, msg)
+}
+
+// recordUsageLocked checkpoints cumulative received usage, not a tool result.
+// Storage failure cancels only the captured owner, never a replacement owner.
+func (t *toolExtras) recordUsageLocked(returned bool) {
+	if t.usageRecorder == nil {
+		return
+	}
+	if err := t.usageRecorder(t.usage, t.unknownUsage, returned); err != nil {
+		if t.usageCaptureErr == nil {
+			t.usageCaptureErr = err
+		}
+		if t.usageCaptureCancel != nil {
+			t.usageCaptureCancel()
+		}
+	}
+}
+
+// finishUsageCapture revokes the recorder at executor return. Escaped runtime
+// callbacks cannot acquire durable write authority after that boundary.
+func (t *toolExtras) finishUsageCapture() error {
+	if t == nil {
+		return nil
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.usageRecorder == nil {
+		return nil
+	}
+	t.usageCaptureClosed = true
+	t.recordUsageLocked(true)
+	t.usageRecorder = nil
+	t.usageCaptureCancel = nil
+	return t.usageCaptureErr
 }
