@@ -70,6 +70,24 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 		runner.current.cancel()
 		return nil
 	}
+	if turn.Status == "queued" && store.IsClosedCheckpointPhase(turn.Phase) {
+		e.launchMu.Lock()
+		defer e.launchMu.Unlock()
+		if e.closing.Load() {
+			return context.Canceled
+		}
+		token, err := store.NewActiveTurnClaimToken()
+		if err != nil {
+			return err
+		}
+		decision, err := e.store.StageClosedCheckpointCancellation(opCtx, turnSessionID, turnID, token)
+		if err != nil {
+			return err
+		}
+		e.launchTerminalCleanupLocked(runner, turnSessionID, turnID, token, decision)
+		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, agentID, "cancelling", "settling", map[string]any{"reason": "checkpoint_cancel", "failure_kind": ""})
+		return nil
+	}
 	if turn.Status == "queued" {
 		if err := e.store.CancelQueuedTurn(opCtx, turnSessionID, turnID); err != nil {
 			return err

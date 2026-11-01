@@ -90,3 +90,44 @@ func (s *Store) StageTurnTerminal(ctx context.Context, turnID, sessionID string,
 	}
 	return status, true, nil
 }
+
+// ClaimAgentEnd records a once-only lifecycle attempt under the current writer.
+// A terminal-only recovery host must not repeat an already attempted callback.
+func (s *Store) ClaimAgentEnd(ctx context.Context, sessionID, turnID string) (bool, error) {
+	ctx, err := admitToolSettlement(ctx)
+	if err != nil {
+		return false, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `update turns set updated_at=updated_at where id=? and session_id=?`, turnID, sessionID)
+	if err != nil {
+		return false, err
+	}
+	if n, err := result.RowsAffected(); err != nil || n != 1 {
+		if err != nil {
+			return false, err
+		}
+		return false, ErrQueueConflict
+	}
+	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
+		return false, err
+	}
+	var attempted bool
+	if err = tx.QueryRowContext(ctx, `select exists(select 1 from turn_events where turn_id=? and event_type='turn.agent_end_started')`, turnID).Scan(&attempted); err != nil {
+		return false, err
+	}
+	if attempted {
+		return false, nil
+	}
+	if err = receiptEventTx(ctx, tx, turnID, sessionID, "turn.agent_end_started", map[string]any{"phase": "agent_end", "checkpoint": true}); err != nil {
+		return false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}

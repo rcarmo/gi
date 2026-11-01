@@ -43,12 +43,18 @@ type ToolBatchRecovery struct {
 }
 
 type toolBatchEventHeader struct {
-	BatchID              string          `json:"batch_id"`
-	Index                *int            `json:"batch_index"`
-	Iteration            int             `json:"iteration"`
-	Phase                string          `json:"phase"`
-	Checkpoint           bool            `json:"checkpoint"`
+	BatchID    string `json:"batch_id"`
+	Index      *int   `json:"batch_index"`
+	Iteration  int    `json:"iteration"`
+	Phase      string `json:"phase"`
+	Checkpoint bool   `json:"checkpoint"`
+	Decision   *struct {
+		Status  string         `json:"status"`
+		Phase   string         `json:"phase"`
+		Payload map[string]any `json:"payload"`
+	} `json:"decision"`
 	Key                  string          `json:"key"`
+	Stage                string          `json:"stage"`
 	Reason               string          `json:"reason"`
 	ReceivedUsage        *goai.Usage     `json:"received_usage"`
 	UsageUnknown         *bool           `json:"usage_unknown"`
@@ -90,6 +96,10 @@ func sameBatchToolCall(a, b goai.ToolCall) bool {
 // toolBatchCheckpointTx accepts only the append-only native batch grammar.
 // A phase or an isolated tool intent is not sufficient continuation evidence.
 func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID string) (*ToolBatchRecovery, error) {
+	return readToolBatchCheckpointTx(ctx, tx, sessionID, turnID, false)
+}
+
+func readToolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID string, terminalCleanup bool) (*ToolBatchRecovery, error) {
 	var seq int64
 	var raw, owner string
 	err := tx.QueryRowContext(ctx, `select seq,session_id,payload_json from turn_events where turn_id=? and event_type='tool.batch_ready' order by seq desc limit 1`, turnID).Scan(&seq, &owner, &raw)
@@ -160,6 +170,7 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 	physicalSlots := map[string]int{}
 	cursor := 0
 	parked := 0
+	cancelling := false
 	budgetSignature, budgetFailures := checkpoint.Generation.LastToolFailureSignature, checkpoint.Generation.RepeatedToolFailures
 	for rows.Next() {
 		var kind, session, body string
@@ -167,6 +178,9 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 			return nil, err
 		}
 		if session != sessionID {
+			return nil, nil
+		}
+		if cancelling && kind != "turn.terminal_staged" && kind != "turn.recovery_admitted" && kind != "turn.cleanup_handoff_failed" && kind != "tool.interrupted" {
 			return nil, nil
 		}
 		if control, valid := checkpointRetryControl(kind, body, "waiting_on_tools", &parked); control {
@@ -179,7 +193,29 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 			return nil, nil
 		}
 		var h toolBatchEventHeader
-		if json.Unmarshal([]byte(body), &h) != nil || h.BatchID != checkpoint.ProviderOccurrenceID || h.Iteration != checkpoint.Generation.Iteration {
+		if json.Unmarshal([]byte(body), &h) != nil {
+			return nil, nil
+		}
+		if kind == "turn.terminal_staged" {
+			if !terminalCleanup || h.Phase != "settling" || !h.Checkpoint || h.Decision == nil || h.Decision.Status != "cancelled" || h.Decision.Phase != "cancelled" || h.Decision.Payload["checkpoint_cancellation"] != ClosedToolBatchPhase {
+				return nil, nil
+			}
+			cancelling = true
+			continue
+		}
+		if kind == "turn.recovery_admitted" && cancelling {
+			if h.Phase != "recovery" || !h.Checkpoint || h.Reason != "resume_terminal_decision" {
+				return nil, nil
+			}
+			continue
+		}
+		if kind == "turn.cleanup_handoff_failed" && cancelling {
+			if h.Phase != "cleanup" || !h.Checkpoint || h.Stage != "terminal_settlement_pending" {
+				return nil, nil
+			}
+			continue
+		}
+		if h.BatchID != checkpoint.ProviderOccurrenceID || h.Iteration != checkpoint.Generation.Iteration {
 			return nil, nil
 		}
 		if kind == "tool.output" {
@@ -290,7 +326,8 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 			admitted[h.OccurrenceID] = true
 			physicalSlots[h.OccurrenceID] = cursor
 		case "tool.finished", "tool.failed", "tool.skipped", "tool.interrupted":
-			if !call.Preparing || h.OccurrenceID == "" {
+			cancelUnstarted := cancelling && kind == "tool.interrupted" && h.Reason == "checkpoint_cancel" && h.Unadmitted && call.OccurrenceID == ""
+			if (!call.Preparing && !cancelUnstarted) || h.OccurrenceID == "" || (cancelling && h.Reason != "checkpoint_cancel") {
 				return nil, nil
 			}
 			if kind == "tool.interrupted" && h.Unadmitted {
@@ -362,6 +399,9 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 	}
 	if err = rows.Close(); err != nil {
 		return nil, err
+	}
+	if terminalCleanup && !cancelling {
+		return nil, nil
 	}
 	if parked != 0 {
 		return nil, nil

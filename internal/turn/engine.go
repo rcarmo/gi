@@ -916,7 +916,22 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
 		agentID, model := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
 		decision := active.recoveredTerminal
+		if decision.Status == "cancelled" && decision.Payload["checkpoint_cancellation"] == store.ClosedToolBatchPhase && decision.Payload["checkpoint_cancellation_tools_settled"] != true {
+			if err := r.settleCancelledToolBatch(ctx, s, sessionID, turnID); err != nil {
+				r.mu.Lock()
+				active.terminalPending = true
+				r.mu.Unlock()
+				log.Printf("checkpoint cancellation requires recovery: %v", err)
+				return
+			}
+			decision.Payload["checkpoint_cancellation_tools_settled"] = true
+		}
 		r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, decision.Status, decision.Message, decision.FailureKind, decision.Payload)
+		if decision.Payload["checkpoint_cancellation"] != nil {
+			if row, err := s.GetTurn(context.WithoutCancel(ctx), turnID); err == nil && isTerminalSubTurnStatus(row.Status) {
+				r.emitAgentEnd(ctx, s, sessionID, turnID, agentID, model)
+			}
+		}
 		return
 	}
 	run, err := r.setupTurnRun(ctx, s, sessionID, turnID)
@@ -4203,16 +4218,7 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 		if !lifecycleStarted || r.checkpointClosing(turnID) {
 			return
 		}
-		agentEndReason := "unsettled"
-		if rec, err := s.GetTurn(r.engine.backgroundContext(), turnID); err == nil && isTerminalSubTurnStatus(rec.Status) {
-			agentEndReason = rec.Status
-		}
-		cleanupCtx := context.WithoutCancel(ctx)
-		if err := s.AppendTurnEvent(cleanupCtx, turnID, sessionID, "turn.agent_end_started", map[string]any{"phase": "agent_end", "checkpoint": true}); err != nil {
-			log.Printf("persist agent-end attempt: %v", err)
-			return
-		}
-		_, _ = r.engine.emitHook(cleanupCtx, HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
+		r.emitAgentEnd(ctx, s, sessionID, turnID, agentID, model)
 	}()
 	if generation != nil {
 		providerState, convCtx, err = r.restoreGenerationPreparation(ctx, s, turnID, sessionID, agentID, generation)

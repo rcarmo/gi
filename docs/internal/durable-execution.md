@@ -36,7 +36,11 @@ recorders remain bound to that physical host while it joins. Only after all owne
 work and the closing heartbeat join does the controller publish a queued tool
 checkpoint. Recorder or commit failures return an error and leave the reservation
 unpublished. Graceful shutdown neither spends nor resets the crash budget.
-Unlaunched-checkpoint cancellation and parent ownership still require further work.
+Unlaunched checkpoints support terminal-only cancellation through the engine:
+writer fencing and the cancelled decision commit together, and interrupted
+cleanup cannot dispatch the checkpoint. Outstanding calls receive error results,
+including never-admitted slots, without replaying preparation or execution.
+Parent-linked retry ownership still requires further work.
 
 Executed, rejected, denied, skipped and hook-supplied tool results commit their
 terminal event and replay message in one transaction. Model continuation and

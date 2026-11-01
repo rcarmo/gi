@@ -190,6 +190,10 @@ test-provider-interruption: $(TESTPROFILE)
 test-tool-batch: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestToolBatch|TestPreparedToolReplay|TestToolUsageCapture' ./internal/store ./internal/turn
 
+.PHONY: test-checkpoint-cancellation
+test-checkpoint-cancellation: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestCheckpointCancellation' ./internal/store ./internal/turn
+
 .PHONY: test-generation-close
 test-generation-close: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestGenerationClose|TestGenerationReady|TestProviderInterruption|TestInterruptedProvider|TestProviderRetryClose|TestCloseWaits' ./internal/store ./internal/turn
