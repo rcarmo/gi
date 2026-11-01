@@ -248,6 +248,45 @@ func TestAuthStatePreservesExtensionsAndLastRevoke(t *testing.T) {
 	}
 }
 
+func TestAuthStateReadBoundAndFreshness(t *testing.T) {
+	root, err := os.OpenRoot(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	prefix, suffix := `{"username":"boundary","future":"`, `"}`
+	atLimit := prefix + strings.Repeat("x", maxStateBytes-len(prefix)-len(suffix)) + suffix
+	// Reuse the same root and path, including after the maximum-sized read:
+	// allocation hints must not introduce a stale state or a truncation limit.
+	for _, tc := range []struct {
+		name, data, username string
+		wantErr              bool
+	}{
+		{"small", `{"username":"first","future":true}`, "first", false},
+		{"at-limit", atLimit, "boundary", false},
+		{"over-limit", atLimit + " ", "", true},
+		{"fresh-after-large", `{"username":"second","future":false}`, "second", false},
+		{"truncated", `{"username":`, "", true},
+		{"empty", "", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := root.WriteFile("auth.json", []byte(tc.data), 0600); err != nil {
+				t.Fatal(err)
+			}
+			state, data, err := readState(root)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("invalid state accepted")
+				}
+				return
+			}
+			if err != nil || state.Username != tc.username || len(data) != len(tc.data) || state.extra["future"] == nil {
+				t.Fatalf("state read contract lost: username=%q bytes=%d err=%v", state.Username, len(data), err)
+			}
+		})
+	}
+}
+
 func TestAuthStateCorruptionAndFailurePreserveBytes(t *testing.T) {
 	for _, body := range []string{"{broken", "null", "[]", strings.Repeat("x", maxStateBytes+1)} {
 		t.Run(fmt.Sprint(len(body)), func(t *testing.T) {
