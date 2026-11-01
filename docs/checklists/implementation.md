@@ -720,7 +720,7 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [ ] Emit UI hint for every compaction
 - [ ] Checkpoint at compaction boundaries
 - [ ] Implement provider retry checkpoints
-- [ ] Preserve partial output on provider failure
+- [x] Preserve partial output on provider failure — bounded committed prefixes, exact encodable error/abort terminals, received usage and producer/Close joins; failed contributions stay outside model context. [#87 acceptance](../implementation/audits/provider-partial-terminal-retention.md).
 - [ ] Auto-resume after clean restart
 - [ ] No auto-resume after crash
 

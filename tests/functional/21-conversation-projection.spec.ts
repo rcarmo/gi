@@ -48,3 +48,41 @@ for(const name of ['chromium','webkit'] as const)test(`${name} conversation excl
   await page.reload();await expect(page.locator('.agent-status-panel')).toHaveCount(0);expect(errors).toEqual([]);
  }finally{await browser.close();}
 });
+
+for (const name of ['chromium', 'webkit'] as const) test(`${name} failed provider prefix survives reload without exposing raw partials`, async () => {
+ const browser = await ({chromium, webkit}[name]).launch({headless: true});
+ const page = await browser.newPage();
+ const api = page.request;
+ try {
+  const created = await api.post(BASE_URL + '/api/sessions', {data: {agent_id: `partial-${name}`, title: `partial-${name}`}});
+  expect(created.ok()).toBe(true);
+  const {id} = await created.json();
+  const rowId = `partial-${name}-${Date.now()}`;
+  const content = 'Retained streamed prefix after error';
+  const payload = {kind: 'chat', source: 'inference', adopted: false, partial: true,
+   provider_message: {role: 'assistant', content: [], stopReason: 'error', errorMessage: 'provider failed'},
+   provider_partial: {role: 'assistant', content: [{type: 'text', text: content}, {type: 'thinking', thinkingSignature: 'PRIVATE_PARTIAL_SIGNATURE'}, {type: 'toolCall', name: 'shell', arguments: {secret: 'PRIVATE_TOOL_PREFIX'}}]}};
+  const quote = (s: string) => `'${s.replaceAll("'", "''")}'`;
+  const db = resolve(process.env.GI_TEST_DB || join(process.env.GI_TEST_RUN_ROOT!, 'instance', 'gi.db'));
+  const seed = spawnSync('sqlite3', ['-cmd', '.timeout 5000', db, `insert into messages(id,session_id,role,content,payload_json,created_at) values(${quote(rowId)},${quote(id)},'assistant',${quote(content)},${quote(JSON.stringify(payload))},'2026-01-02T00:00:00Z');`], {encoding: 'utf8'});
+  expect(seed.status, seed.stderr).toBe(0);
+  await page.addInitScript(s => localStorage.setItem('gi_session_id', s), id);
+  await page.goto(BASE_URL);
+  for (let reload = 0; reload < 2; reload++) {
+   if (reload) await page.reload();
+   await expect(page.locator(`#post-${rowId} .post-content`)).toContainText(content);
+   await expect(page.locator('.timeline')).not.toContainText('PRIVATE_TOOL_PREFIX');
+   for (const suffix of ['messages?view=conversation', 'search?view=conversation&q=Retained']) {
+    const response = await api.get(BASE_URL + `/api/sessions/${id}/` + suffix);
+    expect(response.ok()).toBe(true);
+    const body = await response.text();
+    expect(body).toContain(content);
+    expect(body).not.toContain('provider_partial');
+    expect(body).not.toContain('PRIVATE_PARTIAL_SIGNATURE');
+    expect(body).not.toContain('PRIVATE_TOOL_PREFIX');
+   }
+  }
+  const raw = await (await api.get(BASE_URL + `/api/sessions/${id}/messages`)).text();
+  expect(raw).toContain('PRIVATE_PARTIAL_SIGNATURE');
+ } finally { await browser.close(); }
+});
