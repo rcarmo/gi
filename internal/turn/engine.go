@@ -4424,15 +4424,17 @@ func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Stor
 	if message != nil && (message.StopReason == goai.StopReasonPending || message.StopReason == goai.StopReasonAborted || message.Deferred != nil) {
 		partial = true
 	}
+	// Keep the committed prefix separately from the provider's exact terminal
+	// message: an ErrorEvent need not repeat its content or received usage.
+	record, err := s.ProviderPartial(bgCtx, turnID, sessionID, result.OccurrenceID)
+	if err != nil {
+		return err
+	}
 	var checkpoint any
-	if message == nil {
-		record, err := s.ProviderPartial(bgCtx, turnID, sessionID, result.OccurrenceID)
-		if err != nil {
-			return err
-		}
-		if record != nil {
+	if record != nil {
+		checkpoint = record.Payload["partial_checkpoint"]
+		if message == nil {
 			message = record.Message
-			checkpoint = record.Payload["partial_checkpoint"]
 			partial = true
 		}
 	}
@@ -4443,10 +4445,18 @@ func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Stor
 	if store.ValidateReceiptUsage(usage) != nil {
 		usage = nil
 	}
+	usageFromPartial := false
+	if providerUsageUnknown(usage) && record != nil && store.ValidateReceiptUsage(record.Message.Usage) == nil {
+		usage = record.Message.Usage
+		usageFromPartial = usage != nil
+	}
 	messageID, content := "", ""
 	payload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "partial": partial || result.Incomplete, "receipt_error": failure.Error()}
 	if checkpoint != nil {
 		payload["partial_checkpoint"] = checkpoint
+	}
+	if record != nil {
+		payload["provider_partial"] = record.Payload["provider_message"]
 	}
 	if message != nil {
 		encoded, encodeErr := json.Marshal(message)
@@ -4473,11 +4483,30 @@ func (r *sessionRunner) settleProviderFailure(ctx context.Context, s *store.Stor
 		payload["provider_message"] = json.RawMessage(encoded)
 		r.addResponseRecord(bgCtx, s, turnID, model, &savedResult, payload)
 	}
+	if record != nil {
+		// Derive history text from structured provider snapshots, never a
+		// mutable UI row. Keep differing fragments visible without rewriting
+		// either signed provider message or adopting them into model context.
+		prefix := goai.GetTextContent(record.Message)
+		switch {
+		case content == "" || strings.HasPrefix(prefix, content):
+			content = prefix
+			payload["partial"] = true
+		case prefix != "" && !strings.HasPrefix(content, prefix):
+			content = prefix + "\n\nProvider response:\n\n" + content
+			payload["partial"] = true
+		}
+		if _, hasThinking := payload["thinking_blocks"]; !hasThinking {
+			if thinking, ok := record.Payload["thinking_blocks"]; ok {
+				payload["thinking_blocks"] = thinking
+			}
+		}
+	}
 	var next *store.ProviderRetryWait
 	if len(retryWait) > 0 {
 		next = retryWait[0]
 	}
-	settled, err := s.SettleProviderAttempt(bgCtx, turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: usage, Unknown: partial || result.Incomplete || providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration, RetryWait: next})
+	settled, err := s.SettleProviderAttempt(bgCtx, turnID, sessionID, result.OccurrenceID, store.ProviderReceipt{MessageID: messageID, Content: content, Payload: payload, Usage: usage, Unknown: partial || result.Incomplete || usageFromPartial || providerUsageUnknown(usage), Measurement: responseContextMeasurement(model, usage, iteration), Decision: "error_boundary", Error: failure.Error(), Iteration: iteration, RetryWait: next})
 	if err == nil && next != nil && settled.Decision != "cancelled" {
 		if settled.RetryWait == nil {
 			return store.ErrQueueConflict

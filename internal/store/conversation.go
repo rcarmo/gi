@@ -29,7 +29,7 @@ func conversationReplyToSQL(alias string) string {
 
 // Remove replay blobs before driver decoding, so large image payloads are not
 // allocated by display-only reads. Raw/export queries still select payload_json.
-const conversationPayloadSQL = `json_remove(payload_json,'$.provider_message','$.provider_content_blocks','$.added_tool_names')`
+const conversationPayloadSQL = `json_remove(payload_json,'$.provider_message','$.provider_partial','$.provider_content_blocks','$.added_tool_names')`
 
 // conversationPayload removes internal replay envelopes from UI projections.
 // Raw exports and model snapshots retain the complete stored payload.
@@ -37,7 +37,7 @@ func conversationPayload(payload map[string]any) map[string]any {
 	out := make(map[string]any, len(payload))
 	for key, value := range payload {
 		switch key {
-		case "provider_message", "provider_content_blocks", "added_tool_names":
+		case "provider_message", "provider_partial", "provider_content_blocks", "added_tool_names":
 			continue
 		}
 		out[key] = value

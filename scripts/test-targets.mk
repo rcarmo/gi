@@ -179,9 +179,7 @@ test: $(TESTPROFILE)
 
 .PHONY: test-provider-partials
 test-provider-partials: $(TESTPROFILE)
-	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial' ./internal/store
-	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial' ./internal/turn
-	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestStreamProgress|TestCompatProgress' ./internal/inference
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial|TestStreamProgress|TestCompatProgress|TestProviderStream|TestConversationDoesNotExposeProviderReplayPayload' ./internal/store ./internal/turn ./internal/inference ./internal/web
 
 .PHONY: test-durable-recovery
 test-durable-recovery: $(TESTPROFILE)

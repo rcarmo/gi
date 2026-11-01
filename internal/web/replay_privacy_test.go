@@ -25,6 +25,7 @@ func TestConversationDoesNotExposeProviderReplayPayload(t *testing.T) {
 	}
 	payload := map[string]any{
 		"kind": "chat", "provider_message": map[string]any{"content": "REPLAY_SECRET"},
+		"provider_partial":        map[string]any{"content": "PARTIAL_SECRET"},
 		"provider_content_blocks": []any{map[string]any{"type": "image", "data": "IMAGE_SECRET"}},
 		"added_tool_names":        []string{"INTERNAL_LOADOUT"}, "content_blocks": []any{map[string]any{"type": "text", "text": "public block"}},
 	}
@@ -38,7 +39,7 @@ func TestConversationDoesNotExposeProviderReplayPayload(t *testing.T) {
 			t.Fatalf("%s: %d %s", path, rec.Code, rec.Body.String())
 		}
 		body := rec.Body.String()
-		for _, secret := range []string{"REPLAY_SECRET", "IMAGE_SECRET", "INTERNAL_LOADOUT", "provider_message", "provider_content_blocks"} {
+		for _, secret := range []string{"REPLAY_SECRET", "PARTIAL_SECRET", "IMAGE_SECRET", "INTERNAL_LOADOUT", "provider_message", "provider_partial", "provider_content_blocks"} {
 			if strings.Contains(body, secret) {
 				t.Fatalf("%s leaked %s", path, secret)
 			}
@@ -53,14 +54,14 @@ func TestConversationDoesNotExposeProviderReplayPayload(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(rec.Body.String(), "REPLAY_SECRET") {
+	if !strings.Contains(rec.Body.String(), "REPLAY_SECRET") || !strings.Contains(rec.Body.String(), "PARTIAL_SECRET") {
 		t.Fatal("raw export lost replay payload")
 	}
 	snapshot, err := s.ContextSnapshot(ctx, "private-replay")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if snapshot.Messages[0].Payload["provider_message"] == nil {
+	if snapshot.Messages[0].Payload["provider_message"] == nil || snapshot.Messages[0].Payload["provider_partial"] == nil {
 		t.Fatal("provider history lost replay payload")
 	}
 }
