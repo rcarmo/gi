@@ -27,8 +27,10 @@ error result. Committed SDK output remains part of that error, with no invented
 completion time. Gi records result-hook attempts before entry and never repeats
 an attempted result hook. Each physical execution retains separate received usage
 and interruption accounting. Unknown stages, malformed receipts and legacy
-frontiers retain conservative whole-turn holds. Tool-aware `Close` and explicit
-retry of parked checkpoints require further work.
+frontiers retain conservative whole-turn holds. Explicit retry requeues a proven
+native root checkpoint on its original turn and resets only its crash budget;
+it never resubmits the prompt. Parent-linked or terminal frontiers stay held.
+Tool-aware `Close` and parent ownership still require further work.
 
 Executed, rejected, denied, skipped and hook-supplied tool results commit their
 terminal event and replay message in one transaction. Model continuation and

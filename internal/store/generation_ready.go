@@ -91,9 +91,10 @@ func (s *Store) AcquireGenerationReadyRecovery(ctx context.Context, claim Active
 	if err != nil || checkpoint == nil {
 		return nil, err
 	}
-	// Rewriting preparation is not progress. Graceful restart is not a crash.
+	// Rewriting preparation is not progress. Only explicit retry resets the
+	// crash budget without receipt progress; graceful restart is not a crash.
 	var recoveries int
-	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and event_type in ('generation.recovered','tool.batch_recovered') and seq>coalesce((select max(seq) from turn_events where turn_id=? and event_type in ('inference.settled','tool.finished','tool.failed','tool.skipped','tool.cancelled','tool.aborted')),0)`, claim.TurnID, claim.TurnID).Scan(&recoveries); err != nil {
+	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and event_type in ('generation.recovered','tool.batch_recovered') and seq>coalesce((select max(seq) from turn_events where turn_id=? and event_type in ('inference.settled','tool.finished','tool.failed','tool.skipped','tool.cancelled','tool.aborted','turn.checkpoint_retry_requested')),0)`, claim.TurnID, claim.TurnID).Scan(&recoveries); err != nil {
 		return nil, err
 	}
 	if !closed && recoveries >= generationReadyRecoveryLimit {

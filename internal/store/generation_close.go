@@ -10,7 +10,7 @@ const ClosedGenerationReadyPhase = "checkpoint_generation_ready"
 // IsClosedCheckpointPhase excludes checkpoint reservations from ordinary prompt
 // launch. Only a runtime-ready recovery route may adopt them.
 func IsClosedCheckpointPhase(phase string) bool {
-	return IsClosedProviderRetryPhase(phase) || phase == ClosedGenerationReadyPhase
+	return IsClosedProviderRetryPhase(phase) || phase == ClosedGenerationReadyPhase || phase == ClosedToolBatchPhase
 }
 
 // ReserveGenerationClose revokes the host's writer without publishing queued

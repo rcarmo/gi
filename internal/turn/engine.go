@@ -1167,9 +1167,41 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err != nil {
 		return nil, err
 	}
-	failureRec, err := e.store.GetTurnFailure(opCtx, turnID)
+	failureRec, failureErr := e.store.GetTurnFailure(opCtx, turnID)
+	if failureErr != nil && failureErr != sql.ErrNoRows {
+		return nil, failureErr
+	}
+	runner := e.runner(turnRec.SessionID)
+	runner.mu.Lock()
+	hostBusy := runner.hosts[turnID] != nil
+	runner.mu.Unlock()
+	if failureErr == nil && hostBusy {
+		return nil, store.ErrRetryPending
+	}
+	claimToken, err := store.NewActiveTurnClaimToken()
 	if err != nil {
 		return nil, err
+	}
+	claim, native, err := e.store.QueueHeldCheckpointRetry(opCtx, turnID, claimToken, summary)
+	if native || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		record, getErr := e.store.GetTurn(opCtx, turnID)
+		if getErr != nil {
+			return nil, getErr
+		}
+		result := &SubmitResult{TurnID: record.ID, SessionID: record.SessionID, Status: record.Status, Queued: record.Status == "queued"}
+		if claim != nil {
+			e.PublishRuntimeTurnEvent("turn_failure_resolved", record.SessionID, record.ID, "", record.Status, record.Phase, map[string]any{"checkpoint": true, "checkpoint_retry": true, "reason": "failure_resolved", "resolution_state": "retried", "resolved_turn_id": record.ID, "resolution_summary": summary})
+			// Admission is already durable. A failed wake-up leaves the checkpoint
+			// for runtime-ready recovery, never for ordinary prompt launch.
+			logutil.WarnIfErr("resume explicit checkpoint retry", e.recoverInterruptedTurn(opCtx, *claim))
+		}
+		return result, nil
+	}
+	if failureErr != nil {
+		return nil, failureErr
 	}
 	if failureRec.ResolutionState == "retry_pending" || (failureRec.ResolutionState == "retried" && failureRec.RetryAdmissionVersion == 1) {
 		admitted, err := e.store.ReconcileHeldRetry(opCtx, turnID, failureRec.RetryAdmissionToken, summary)

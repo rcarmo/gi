@@ -763,7 +763,7 @@ test-tui-media-journal:
 
 .PHONY: test-held-retry
 test-held-retry:
-	$(TESTPROFILE) gotest $(RACE) -count=3 ./internal/store ./internal/turn ./internal/tui -run 'TUIRetry|RetryHeld|HeldRetry|HoldAndResolve|HoldResolution|SkipHeld'
+	$(TESTPROFILE) gotest $(RACE) -count=3 ./internal/store ./internal/turn ./internal/tui -run 'CheckpointRetry|TUIRetry|RetryHeld|HeldRetry|HoldAndResolve|HoldResolution|SkipHeld'
 
 .PHONY: test-tui-unselected-model test-tui-submit-guards
 test-tui-submit-guards:

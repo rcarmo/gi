@@ -1,0 +1,203 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+)
+
+const ClosedToolBatchPhase = "checkpoint_tool_batch"
+
+// checkpointRetryControl pairs a recovery hold with explicit retry admission.
+// An unmatched hold must never make a frontier eligible for automatic recovery.
+func checkpointRetryControl(kind, raw, phase string, parked *int) (bool, bool) {
+	if kind != "turn.failure_marked" && kind != "turn.recovered" && kind != "turn.checkpoint_retry_requested" {
+		return false, true
+	}
+	var h struct {
+		Phase          string `json:"phase"`
+		PreviousPhase  string `json:"previous_phase"`
+		PreviousStatus string `json:"previous_status"`
+		Disposition    string `json:"recovery_disposition"`
+		Checkpoint     bool   `json:"checkpoint"`
+		Stale          bool   `json:"stale_claim"`
+		Reason         string `json:"reason"`
+		Token          string `json:"admission_token"`
+		FailureKind    string `json:"failure_kind"`
+		HoldState      string `json:"hold_state"`
+	}
+	if json.Unmarshal([]byte(raw), &h) != nil {
+		return true, false
+	}
+	if kind == "turn.failure_marked" {
+		expected := "recovery_interrupted"
+		if phase == "waiting_on_tools" {
+			expected = "recovery_interrupted_tool_phase"
+		}
+		if *parked != 0 || h.Phase != "recovery" || !h.Checkpoint || h.HoldState != "review" || h.FailureKind != expected {
+			return true, false
+		}
+		*parked = 1
+	} else if kind == "turn.recovered" {
+		expected := "hold_for_retry_or_skip_after_interruption"
+		validPhase := h.PreviousPhase == "generation_ready" || h.PreviousPhase == "running"
+		if phase == "waiting_on_tools" {
+			expected = "hold_for_retry_or_skip_after_tool_checkpoint"
+			validPhase = h.PreviousPhase == phase
+		}
+		if *parked != 1 || h.Phase != "recovery" || !h.Checkpoint || !h.Stale || h.PreviousStatus != "running" || !validPhase || h.Disposition != expected {
+			return true, false
+		}
+		*parked = 2
+	} else {
+		if *parked != 2 || h.Phase != phase || !h.Checkpoint || h.Reason != "explicit_retry" || h.Token == "" {
+			return true, false
+		}
+		*parked = 0
+	}
+	return true, true
+}
+
+// QueueHeldCheckpointRetry reopens only a proven native frontier, never its
+// prompt. Clearing the hold, fencing, budget reset and checkpoint queue admission
+// commit together. Unsupported native frontiers remain held, not prompt-retried.
+func (s *Store) QueueHeldCheckpointRetry(ctx context.Context, turnID, token, summary string) (claim *ActiveTurnClaim, handled bool, err error) {
+	if token == "" {
+		return nil, true, ErrQueueConflict
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `update turns set updated_at=updated_at where id=?`, turnID); err != nil {
+		return nil, false, err
+	}
+	var session, status, phase, parent string
+	if err = tx.QueryRowContext(ctx, `select session_id,status,phase,coalesce(nullif(json_extract(metadata_json,'$.parent_turn_id'),''),(select parent_turn_id from subturns where child_turn_id=turns.id),'') from turns where id=?`, turnID).Scan(&session, &status, &phase, &parent); err != nil {
+		return nil, false, err
+	}
+	var native bool
+	if err = tx.QueryRowContext(ctx, `select exists(select 1 from turn_events where turn_id=? and event_type in ('generation.ready','tool.batch_ready'))`, turnID).Scan(&native); err != nil || !native {
+		return nil, false, err
+	}
+	var failure, hold, resolution string
+	err = tx.QueryRowContext(ctx, `select failure_kind,hold_state,coalesce(resolution_state,'') from turn_failures where turn_id=?`, turnID).Scan(&failure, &hold, &resolution)
+	if err == sql.ErrNoRows {
+		// A repeated request returns the original admission, including after restart.
+		var admitted bool
+		if err = tx.QueryRowContext(ctx, `select exists(select 1 from turn_events where turn_id=? and event_type='turn.checkpoint_retry_requested')`, turnID).Scan(&admitted); err != nil {
+			return nil, true, err
+		}
+		if admitted {
+			return nil, true, nil
+		}
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, true, err
+	}
+	if resolution != "" {
+		return nil, false, nil
+	}
+	if hold == "none" {
+		return nil, false, nil
+	}
+	if status != "failed" || phase != "held_for_retry_or_skip" || (failure != "recovery_interrupted" && failure != "recovery_interrupted_tool_phase") {
+		return nil, true, ErrFailureConflict
+	}
+	// A consumed child terminal cannot be revived behind its parent's back.
+	if parent != "" {
+		return nil, true, ErrFailureConflict
+	}
+	var terminal bool
+	if err = tx.QueryRowContext(ctx, `select exists(select 1 from turn_events where turn_id=? and event_type in ('turn.finished','turn.cancelled','turn.terminal_staged'))`, turnID).Scan(&terminal); err != nil {
+		return nil, true, err
+	}
+	if terminal {
+		return nil, true, ErrFailureConflict
+	}
+	var previousPhase string
+	if err = tx.QueryRowContext(ctx, `select json_extract(payload_json,'$.previous_phase') from turn_events where turn_id=? and session_id=? and event_type='turn.recovered' order by seq desc limit 1`, turnID, session).Scan(&previousPhase); err != nil {
+		if err == sql.ErrNoRows {
+			err = ErrFailureConflict
+		}
+		return nil, true, err
+	}
+	frontier, queuedPhase := "generation_ready", ClosedGenerationReadyPhase
+	if previousPhase == "waiting_on_tools" {
+		frontier, queuedPhase = "waiting_on_tools", ClosedToolBatchPhase
+	}
+	if _, err = tx.ExecContext(ctx, `delete from turn_failures where turn_id=?`, turnID); err != nil {
+		return nil, true, err
+	}
+	if err = receiptEventTx(ctx, tx, turnID, session, "turn.checkpoint_retry_requested", map[string]any{"phase": frontier, "checkpoint": true, "reason": "explicit_retry", "admission_token": token, "summary": summary}); err != nil {
+		return nil, true, err
+	}
+	// Settlement of a pending provider belongs to this original invocation.
+	// The intermediate running state is invisible until the queued admission
+	// commits; any validation or queue conflict rolls it back with the hold.
+	if _, err = tx.ExecContext(ctx, `update turns set status='running',phase=? where id=? and session_id=?`, previousPhase, turnID, session); err != nil {
+		return nil, true, err
+	}
+	if frontier == "waiting_on_tools" {
+		checkpoint, readErr := toolBatchCheckpointTx(ctx, tx, session, turnID)
+		if readErr != nil {
+			return nil, true, readErr
+		}
+		if checkpoint == nil {
+			return nil, true, ErrFailureConflict
+		}
+	} else {
+		checkpoint, requestID, readErr := generationCheckpointTx(ctx, tx, session, turnID, previousPhase)
+		if readErr != nil {
+			return nil, true, readErr
+		}
+		if checkpoint == nil {
+			return nil, true, ErrFailureConflict
+		}
+		if requestID != "" {
+			if _, err = tx.ExecContext(ctx, `insert into turn_recovery_fences(turn_id,session_id,claim_token) values(?,?,?) on conflict(turn_id) do update set session_id=excluded.session_id,claim_token=excluded.claim_token`, turnID, session, token); err != nil {
+				return nil, true, err
+			}
+			if err = interruptProviderTx(WithTurnWriter(ctx, session, turnID, token), tx, session, turnID, requestID, checkpoint.Iteration); err != nil {
+				return nil, true, err
+			}
+		}
+		if err = checkGenerationEffectsSettledTx(ctx, tx, turnID); err != nil {
+			return nil, true, err
+		}
+		if err = receiptEventTx(ctx, tx, turnID, session, "generation.ready", map[string]any{"continuation": checkpoint, "explicit_retry": true}); err != nil {
+			return nil, true, err
+		}
+	}
+	result, err := tx.ExecContext(ctx, `insert into session_active_turns(session_id,turn_id,worker_id,claim_token,claimed_at,updated_at) values(?,?,'closed-checkpoint',?,`+defaultNow+`,`+defaultNow+`) on conflict(session_id) do nothing`, session, turnID, token)
+	if err != nil {
+		return nil, true, err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return nil, true, err
+	}
+	if n != 1 {
+		return nil, true, ErrQueueConflict
+	}
+	if _, err = tx.ExecContext(ctx, `insert into turn_recovery_fences(turn_id,session_id,claim_token) values(?,?,?) on conflict(turn_id) do update set session_id=excluded.session_id,claim_token=excluded.claim_token`, turnID, session, token); err != nil {
+		return nil, true, err
+	}
+	if _, err = tx.ExecContext(ctx, `update turns set status='queued',phase=?,finished_at=null,updated_at=`+defaultNow+` where id=? and session_id=?`, queuedPhase, turnID, session); err != nil {
+		return nil, true, err
+	}
+	if err = retryCheckpointSessionStateTx(ctx, tx, session, "queued", ""); err != nil {
+		return nil, true, err
+	}
+	claim = &ActiveTurnClaim{SessionID: session, TurnID: turnID, WorkerID: "closed-checkpoint", ClaimToken: token, Status: "queued", Phase: queuedPhase}
+	if err = tx.QueryRowContext(ctx, `select claimed_at,updated_at from session_active_turns where session_id=?`, session).Scan(&claim.ClaimedAt, &claim.UpdatedAt); err != nil {
+		return nil, true, fmt.Errorf("checkpoint retry claim: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, true, err
+	}
+	return claim, true, nil
+}

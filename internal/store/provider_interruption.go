@@ -19,10 +19,23 @@ func generationPendingRequestTx(ctx context.Context, tx *sql.Tx, sessionID, turn
 	defer rows.Close()
 	requestID := ""
 	prepared := false
+	parked := 0
 	for rows.Next() {
 		var kind, session, raw string
 		if err = rows.Scan(&kind, &session, &raw); err != nil {
 			return "", false, err
+		}
+		if session != sessionID {
+			return "", false, nil
+		}
+		if control, valid := checkpointRetryControl(kind, raw, "generation_ready", &parked); control {
+			if !valid {
+				return "", false, nil
+			}
+			continue
+		}
+		if parked != 0 {
+			return "", false, nil
 		}
 		var header struct {
 			RequestID  string `json:"request_id"`
@@ -64,6 +77,9 @@ func generationPendingRequestTx(ctx context.Context, tx *sql.Tx, sessionID, turn
 	}
 	if err = rows.Close(); err != nil {
 		return "", false, err
+	}
+	if parked != 0 {
+		return "", false, nil
 	}
 	if requestID != "" {
 		var settled bool
