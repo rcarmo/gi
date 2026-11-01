@@ -12,7 +12,8 @@ fence before cancelling the old host. A separate closing heartbeat retains the
 reservation while cancellation-ignoring work finishes.
 
 Close joins main hosts, hook callbacks, side requests, maintenance writers and
-peering.
+peering. It then stops and joins every closing heartbeat before publishing a
+claim that a ready engine may immediately adopt.
 Only then does the Store commit `queued` with `checkpoint_retry_wait` or
 `checkpoint_retry_ready`. The original receipt, absolute deadline, iteration,
 attempt and lifecycle policy survive. Shutdown emits no agent-end callback or

@@ -383,10 +383,15 @@ func (e *Engine) Close() error {
 			e.closeErr = errors.Join(e.closeErr, e.peering.Close())
 		}
 		for _, checkpoint := range checkpoints {
+			// Join even the closing lease before publishing a claim that a
+			// ready peer may immediately adopt. Its heartbeat must not race
+			// that legitimate ownership handoff.
+			e.closeErr = errors.Join(e.closeErr, checkpoint.stopHeartbeat())
+		}
+		for _, checkpoint := range checkpoints {
 			if checkpoint.reserved {
 				e.closeErr = errors.Join(e.closeErr, e.store.CommitProviderRetryClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token))
 			}
-			e.closeErr = errors.Join(e.closeErr, checkpoint.stopHeartbeat())
 		}
 	})
 	return e.closeErr
