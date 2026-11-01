@@ -108,16 +108,17 @@ type sessionRunner struct {
 }
 
 type runningTurn struct {
-	owner             *Engine // immutable host owner; session coordination may be shared
-	turnID            string
-	claimToken        string
-	cancel            context.CancelFunc
-	done              chan struct{}
-	cancelled         <-chan struct{}
-	terminalPending   bool // guarded by sharedSessionCoord.mu
-	checkpointClosing bool // graceful retry reservation; no terminal lifecycle yet
-	recoveredTerminal *store.TurnSettlement
-	recoveredRetry    *store.ProviderRetryCheckpoint
+	owner               *Engine // immutable host owner; session coordination may be shared
+	turnID              string
+	claimToken          string
+	cancel              context.CancelFunc
+	done                chan struct{}
+	cancelled           <-chan struct{}
+	terminalPending     bool // guarded by sharedSessionCoord.mu
+	checkpointClosing   bool // graceful retry reservation; no terminal lifecycle yet
+	recoveredTerminal   *store.TurnSettlement
+	recoveredRetry      *store.ProviderRetryCheckpoint
+	recoveredGeneration *store.GenerationReadyCheckpoint
 }
 
 type ExtensionInfo struct {
@@ -877,6 +878,12 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		r.engine.forgetTurnHooks(turnID)
 	}()
 
+	if active.recoveredGeneration != nil {
+		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
+		agentID, _ := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
+		r.runAgentLoopFromCheckpoint(ctx, s, turnID, sessionID, active.recoveredGeneration.Model, agentID, nil, nil, active.recoveredGeneration)
+		return
+	}
 	if active.recoveredRetry != nil {
 		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
 		agentID, _ := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
@@ -1876,7 +1883,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	sessionCounts := map[string]*recoveryScanCounts{}
 	failedClaimsBySession := map[string][]store.ActiveTurnClaim{}
 	for _, claim := range claims {
-		if (claim.Phase == "retry_wait" || claim.Phase == "running" || store.IsClosedProviderRetryPhase(claim.Phase)) && !e.providerRecoveryEnabled.Load() {
+		if (claim.Phase == "generation_ready" || claim.Phase == "retry_wait" || claim.Phase == "running" || store.IsClosedProviderRetryPhase(claim.Phase)) && !e.providerRecoveryEnabled.Load() {
 			continue
 		}
 		counts := sessionCounts[claim.SessionID]
@@ -2058,6 +2065,9 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		return err
 	}
 	if handled, err := e.recoverProviderRetry(opCtx, claim); handled || err != nil {
+		return err
+	}
+	if handled, err := e.recoverGenerationReady(opCtx, claim); handled || err != nil {
 		return err
 	}
 	disposition := recoveryDispositionForClaim(claim)
@@ -4113,6 +4123,14 @@ func nextRepeatedToolFailureCount(lastSig string, lastCount int, call goai.ToolC
 // feed results back, repeat until the LLM produces a final text response or
 // the iteration budget is exhausted.
 func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage, continuations ...*store.ProviderRetryCheckpoint) {
+	var retry *store.ProviderRetryCheckpoint
+	if len(continuations) > 0 {
+		retry = continuations[0]
+	}
+	r.runAgentLoopFromCheckpoint(ctx, s, turnID, sessionID, model, agentID, initialSteering, retry, nil)
+}
+
+func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage, retry *store.ProviderRetryCheckpoint, generation *store.GenerationReadyCheckpoint) {
 	maxIter := r.engine.runtimeCfg.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 64
@@ -4122,7 +4140,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	var convCtx *goai.Context
 	var err error
 	firstIteration := 1
-	resumed := len(continuations) > 0 && continuations[0] != nil
+	resumed := retry != nil || generation != nil
 	lifecycleStarted := resumed // the checkpoint follows this turn's original agent start
 	defer func() {
 		if !lifecycleStarted || r.checkpointClosing(turnID) {
@@ -4134,8 +4152,15 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 		_, _ = r.engine.emitHook(r.engine.backgroundContext(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
 	}()
-	if resumed {
-		checkpoint := continuations[0]
+	if generation != nil {
+		providerState, convCtx, err = r.restoreGenerationPreparation(ctx, s, turnID, sessionID, agentID, generation)
+		if err == nil {
+			model = providerState.model
+		}
+		firstIteration = generation.Iteration
+		maxIter = min(maxIter, generation.MaxIterations)
+	} else if retry != nil {
+		checkpoint := retry
 		providerState, err = r.restoreProviderPreparation(checkpoint.Wait)
 		if err == nil {
 			err = r.waitRecoveredProviderRetry(ctx, s, sessionID, turnID, checkpoint)
@@ -4181,6 +4206,15 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			return
 		}
 		providerState.lastToolFailureSig, providerState.repeatedToolFailureCount = lastToolFailureSig, repeatedToolFailureCount
+		// A sleeping/woken retry already has its dedicated frontier. Ordinary
+		// generations commit only after preparation and all prior effects settle.
+		if retry == nil || iter != firstIteration {
+			checkpoint := &store.GenerationReadyCheckpoint{Version: 1, Iteration: iter, MaxIterations: maxIter, Model: model, Lifecycle: providerState.lifecyclePolicy(), LastToolFailureSignature: lastToolFailureSig, RepeatedToolFailures: repeatedToolFailureCount}
+			if err := s.SaveGenerationReady(ctx, sessionID, turnID, checkpoint); err != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist generation continuation: "+err.Error(), "persistence_error")
+				return
+			}
+		}
 		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx, providerState)
 		if providerState.initialized {
 			model = providerState.model

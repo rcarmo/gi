@@ -182,6 +182,10 @@ test-provider-partials: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestProviderPartial|TestStreamProgress|TestCompatProgress|TestProviderStream|TestConversationDoesNotExposeProviderReplayPayload' ./internal/store ./internal/turn ./internal/inference ./internal/web
 
 .PHONY: test-durable-recovery
+.PHONY: test-generation-ready
+test-generation-ready: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestGenerationReady|TestMemoryStore|TestSubTurnSyncVsAsyncResultDelivery|TestProviderRetryRecovery|TestCloseWaits' ./internal/store ./internal/turn
+
 test-durable-recovery: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestTurnWriter|Test.*Close|TestProviderRetryRecovery|TestShellFinalizationFailureKeepsClaimAndQueuedWork|TestConcurrentSubmitDifferentSessionsRunsConcurrently|TestStagedTerminalRecovery|TestActiveEscapeRestoreFencesAndCancelsBeforeCleanup|TestHeartbeatCancelsTurnWhenActiveClaimDisappears|TestParentTerminal|TestParentAbort' ./internal/store ./internal/turn
 
@@ -425,6 +429,10 @@ test-instance-stop:
 		if kill -0 $$pid 2>/dev/null; then kill -KILL $$pid 2>/dev/null || true; fi; \
 	fi
 	@rm -rf $(TEST_DIR)
+
+.PHONY: test-generation-ready-web
+test-generation-ready-web: playwright-browsers test-instance-start $(TESTPROFILE)
+	@$(PLAYWRIGHT) test tests/functional/21-conversation-projection.spec.ts; result=$$?; $(MAKE) -s test-instance-stop; exit $$result
 
 test-ux: playwright-browsers test-instance-start $(TESTPROFILE)
 	mkdir -p $(TEST_RESULTS)

@@ -721,6 +721,7 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [ ] Checkpoint at compaction boundaries
 - [ ] Implement provider retry checkpoints
 - [x] Preserve partial output on provider failure — bounded committed prefixes, exact encodable error/abort terminals, received usage and producer/Close joins; failed contributions stay outside model context. [#87 acceptance](../implementation/audits/provider-partial-terminal-retention.md).
+- [x] Resume versioned generation-ready frontiers before provider admission without rerunning prompt setup, start hooks or settled tools; claim fencing, fresh context and bounded no-progress recovery. [Audit](../implementation/audits/generation-ready-continuation.md).
 - [ ] Auto-resume after clean restart
 - [ ] No auto-resume after crash
 

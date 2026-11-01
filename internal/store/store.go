@@ -115,6 +115,12 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
+	// Shared-cache memory databases cannot wait through read-to-write table
+	// lock upgrades. Serialise this Store's transactions without weakening
+	// isolation; file-backed WAL databases retain their normal connection pool.
+	if memory {
+		db.SetMaxOpenConns(1)
+	}
 	if memory && path != ":memory:" && schemaEmpty(db) {
 		if err := restoreSchemaTemplate(db); err != nil {
 			db.Close()

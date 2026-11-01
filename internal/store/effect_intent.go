@@ -10,7 +10,7 @@ import (
 // claim is checked in the same transaction so a committed cancellation wins.
 func (s *Store) AdmitTurnEffect(ctx context.Context, sessionID, turnID, phase, eventType string, payload map[string]any) error {
 	switch eventType {
-	case "inference.started", "inference.request_prepared", "tool.started":
+	case "inference.started", "inference.request_prepared", "tool.started", "generation.ready":
 	default:
 		return fmt.Errorf("invalid effect intent %q", eventType)
 	}
@@ -30,7 +30,11 @@ func (s *Store) AdmitTurnEffect(ctx context.Context, sessionID, turnID, phase, e
 		return err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `update turns set phase=?,updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and phase not in ('settling','cancelling') and exists(select 1 from session_active_turns where session_id=? and turn_id=? and (?='' or claim_token=?))`, phase, turnID, sessionID, sessionID, turnID, token, token)
+	phaseGuard := ""
+	if eventType == "generation.ready" {
+		phaseGuard = " and phase in ('setup','running','waiting_on_tools','generation_ready')"
+	}
+	result, err := tx.ExecContext(ctx, `update turns set phase=?,updated_at=`+defaultNow+` where id=? and session_id=? and status='running' and phase not in ('settling','cancelling')`+phaseGuard+` and exists(select 1 from session_active_turns where session_id=? and turn_id=? and (?='' or claim_token=?))`, phase, turnID, sessionID, sessionID, turnID, token, token)
 	if err != nil {
 		return err
 	}
@@ -40,6 +44,13 @@ func (s *Store) AdmitTurnEffect(ctx context.Context, sessionID, turnID, phase, e
 	}
 	if count != 1 {
 		return context.Canceled
+	}
+	// Take the writer lock before inspecting the frontier. Upgrading a read
+	// transaction can deadlock against a concurrently settling child in SQLite.
+	if eventType == "generation.ready" {
+		if err := checkGenerationEffectsSettledTx(ctx, tx, turnID); err != nil {
+			return err
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(?,?,coalesce((select max(seq)+1 from turn_events where turn_id=?),1),?,?,`+defaultNow+`)`, turnID, sessionID, turnID, eventType, raw); err != nil {
 		return err

@@ -63,11 +63,26 @@ func (r *sessionRunner) refreshProviderPreparation(ctx context.Context, s *store
 	if err != nil {
 		return err
 	}
-	p.cfg = cfg
-	policy := p.cfg.Retry.Policy()
+	policy := cfg.Retry.Policy()
 	if !policy.Enabled || attempt > policy.MaxRetries {
 		return fmt.Errorf("retry disabled or exhausted under current policy")
 	}
+	return r.rebuildProviderPreparationWithSession(ctx, s, turnID, sessionID, agentID, iter, p, convCtx, cfg, session)
+}
+
+func (r *sessionRunner) rebuildProviderPreparation(ctx context.Context, s *store.Store, turnID, sessionID, agentID string, iter int, p *providerPreparation, convCtx *goai.Context, cfg config.RuntimeConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	session, err := s.GetSession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	return r.rebuildProviderPreparationWithSession(ctx, s, turnID, sessionID, agentID, iter, p, convCtx, cfg, session)
+}
+
+func (r *sessionRunner) rebuildProviderPreparationWithSession(ctx context.Context, s *store.Store, turnID, sessionID, agentID string, iter int, p *providerPreparation, convCtx *goai.Context, cfg config.RuntimeConfig, session *store.Session) error {
+	p.cfg = cfg
 	p.model = inference.SessionModel(session.State, inference.SessionModelChoice{Model: p.model}).Label()
 	if p.model == "" {
 		return fmt.Errorf("retry has no current model")
