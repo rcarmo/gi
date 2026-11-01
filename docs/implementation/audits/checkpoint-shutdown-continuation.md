@@ -1,9 +1,10 @@
 # Checkpoint-preserving shutdown and continuation
 
-Retry waits and committed wakes have a fenced restart route after runtime
-initialisation. Graceful close requeues these verified checkpoints after joining
-owned work. General generation/tool continuation still needs implementation;
-#83/#86/#92 stay open. See [graceful retry close](graceful-retry-close.md).
+Retry waits, committed wakes and proven generation/tool frontiers have fenced
+restart routes after runtime initialisation. Graceful close requeues verified
+checkpoints after joining owned work. Unknown frontiers retain review holds.
+See [focused findings acceptance](durable-findings-acceptance.md) for the completed
+#83/#86/#92 checks and [graceful retry close](graceful-retry-close.md) for that route.
 
 ## Verified working-tree guards
 
@@ -26,9 +27,10 @@ The oracle is go-ai v1.4.0 `durable/harness.go:Close` and
 `durable/close_requeue.go:requeueAtClose`: seal admission, cancel/join scheduler
 and invocation hosts, then requeue running task checkpoints. Preserve abort
 marks and restart counts; graceful close does not manufacture a crash outcome.
-Gi separates graceful retry close from user abort. Other generation/tool
-phases still use conservative abort settlement until their continuation routes
-are verified. Every path retains the host join barrier.
+Gi separates graceful close from user abort. Proven retry, generation and tool
+frontiers retain their checkpoints. Unsupported frontiers park a review hold
+after joining owned hosts; they do not fabricate cancellation or a root terminal
+receipt. Explicit user cancellation keeps its terminal settlement path.
 
 A pending checkpoint must not enter Gi's normal whole-prompt queue launcher.
 That launcher reruns setup and cannot implement native continuation safely.
@@ -45,13 +47,16 @@ See [retry continuation](provider-retry-continuation.md) for checks and profilin
 The [post-wake route](provider-retry-post-wake.md) also handles a committed wake
 before the next request admission, without duplicating the wake or budgets.
 
-## Next implementation boundary
+## Completed generation and tool routes
 
-1. Extend graceful close beyond verified retry checkpoints. Join actual
-   hosts/progress/hooks before requeue or claim cleanup; preserve explicit
-   cancellation and propagate persistence errors.
-2. Add generation/tool boundary continuation and process-kill regressions.
-   Never re-execute settled tools. Unknown tool effects require both persisted
-   and current `ReplaySafe`; retain prepared arguments without rerunning hooks.
-   Count crash interruptions, reset only after committed forward progress, and
-   park exhausted/no-progress tasks. Graceful close must not increment counts.
+Generation/tool continuation and process-kill regressions now preserve settled
+effects, original prepared arguments and received accounting. A started tool can
+run again only when both persisted and current `ReplaySafe` permit it. Recovery
+counts no-progress interruptions and parks exhausted checkpoints; graceful Close
+leaves that crash budget unchanged.
+
+Explicit retry resumes a proven root checkpoint on its original turn. Parent
+consumption guards keep parent-linked retry blocked. Explicit skip stages failed
+terminal cleanup, settles outstanding wire calls without executor replay and
+joins child final hooks. See [held-turn retry and skip](../../internal/held-turn-retry.md)
+for admission, rollback and conservative limits.
