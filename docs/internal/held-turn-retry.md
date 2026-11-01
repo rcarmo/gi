@@ -1,10 +1,36 @@
 # Held-turn retry admission
 
-`Engine.RetryHeldTurn` uses a durable reservation before submitting follow-on
-work. The native API is also used by [explicit terminal retry commands](tui-held-retry.md);
-there is no new browser recovery control.
+`Engine.RetryHeldTurn` resumes a proven native checkpoint on its original turn.
+Legacy failures use a durable reservation before submitting follow-on work. The
+same API serves [explicit terminal retry commands](tui-held-retry.md); there is
+no new browser recovery control.
 
-## Contract
+## Native checkpoint retry
+
+A recovery-held generation, single pending-provider request or tool batch can be
+explicitly retried without submitting its prompt again. One writer transaction
+validates the complete frontier, clears the recovery hold, fences the previous
+writer and reserves a dedicated queued checkpoint. It records
+`turn.checkpoint_retry_requested`, which resets the automatic crash budget but
+retains lifecycle, iteration, tool-failure budgets and received usage. An
+uncertain provider admission is sealed before a fresh generation is queued.
+
+Concurrent callers and repeated requests after restart return the same turn ID.
+The normal prompt queue cannot claim `checkpoint_generation_ready` or
+`checkpoint_tool_batch`; dispatch waits for runtime-ready recovery. Failed
+validation, persistence or active-session conflicts roll back the whole admission,
+including the hold and any provider receipt. A live host must finish cleanup
+before retry admission.
+
+Unknown, terminal and parent-linked frontiers remain held. Parent outcome
+consumption is not yet proven safe to reverse; retry never detaches the child or
+falls back to its original prompt. Legacy retry reservations already in progress
+retain their existing reconciliation protocol. Checkpoint reservations are not
+ordinary queue entries: ordinary queue cancellation rejects their active claim.
+Direct cancellation of an unlaunched checkpoint remains part of the owned-work
+shutdown follow-up; a launched host uses normal cancellation.
+
+## Follow-on retry for legacy failures
 
 - A conditional SQLite update reserves one unresolved held terminal failure.
   Concurrent callers cannot both submit it. A failed, aborted or cancelled
@@ -88,8 +114,9 @@ is never dispatched again.
 
 At most five automatic admissions are allowed without meaningful provider/tool
 receipt progress. Rewriting preparation or recording an interruption does not
-reset this limit. Exhaustion uses the existing conservative hold; explicit
-parked-checkpoint retry requires further implementation. See the
+reset this limit. Exhaustion uses the existing conservative hold. Explicit
+native retry resets the crash budget through its atomic admission, not by
+inventing receipt progress. See the
 [generation-ready audit](../implementation/audits/generation-ready-continuation.md).
 
 ## Graceful generation Close

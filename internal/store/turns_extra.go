@@ -103,7 +103,7 @@ func (s *Store) ListTurns(ctx context.Context, sessionID string) ([]Turn, error)
 func (s *Store) GetNextQueuedTurn(ctx context.Context, sessionID string) (*Turn, error) {
 	row := s.db.QueryRowContext(ctx, `
 		select id, session_id, status, phase, prompt, metadata_json, coalesce(claimed_by,''), coalesce(claimed_at,''), coalesce(started_at,''), coalesce(finished_at,''), created_at, updated_at
-		from turns where session_id = ? and status = 'queued' and phase not in ('steer_returned','checkpoint_retry_wait','checkpoint_retry_ready','checkpoint_generation_ready') and coalesce(json_extract(metadata_json,'$.operation'),'') != 'manual_compaction'
+		from turns where session_id = ? and status = 'queued' and phase not in ('steer_returned','checkpoint_retry_wait','checkpoint_retry_ready','checkpoint_generation_ready','checkpoint_tool_batch') and coalesce(json_extract(metadata_json,'$.operation'),'') != 'manual_compaction'
 		order by queue_position asc, created_at asc, id asc
 		limit 1
 	`, sessionID)

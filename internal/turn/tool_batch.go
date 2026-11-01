@@ -38,7 +38,8 @@ func toolResultWireCall(ctx context.Context, turnID string, call goai.ToolCall) 
 }
 
 func (e *Engine) recoverToolBatch(ctx context.Context, claim store.ActiveTurnClaim) (bool, error) {
-	if claim.Status != "running" || claim.Phase != "waiting_on_tools" {
+	closed := claim.Status == "queued" && claim.Phase == store.ClosedToolBatchPhase
+	if !closed && (claim.Status != "running" || claim.Phase != "waiting_on_tools") {
 		return false, nil
 	}
 	if !e.providerRecoveryEnabled.Load() {

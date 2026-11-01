@@ -51,7 +51,7 @@ func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, w
 	res, err := s.db.ExecContext(ctx, `
 		insert into session_active_turns (session_id, turn_id, worker_id, claim_token, claimed_at, updated_at)
 		select ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`
-        where not exists(select 1 from turns where id=? and phase in ('checkpoint_retry_wait','checkpoint_retry_ready','checkpoint_generation_ready'))
+        where not exists(select 1 from turns where id=? and phase in ('checkpoint_retry_wait','checkpoint_retry_ready','checkpoint_generation_ready','checkpoint_tool_batch'))
 		on conflict(session_id) do nothing
 	`, sessionID, turnID, internalx.NilIfEmpty(workerID), claimToken, turnID)
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *Store) ListStaleActiveTurnClaims(ctx context.Context, olderThan time.Ti
 		       t.status, t.phase
 		from session_active_turns sat
 		join turns t on t.id = sat.turn_id
-		where (sat.updated_at < ? or (sat.worker_id='closed-checkpoint' and t.status='queued' and t.phase in ('checkpoint_retry_wait','checkpoint_retry_ready','checkpoint_generation_ready')))
+		where (sat.updated_at < ? or (sat.worker_id='closed-checkpoint' and t.status='queued' and t.phase in ('checkpoint_retry_wait','checkpoint_retry_ready','checkpoint_generation_ready','checkpoint_tool_batch')))
 	`
 	args := []any{cutoff}
 	if sessionID != "" {

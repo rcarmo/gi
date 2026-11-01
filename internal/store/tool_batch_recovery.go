@@ -150,14 +150,27 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 	admitted := map[string]bool{}
 	physicalSlots := map[string]int{}
 	cursor := 0
+	parked := 0
 	budgetSignature, budgetFailures := checkpoint.Generation.LastToolFailureSignature, checkpoint.Generation.RepeatedToolFailures
 	for rows.Next() {
 		var kind, session, body string
 		if err = rows.Scan(&kind, &session, &body); err != nil {
 			return nil, err
 		}
+		if session != sessionID {
+			return nil, nil
+		}
+		if control, valid := checkpointRetryControl(kind, body, "waiting_on_tools", &parked); control {
+			if !valid {
+				return nil, nil
+			}
+			continue
+		}
+		if parked != 0 {
+			return nil, nil
+		}
 		var h toolBatchEventHeader
-		if session != sessionID || json.Unmarshal([]byte(body), &h) != nil || h.BatchID != checkpoint.ProviderOccurrenceID || h.Iteration != checkpoint.Generation.Iteration {
+		if json.Unmarshal([]byte(body), &h) != nil || h.BatchID != checkpoint.ProviderOccurrenceID || h.Iteration != checkpoint.Generation.Iteration {
 			return nil, nil
 		}
 		if kind == "tool.output" {
@@ -178,7 +191,7 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 			continue
 		}
 		switch kind {
-		case "tool.batch_recovered":
+		case "tool.batch_recovered", "tool.batch_resumed":
 			if h.Phase != "tool_batch" || !h.Checkpoint {
 				return nil, nil
 			}
@@ -336,6 +349,9 @@ func toolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnID st
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
+	if parked != 0 {
+		return nil, nil
+	}
 	receiptRows, err := tx.QueryContext(ctx, `select r.occurrence_id,r.kind,r.decision_json,r.message_id,m.session_id,m.role,json_extract(m.payload_json,'$.turn_id'),r.usage_json,r.usage_unknown from turn_receipts r left join messages m on m.id=r.message_id where r.turn_id=?`, turnID)
 	if err != nil {
 		return nil, err
@@ -411,15 +427,16 @@ func (s *Store) AcquireToolBatchRecovery(ctx context.Context, claim ActiveTurnCl
 	if count != 1 {
 		return nil, ErrQueueConflict
 	}
-	var status, phase, updated string
-	if err = tx.QueryRowContext(ctx, `select t.status,t.phase,sat.updated_at from session_active_turns sat join turns t on t.id=sat.turn_id and t.session_id=sat.session_id where sat.session_id=? and sat.turn_id=?`, claim.SessionID, claim.TurnID).Scan(&status, &phase, &updated); err != nil {
+	var status, phase, updated, worker string
+	if err = tx.QueryRowContext(ctx, `select t.status,t.phase,sat.updated_at,coalesce(sat.worker_id,'') from session_active_turns sat join turns t on t.id=sat.turn_id and t.session_id=sat.session_id where sat.session_id=? and sat.turn_id=?`, claim.SessionID, claim.TurnID).Scan(&status, &phase, &updated, &worker); err != nil {
 		return nil, err
 	}
 	stamp, err := time.Parse(time.RFC3339Nano, updated)
 	if err != nil {
 		return nil, err
 	}
-	if !stamp.Before(olderThan) || status != "running" || phase != "waiting_on_tools" {
+	closed := status == "queued" && phase == ClosedToolBatchPhase && worker == "closed-checkpoint"
+	if !closed && (!stamp.Before(olderThan) || status != "running" || phase != "waiting_on_tools") {
 		return nil, nil
 	}
 	state, err := toolBatchCheckpointTx(ctx, tx, claim.SessionID, claim.TurnID)
@@ -427,10 +444,10 @@ func (s *Store) AcquireToolBatchRecovery(ctx context.Context, claim ActiveTurnCl
 		return nil, err
 	}
 	var recoveries int
-	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and event_type in ('generation.recovered','tool.batch_recovered') and seq>coalesce((select max(seq) from turn_events where turn_id=? and event_type in ('inference.settled','tool.finished','tool.failed','tool.skipped')),0)`, claim.TurnID, claim.TurnID).Scan(&recoveries); err != nil {
+	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and event_type in ('generation.recovered','tool.batch_recovered') and seq>coalesce((select max(seq) from turn_events where turn_id=? and event_type in ('inference.settled','tool.finished','tool.failed','tool.skipped','turn.checkpoint_retry_requested')),0)`, claim.TurnID, claim.TurnID).Scan(&recoveries); err != nil {
 		return nil, err
 	}
-	if recoveries >= generationReadyRecoveryLimit {
+	if !closed && recoveries >= generationReadyRecoveryLimit {
 		return nil, nil
 	}
 	if _, err = tx.ExecContext(ctx, `update session_active_turns set claim_token=?,worker_id='recovery',claimed_at=`+defaultNow+`,updated_at=`+defaultNow+` where session_id=? and turn_id=?`, token, claim.SessionID, claim.TurnID); err != nil {
@@ -439,7 +456,17 @@ func (s *Store) AcquireToolBatchRecovery(ctx context.Context, claim ActiveTurnCl
 	if _, err = tx.ExecContext(ctx, `insert into turn_recovery_fences(turn_id,session_id,claim_token) values(?,?,?) on conflict(turn_id) do update set claim_token=excluded.claim_token`, claim.TurnID, claim.SessionID, token); err != nil {
 		return nil, err
 	}
-	if err = receiptEventTx(ctx, tx, claim.TurnID, claim.SessionID, "tool.batch_recovered", map[string]any{"phase": "tool_batch", "checkpoint": true, "batch_id": state.Checkpoint.ProviderOccurrenceID, "iteration": state.Checkpoint.Generation.Iteration, "previous_claim": claim.ClaimToken}); err != nil {
+	eventType := "tool.batch_recovered"
+	if closed {
+		eventType = "tool.batch_resumed"
+		if _, err = tx.ExecContext(ctx, `update turns set status='running',phase='waiting_on_tools',updated_at=`+defaultNow+` where id=? and session_id=?`, claim.TurnID, claim.SessionID); err != nil {
+			return nil, err
+		}
+		if err = retryCheckpointSessionStateTx(ctx, tx, claim.SessionID, "running", claim.TurnID); err != nil {
+			return nil, err
+		}
+	}
+	if err = receiptEventTx(ctx, tx, claim.TurnID, claim.SessionID, eventType, map[string]any{"phase": "tool_batch", "checkpoint": true, "batch_id": state.Checkpoint.ProviderOccurrenceID, "iteration": state.Checkpoint.Generation.Iteration, "previous_claim": claim.ClaimToken}); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {

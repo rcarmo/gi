@@ -153,19 +153,21 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 		t.Skip("requires process kill")
 	}
 	for _, tc := range []struct {
-		name, stage, secondStage                    string
-		oldSafe, currentSafe, schemaChanged, replay bool
+		name, stage, secondStage                            string
+		oldSafe, currentSafe, schemaChanged, replay, parked bool
 	}{
-		{"safe", "execute", "", true, true, false, true},
-		{"preparation_interrupted", "prepare", "", true, true, false, false},
-		{"default_unsafe", "execute", "", false, false, false, false},
-		{"saved_unsafe", "execute", "", false, true, false, false},
-		{"currently_unsafe", "execute", "", true, false, false, false},
-		{"changed_schema_uses_saved_arguments", "execute", "", true, true, true, true},
-		{"result_policy_attempted", "result", "", true, true, false, false},
-		{"retry_admitted_then_interrupted", "execute", "execute", true, true, false, true},
-		{"retry_admitted_then_denied", "execute", "execute", true, false, false, false},
-		{"settled_batch_successor", "execute", "batch_end", true, true, false, false},
+		{name: "safe", stage: "execute", oldSafe: true, currentSafe: true, replay: true},
+		{name: "preparation_interrupted", stage: "prepare", oldSafe: true, currentSafe: true},
+		{name: "default_unsafe", stage: "execute"},
+		{name: "saved_unsafe", stage: "execute", currentSafe: true},
+		{name: "currently_unsafe", stage: "execute", oldSafe: true},
+		{name: "changed_schema_uses_saved_arguments", stage: "execute", oldSafe: true, currentSafe: true, schemaChanged: true, replay: true},
+		{name: "result_policy_attempted", stage: "result", oldSafe: true, currentSafe: true},
+		{name: "retry_admitted_then_interrupted", stage: "execute", secondStage: "execute", oldSafe: true, currentSafe: true, replay: true},
+		{name: "retry_admitted_then_denied", stage: "execute", secondStage: "execute", oldSafe: true},
+		{name: "settled_batch_successor", stage: "execute", secondStage: "batch_end", oldSafe: true, currentSafe: true},
+		{name: "parked_safe", stage: "execute", oldSafe: true, currentSafe: true, replay: true, parked: true},
+		{name: "parked_unsafe", stage: "execute", parked: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			secondSettled := tc.secondStage == "batch_end"
@@ -233,6 +235,23 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			defer s.Close()
 			if _, err = s.DB().Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z'`); err != nil {
 				t.Fatal(err)
+			}
+			if tc.parked {
+				for i := 0; i < 5; i++ {
+					if _, err = s.DB().Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z'`); err != nil {
+						t.Fatal(err)
+					}
+					claims, listErr := s.ListStaleActiveTurnClaims(context.Background(), time.Now(), "batch")
+					if listErr != nil || len(claims) != 1 {
+						t.Fatal(claims, listErr)
+					}
+					if cp, acquireErr := s.AcquireToolBatchRecovery(context.Background(), claims[0], fmt.Sprintf("pre-crash-%d", i), time.Now()); acquireErr != nil || cp == nil {
+						t.Fatal(cp, acquireErr)
+					}
+				}
+				if _, err = s.DB().Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z'`); err != nil {
+					t.Fatal(err)
+				}
 			}
 			var providers, executions, starts atomic.Int32
 			withStreamWithToolsStub(t, func(_ context.Context, _ string, request *goai.Context, _ func(map[string]any)) (*inference.StreamResult, error) {
@@ -371,6 +390,20 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			}
 			if err = e.ResumeInterruptedWork(context.Background()); err != nil {
 				t.Fatal(err)
+			}
+			if tc.parked {
+				row, getErr := s.GetTurn(context.Background(), turnID)
+				if getErr != nil || row.Status != "failed" || row.Phase != "held_for_retry_or_skip" || providers.Load() != 0 || executions.Load() != 0 {
+					t.Fatal("exhausted checkpoint not parked", row, getErr)
+				}
+				admitted, retryErr := e.RetryHeldTurn(context.Background(), turnID, "operator retry")
+				if retryErr != nil || admitted.TurnID != turnID || !admitted.Queued {
+					t.Fatal("checkpoint retry changed invocation", admitted, retryErr)
+				}
+				duplicate, retryErr := e.RetryHeldTurn(context.Background(), turnID, "duplicate")
+				if retryErr != nil || duplicate.TurnID != turnID {
+					t.Fatal("checkpoint retry not idempotent", duplicate, retryErr)
+				}
 			}
 			waitForCondition(t, 5*time.Second, func() bool {
 				row, err := s.GetTurn(context.Background(), turnID)
