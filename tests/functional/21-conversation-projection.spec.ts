@@ -87,7 +87,8 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} failed provide
  } finally { await browser.close(); }
 });
 
-for (const name of ['chromium', 'webkit'] as const) test(`${name} unavailable generation continuation fails once without repeating the original prompt`, async () => {
+for (const boundary of ['generation_ready', 'provider_unknown'] as const)
+for (const name of ['chromium', 'webkit'] as const) test(`${name} ${boundary} continuation surfaces failure without repeating the original prompt`, async () => {
  const browser = await ({chromium, webkit}[name]).launch({headless: true});
  const page = await browser.newPage();
  const api = page.request;
@@ -95,17 +96,26 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} unavailable ge
   const created = await api.post(BASE_URL + '/api/sessions', {data: {agent_id: `generation-${name}`, title: `generation-${name}`}});
   expect(created.ok()).toBe(true);
   const {id} = await created.json();
-  const turnId = `generation-${name}-${Date.now()}`;
+  const turnId = `generation-${boundary}-${name}-${Date.now()}`;
   const messageId = `${turnId}-prompt`;
   const original = `original generation prompt ${name}`;
   const quote = (s: string) => `'${s.replaceAll("'", "''")}'`;
   const continuation = JSON.stringify({continuation: {version: 1, iteration: 1, max_iterations: 4, model: 'missing-provider/missing-model', lifecycle: {version: 1}}});
   const db = resolve(process.env.GI_TEST_DB || join(process.env.GI_TEST_RUN_ROOT!, 'instance', 'gi.db'));
+  const requestId = `inference_${turnId}`;
+  const prefixId = `msg_${turnId}`;
+  const phase = boundary === 'provider_unknown' ? 'running' : 'generation_ready';
+  const interrupted = boundary === 'provider_unknown' ? `
+   insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},2,'inference.started',${quote(JSON.stringify({phase: 'inference', iteration: 1, request_id: requestId}))},'2026-01-01T00:00:00Z');
+   insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},3,'inference.request_prepared',${quote(JSON.stringify({phase: 'inference', iteration: 1, request_id: requestId, intent: {messages: 'old prepared request must not replay'}}))},'2026-01-01T00:00:00Z');
+   insert into messages(id,session_id,role,content,payload_json,created_at) values(${quote(prefixId)},${quote(id)},'assistant','tampered streaming draft',${quote(JSON.stringify({kind: 'chat', source: 'inference', turn_id: turnId, request_id: requestId, partial: true, adopted: false, provider_message: {role: 'assistant', content: [{type: 'text', text: 'committed interrupted prefix'}], usage: {input: 17}}}))},'2026-01-02T00:00:00Z');
+  ` : '';
   const seed = spawnSync('sqlite3', ['-cmd', '.timeout 5000', db, `begin immediate;
    update sessions set state_json=json_remove(json_set(state_json,'$.model','test-model','$.provider','test'),'$.selected_model','$.selected_provider') where id=${quote(id)};
-   insert into turns(id,session_id,status,phase,prompt,metadata_json,created_at,updated_at) values(${quote(turnId)},${quote(id)},'running','generation_ready',${quote(original)},'{"intent":"prompt","model":"missing-provider/missing-model"}','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z');
+   insert into turns(id,session_id,status,phase,prompt,metadata_json,created_at,updated_at) values(${quote(turnId)},${quote(id)},'running',${quote(phase)},${quote(original)},'{"intent":"prompt","model":"missing-provider/missing-model"}','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z');
    insert into messages(id,session_id,role,content,payload_json,created_at) values(${quote(messageId)},${quote(id)},'user',${quote(original)},${quote(JSON.stringify({kind: 'chat', turn_id: turnId}))},'2026-01-01T00:00:00Z');
    insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},1,'generation.ready',${quote(continuation)},'2026-01-01T00:00:00Z');
+   ${interrupted}
    insert into session_active_turns(session_id,turn_id,worker_id,claim_token,claimed_at,updated_at) values(${quote(id)},${quote(turnId)},'dead-owner','old-claim','2000-01-01T00:00:00Z','2000-01-01T00:00:00Z');
    commit;`], {encoding: 'utf8'});
   expect(seed.status, seed.stderr).toBe(0);
@@ -122,6 +132,9 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} unavailable ge
   }).toBe(true);
   const raw = await (await api.get(BASE_URL + `/api/sessions/${id}/messages`)).json();
   expect(raw.messages.filter((m: any) => m.role === 'user' && m.content === original)).toHaveLength(1);
+  if (boundary === 'provider_unknown') {
+   expect(raw.messages.filter((m: any) => m.id === prefixId && m.content === 'committed interrupted prefix')).toHaveLength(1);
+  }
   // Earlier settings scenarios can change the current harness model. Both
   // it and the synthetic checkpoint lack a native provider: surface one error
   // and drain the queued follow-up without replaying the original prompt.
@@ -131,8 +144,13 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} unavailable ge
   await expect(page.locator(`#post-${messageId}`)).toHaveCount(1);
   await expect(page.locator('.timeline')).toContainText('Inference error: model not found:');
   await expect(page.locator('.timeline')).toContainText('Gi received: queued after recovery');
+  if (boundary === 'provider_unknown') await expect(page.locator(`#post-${prefixId}`)).toContainText('committed interrupted prefix');
   await page.reload();
   await expect(page.locator(`#post-${messageId}`)).toHaveCount(1);
+  if (boundary === 'provider_unknown') {
+   await expect(page.locator(`#post-${prefixId}`)).toContainText('committed interrupted prefix');
+   await expect(page.locator('.timeline')).not.toContainText('tampered streaming draft');
+  }
   await expect(page.locator('.timeline')).toContainText('Inference error: model not found:');
   await expect(page.locator('.timeline')).toContainText('Gi received: queued after recovery');
  } finally { await browser.close(); }
