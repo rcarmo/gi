@@ -242,3 +242,59 @@ func TestProviderRetryAccountingScratchDoesNotCarrySparseFields(t *testing.T) {
 		t.Fatal("sparse receipt inherited previous usage", a, err)
 	}
 }
+
+func TestProviderRetryWakeRejectsSupersededCheckpoint(t *testing.T) {
+	s, ctx, _ := retryReceiptFixture(t)
+	first := retryReceipt()
+	first.RetryWait.RetryAt = time.Now().Add(-time.Second)
+	if _, err := s.SettleProviderAttempt(ctx, "t", "s", "request", first); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ResumeProviderRetry(ctx, "s", "t", "request"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AdmitTurnEffect(ctx, "s", "t", "running", "inference.started", map[string]any{"request_id": "next-request"}); err != nil {
+		t.Fatal(err)
+	}
+	next := retryReceipt()
+	next.RetryWait.Attempt = 2
+	next.RetryWait.RetryAt = time.Now().Add(time.Hour)
+	if _, err := s.SettleProviderAttempt(ctx, "t", "s", "next-request", next); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ResumeProviderRetry(ctx, "s", "t", "request"); err == nil {
+		t.Fatal("old receipt bypassed current retry deadline")
+	}
+	row, err := s.GetTurn(ctx, "t")
+	if err != nil || row.Phase != "retry_wait" {
+		t.Fatal("superseded wake changed phase", row, err)
+	}
+	var wakes int
+	if err = s.db.QueryRow(`select count(*) from turn_events where event_type='inference.retry_resumed'`).Scan(&wakes); err != nil || wakes != 1 {
+		t.Fatal("superseded wake published", wakes, err)
+	}
+}
+
+func TestProviderRetryWakeRejectsLaterEffectBoundary(t *testing.T) {
+	for _, event := range []string{"inference.started", "inference.request_prepared", "inference.settled", "inference.retry_scheduled", "inference.retry_resumed", "tool.started", "tool.finished", "tool.failed", "tool.cancelled", "tool.aborted", "tool.skipped", "tool.output", "turn.terminal_staged", "turn.finished"} {
+		t.Run(event, func(t *testing.T) {
+			s, ctx, _ := retryReceiptFixture(t)
+			receipt := retryReceipt()
+			receipt.RetryWait.RetryAt = time.Now().Add(-time.Second)
+			if _, err := s.SettleProviderAttempt(ctx, "t", "s", "request", receipt); err != nil {
+				t.Fatal(err)
+			}
+			// Even a stale/reused request ID cannot make an old scheduled wait current.
+			requestID := "request"
+			if event == "inference.retry_scheduled" {
+				requestID = "next-request"
+			}
+			if err := s.AppendTurnEvent(ctx, "t", "s", event, map[string]any{"request_id": requestID, "occurrence_id": "later-effect"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.ResumeProviderRetry(ctx, "s", "t", "request"); err == nil {
+				t.Fatal("wake outran later effect", event)
+			}
+		})
+	}
+}

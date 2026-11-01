@@ -20,6 +20,10 @@ import (
 // the subsequent tool phase and iterations without rewriting admission history.
 type providerPreparation struct {
 	initialized               bool
+	startCaptured             bool
+	retryAttempt              int
+	lastToolFailureSig        string
+	repeatedToolFailureCount  int
 	model, thinking           string
 	cfg                       config.RuntimeConfig
 	startPrompt, startMessage string
@@ -48,12 +52,8 @@ func (r *sessionRunner) refreshProviderPreparation(ctx context.Context, s *store
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	rec, err := s.GetTurn(ctx, turnID)
-	if err != nil {
+	if err := s.CheckProviderRetryRunning(ctx, sessionID, turnID); err != nil {
 		return err
-	}
-	if rec.SessionID != sessionID || rec.Status != "running" {
-		return context.Canceled
 	}
 	session, err := s.GetSession(ctx, sessionID)
 	if err != nil {
@@ -119,7 +119,15 @@ func (r *sessionRunner) captureAgentStartPreparation(p *providerPreparation, res
 			_, p.startRegistered[tool.Name] = r.engine.tools.GetRegistered(tool.Name)
 		}
 	}
+	p.startCaptured = true
 	return nil
+}
+
+func (p *providerPreparation) lifecyclePolicy() *store.ProviderLifecyclePolicy {
+	if !p.startCaptured {
+		return nil
+	}
+	return (&store.ProviderLifecyclePolicy{Version: 1, SystemPrompt: p.startPrompt, Message: p.startMessage, Messages: p.startMessages, Tools: p.startTools, RegisteredTools: p.startRegistered}).Clone()
 }
 
 func (r *sessionRunner) applyAgentStartPreparation(p *providerPreparation, conv *goai.Context) error {

@@ -60,6 +60,7 @@ type Engine struct {
 	mcpWaited                         atomic.Bool    // the first prompt waited for direct MCP servers
 	codemode                          *codemodeState // nil when -builtin:codemode
 	closing                           atomic.Bool    // set by Close: no new launches
+	providerRecoveryEnabled           atomic.Bool    // explicit runtime-ready barrier before effectful recovery
 	launchMu                          sync.Mutex     // host admission versus shutdown
 	closeOnce                         sync.Once
 	closeErr                          error
@@ -115,6 +116,7 @@ type runningTurn struct {
 	cancelled         <-chan struct{}
 	terminalPending   bool // guarded by sharedSessionCoord.mu
 	recoveredTerminal *store.TurnSettlement
+	recoveredRetry    *store.ProviderRetryCheckpoint
 }
 
 type ExtensionInfo struct {
@@ -544,6 +546,7 @@ func (e *Engine) submitPrompt(ctx context.Context, in RunInput, retry *store.Hel
 	// Direct MCP tools must be registered before the turn's tool set is
 	// admitted; wait (bounded) for their servers outside the runner lock.
 	e.awaitDirectMCPTools(opCtx)
+	e.providerRecoveryEnabled.Store(true)
 	if in.Intent == "" {
 		in.Intent = "prompt"
 	}
@@ -888,6 +891,12 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		r.engine.forgetTurnHooks(turnID)
 	}()
 
+	if active.recoveredRetry != nil {
+		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
+		agentID, _ := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
+		r.runAgentLoop(ctx, s, turnID, sessionID, active.recoveredRetry.Wait.Model, agentID, nil, active.recoveredRetry)
+		return
+	}
 	if active.recoveredTerminal != nil {
 		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
 		agentID, model := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
@@ -1881,6 +1890,9 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	sessionCounts := map[string]*recoveryScanCounts{}
 	failedClaimsBySession := map[string][]store.ActiveTurnClaim{}
 	for _, claim := range claims {
+		if claim.Phase == "retry_wait" && !e.providerRecoveryEnabled.Load() {
+			continue
+		}
 		counts := sessionCounts[claim.SessionID]
 		if counts == nil {
 			counts = &recoveryScanCounts{}
@@ -2057,6 +2069,9 @@ const InterruptedFailureKind = "recovery_interrupted"
 func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveTurnClaim) error {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if handled, err := e.recoverStagedTerminal(opCtx, claim); handled || err != nil {
+		return err
+	}
+	if handled, err := e.recoverProviderRetry(opCtx, claim); handled || err != nil {
 		return err
 	}
 	disposition := recoveryDispositionForClaim(claim)
@@ -4079,7 +4094,7 @@ func (e *Engine) registerDefaultTools() {
 	})
 }
 
-const repeatedToolFailureLimit = 4
+const repeatedToolFailureLimit = store.RepeatedToolFailureLimit
 
 func toolFailureSignature(call goai.ToolCall, err error) string {
 	if err == nil {
@@ -4111,42 +4126,66 @@ func nextRepeatedToolFailureCount(lastSig string, lastCount int, call goai.ToolC
 // runAgentLoop runs the core tool-use loop: call LLM, execute any tool calls,
 // feed results back, repeat until the LLM produces a final text response or
 // the iteration budget is exhausted.
-func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage) {
+func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage, continuations ...*store.ProviderRetryCheckpoint) {
 	maxIter := r.engine.runtimeCfg.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 64
 	}
 
 	providerState := &providerPreparation{}
-	convCtx, err := r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID, providerState)
-	if err != nil {
-		r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Turn context error: %v", err), "context_error")
-		return
-	}
+	var convCtx *goai.Context
+	var err error
+	firstIteration := 1
+	resumed := len(continuations) > 0 && continuations[0] != nil
+	lifecycleStarted := resumed // the checkpoint follows this turn's original agent start
 	defer func() {
+		if !lifecycleStarted {
+			return
+		}
 		agentEndReason := "unsettled"
 		if rec, err := s.GetTurn(r.engine.backgroundContext(), turnID); err == nil && isTerminalSubTurnStatus(rec.Status) {
 			agentEndReason = rec.Status
-		} else {
-			agentEndReason = "unsettled"
 		}
 		_, _ = r.engine.emitHook(r.engine.backgroundContext(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
 	}()
-
+	if resumed {
+		checkpoint := continuations[0]
+		providerState, err = r.restoreProviderPreparation(checkpoint.Wait)
+		if err == nil {
+			err = r.waitRecoveredProviderRetry(ctx, s, sessionID, turnID, checkpoint)
+		}
+		if err == nil {
+			firstIteration = checkpoint.Wait.Iteration
+			convCtx = &goai.Context{}
+		}
+	} else {
+		convCtx, err = r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID, providerState)
+		lifecycleStarted = err == nil
+	}
+	if err != nil {
+		if ctx.Err() != nil || isCancellationError(err) {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
+		} else {
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Turn context error: %v", err), "context_error")
+		}
+		return
+	}
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "Thinking…", "status": "running", "turn_id": turnID})
 
-	lastToolFailureSig := ""
-	repeatedToolFailureCount := 0
+	lastToolFailureSig := providerState.lastToolFailureSig
+	repeatedToolFailureCount := providerState.repeatedToolFailureCount
 	pendingSteering := append([]store.SteeringMessage(nil), initialSteering...)
 
-	for iter := 1; iter <= maxIter; iter++ {
+	for iter := firstIteration; iter <= maxIter; iter++ {
 		if ctx.Err() != nil {
 			r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 			return
 		}
 
 		var prepareErr error
-		pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering, providerState)
+		if !resumed || iter != firstIteration {
+			pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering, providerState)
+		}
 		if prepareErr != nil {
 			if ctx.Err() != nil || isCancellationError(prepareErr) || errors.Is(prepareErr, store.ErrCompactionInactive) {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
@@ -4155,6 +4194,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			}
 			return
 		}
+		providerState.lastToolFailureSig, providerState.repeatedToolFailureCount = lastToolFailureSig, repeatedToolFailureCount
 		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx, providerState)
 		if providerState.initialized {
 			model = providerState.model
@@ -5081,6 +5121,7 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 	}
 	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
 		log.Printf("hook before_agent_start error: %v", err)
+		p.startCaptured = true // no overrides were adopted; do not replay the hook
 	} else {
 		if len(preparations) > 0 && preparations[0] != nil {
 			if err := r.captureAgentStartPreparation(preparations[0], resp); err != nil {
@@ -5141,10 +5182,11 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 	}
 	policy := prepared.cfg.Retry.Policy()
 	var previousFailure error
-	attempt := 0
+	attempt := prepared.retryAttempt
+	prepared.retryAttempt = 0
 	var retryWait *store.ProviderRetryWait
 	var retryOccurrenceID string
-	result, inferErr := retryProviderRequestDynamic(ctx, func() config.ProviderRetryPolicy { return policy }, func() (*inference.StreamResult, error, bool) {
+	result, inferErr := retryProviderRequestDynamicFrom(ctx, func() config.ProviderRetryPolicy { return policy }, attempt, func() (*inference.StreamResult, error, bool) {
 		defer func() { attempt++ }()
 		retryWait = nil
 		if attempt > 0 {
@@ -5278,6 +5320,8 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 					policy = current.Retry.Policy()
 					if policy.Enabled && attempt < policy.MaxRetries {
 						retryWait = newProviderRetryWait(policy, model, iter, attempt+1, providerRetryDelay(policy, attempt+1), class)
+						retryWait.Lifecycle = prepared.lifecyclePolicy()
+						retryWait.LastToolFailureSignature, retryWait.RepeatedToolFailures = prepared.lastToolFailureSig, prepared.repeatedToolFailureCount
 					}
 				}
 			}

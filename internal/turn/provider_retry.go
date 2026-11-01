@@ -66,7 +66,14 @@ func retryProviderRequest(ctx context.Context, p config.ProviderRetryPolicy, req
 }
 
 func retryProviderRequestDynamic(ctx context.Context, policy func() config.ProviderRetryPolicy, request func() (result *inference.StreamResult, err error, progress bool), waiting func(int, time.Duration, string) (time.Time, error), resuming func() error) (*inference.StreamResult, error) {
-	for attempt := 0; ; attempt++ {
+	return retryProviderRequestDynamicFrom(ctx, policy, 0, request, waiting, resuming)
+}
+
+func retryProviderRequestDynamicFrom(ctx context.Context, policy func() config.ProviderRetryPolicy, firstAttempt int, request func() (result *inference.StreamResult, err error, progress bool), waiting func(int, time.Duration, string) (time.Time, error), resuming func() error) (*inference.StreamResult, error) {
+	if firstAttempt < 0 || firstAttempt > 100 {
+		return nil, fmt.Errorf("invalid recovered retry attempt")
+	}
+	for attempt := firstAttempt; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
