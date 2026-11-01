@@ -144,8 +144,9 @@ func TestCheckpointRetryReopensOriginalAndResetsOnlyCrashBudget(t *testing.T) {
 }
 
 func TestCheckpointRetryRejectsUnprovenFrontierAtomically(t *testing.T) {
-	for _, mode := range []string{"unknown", "child", "terminal", "active", "fault-event", "fault-queue", "fault-provider-queue"} {
+	for _, mode := range []string{"unknown", "child", "child-link", "child-consumed", "terminal", "active", "fault-event", "fault-queue", "fault-provider-queue"} {
 		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
 			kind := "tool"
 			if mode == "fault-provider-queue" {
 				kind = "provider"
@@ -157,6 +158,17 @@ func TestCheckpointRetryRejectsUnprovenFrontierAtomically(t *testing.T) {
 				err = s.AppendTurnEvent(context.Background(), "t", "s", "future.effect", nil)
 			case "child":
 				_, err = s.db.Exec(`update turns set metadata_json='{"parent_turn_id":"parent"}' where id='t'`)
+			case "child-link", "child-consumed":
+				if _, err = s.CreateSession(ctx, "P", "P", nil); err != nil {
+					t.Fatal(err)
+				}
+				if _, err = s.CreateTurnWithStatus(ctx, "parent", "P", "running", "parent", nil); err != nil {
+					t.Fatal(err)
+				}
+				_, err = s.CreateSubTurn(ctx, "parent", "P", "t", "s", "sync", 1, nil)
+				if err == nil && mode == "child-consumed" {
+					err = s.AppendTurnEvent(ctx, "t", "s", "turn.finished", map[string]any{"status": "failed"})
+				}
 			case "terminal":
 				err = s.AppendTurnEvent(context.Background(), "t", "s", "turn.terminal_staged", map[string]any{"status": "failed"})
 			case "active":
