@@ -210,3 +210,82 @@ A second profiled full Go run passed 2,962 reported tests in 35 packages, and
 new tests and variable concurrent-reader work, so its aggregate changes are
 not an equivalent-workload performance claim. Raw captures, disposable logs
 and owned scratch were removed after analysis. No release or deployment.
+
+## Joker bridge setup: cold and steady state (2026-11-01)
+
+On main `225ab4de`, the earlier scripting hotspot was reproduced with a fixed
+bridge: 32 messages of 512 characters, a counter of 7, and a script returning
+counter plus message count (39). Go 1.27.3, two CPUs, sequential Make targets:
+
+- `PROFILING=1 PROFILE_KEEP=1 make bench-joker-first-call RACE=` runs one call
+  in each of three fresh test processes. Repeating within one process would
+  not measure first-use library setup.
+- `PROFILING=1 PROFILE_KEEP=1 make bench-joker-steady RACE=` warms libraries
+  and the script, then measures 500 calls per case, three repetitions. The
+  hit case retains bridge metadata; the miss case changes only the session
+  ID to exercise the existing full-script cache key. The script and result
+  are unchanged. Profiling totals include calibration/priming; per-operation
+  benchmark counters exclude setup.
+
+This was not predominantly cold initialization. Before tuning, warmed hits
+still took about 98 ms and allocated 12 MiB each. CPU profiles charged
+251.32 s (71.2% of 353.13 s) cumulatively to go-joker's `findFnVarName`, whose
+fallback scans namespace mappings during interpreted calls. A temporary
+expression-labelled probe attributed 5.23 of 5.34 labelled CPU seconds to the
+four plain `ns` forms. They repeatedly interpreted the core-Var referral loop.
+Interpreted recursive bridge-key conversion added further avoidable work.
+The diagnostic labels were removed, not shipped.
+
+Two bounded changes avoid that repeated interpretation without modifying the
+dependency or retaining mutable state across executions:
+
+- Bridge namespace entry uses `EnsureSymbolIsNamespace`, `ReferAll` and
+  `SetCurrentNamespace` on every call. It preserves the core-Var refresh,
+  retains local/private bindings and updates `*loaded-libs*` through persistent
+  `Conj`, not a mutation of an old snapshot. Entry is restricted to `user`,
+  `gi.state`, `gi.topics` and `gi.runtime`.
+- A native walker transforms the existing JSON reader's objects. Scalar
+  objects, including numeric representations and nil, are unchanged. Maps
+  use persistent `Assoc`, preserving the old promotion to HashMap for wide
+  objects. The JSON reader's `:keywords?` shortcut was investigated but not
+  retained: values alone were insufficient evidence because concrete map
+  representation matters too. Nil must be handled before Map: Joker's Nil
+  implements that interface. The original `walk` alias remains available.
+
+Medians of the same three-sample workloads (no significance claim):
+
+| Case | Time/call before → after | B/call before → after | allocs/call before → after |
+|---|---:|---:|---:|
+| Fresh first call | 102.56 → 11.10 ms (-89.2%) | 14,167,552 → 2,271,880 (-84.0%) | 367,985 → 44,083 |
+| Warm parsed hit | 97.52 → 1.412 ms (-98.6%) | 12,228,897 → 581,605 (-95.2%) | 324,836 → 7,161 |
+| Warm parsed miss | 120.89 → 12.77 ms (-89.4%) | 13,724,271 → 1,926,579 (-86.0%) | 366,070 → 42,631 |
+
+For the equivalent steady benchmark processes, sampled CPU was
+353.13 → 23.43 s (-93.4%), allocated space 37,413.54 → 3,657.97 MiB (-90.2%),
+and sampled objects 1,041,413,131 → 76,143,725 (-92.7%). Build-inclusive peak
+RSS was 496 → 497 MB (+0.2%); it is not isolated runtime memory. Fresh-call
+CPU profiles summed only 30 ms after tuning, too sparse for fine attribution;
+the first-call timing/allocation comparison comes from fixed-count benchmark
+counters, not those few samples.
+
+Residual misses spend most time parsing and evaluating macro-expanded preamble
+forms (16.59 s cumulative in `runAndCacheEmbeddedJokerProgram` in the final
+steady profile). The existing cache remains bounded at 128 programs. A
+metadata-independent parsed template would need its own freshness, callback,
+context and namespace-isolation tests before adoption; no benefit from such a
+change is claimed here. This pass fixes measured bridge overhead, not arbitrary
+user-program performance, renderer costs or SQLite preparation.
+
+Verification passed: 2,967 reported tests across all 35 Go packages under
+profiling; selected-runtime race checks across scripting/tools/config/inference
+at count 3; both compiler and interpreter Joker/Wasm race checks at count 3;
+and vet. Differential tests compare the native walker with the previous
+interpreted reference, including recursive types, wide maps, nested nil,
+numbers and unusual keys. Namespace mappings are compared with plain `ns`,
+including refresh after removing a core reference. Persistent loaded-library
+snapshots, changing bridge state/session IDs, and invalid namespace entries
+are also checked. Inherited PI/GI agent directories were cleared. Full-suite
+profiles were inspected, but added reference tests make suite-wide totals an
+invalid matched performance comparison. Captures, diagnostic/probe artifacts,
+matching generated helpers, disposable logs and owned scratch were removed
+after analysis. No release or deployment.

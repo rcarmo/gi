@@ -974,6 +974,16 @@ AUTH_STATE_BENCH_TIME ?= 5000x
 bench-auth-state: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkAuthStateRead$$' -benchtime=$(AUTH_STATE_BENCH_TIME) -count=3 -benchmem ./internal/auth
 
+.PHONY: bench-joker-first-call bench-joker-steady
+JOKER_BENCH_TIME ?= 500x
+bench-joker-first-call: $(TESTPROFILE)
+	@for repeat in 1 2 3; do \
+		env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkEmbeddedJokerFirstCall$$' -benchtime=1x -count=1 -benchmem ./internal/scripting || exit $$?; \
+	done
+
+bench-joker-steady: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkEmbeddedJokerSteady$$' -benchtime=$(JOKER_BENCH_TIME) -count=3 -benchmem ./internal/scripting
+
 .PHONY: test-selected-runtimes test-native-joker-compiler test-joker-wasm-engines
 test-joker-wasm-engines: $(TESTPROFILE)
 	JOKER_WASM_ENGINE=compiler $(TESTPROFILE) gotest $(RACE) -run 'TestEmbeddedJoker(NativeWASM|WASMEngine|CheckedWASM)' -count=3 ./internal/scripting
@@ -983,7 +993,7 @@ test-native-joker-compiler: $(TESTPROFILE)
 	$(TESTPROFILE) gotest -run 'TestWasmCompileRetainsModuleBytes|TestWasmRawIntObjectPromotesOutsideNativeRange|TestWasmRawIntRejectsOutOfRangeIndex|TestWasmExecRawIntegerResultUsesNativeRange' -count=1 github.com/rcarmo/go-joker/v42/core
 
 test-selected-runtimes: $(TESTPROFILE)
-	$(TESTPROFILE) gotest $(RACE) -run 'TestQuickJS|TestScriptTool(Selects|RuntimeChoice)|TestJavaScriptRuntime|TestEmbeddedJoker(NativeWASM|WASMEngine|CheckedWASM)|TestListRuntimeOptionsMatchesPiCopilot|TestExecuteEmbeddedJoker' -count=3 ./internal/scripting ./internal/tools ./internal/config ./internal/inference
+	$(TESTPROFILE) gotest $(RACE) -run 'TestQuickJS|TestScriptTool(Selects|RuntimeChoice)|TestJavaScriptRuntime|TestEmbeddedJoker|TestListRuntimeOptionsMatchesPiCopilot|TestExecuteEmbeddedJoker' -count=3 ./internal/scripting ./internal/tools ./internal/config ./internal/inference
 
 # Compare actual tmux cells against ANSI frame diffs while tables enter/leave
 # the viewport. No provider, sqlite3 CLI, Bun, or running Gi instance required.
