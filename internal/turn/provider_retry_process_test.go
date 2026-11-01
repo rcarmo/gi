@@ -45,7 +45,7 @@ func TestProviderRetryRecoveryProcessHelper(t *testing.T) {
 		var preparations atomic.Int32
 		if _, err = e.RegisterHook(HookBeforeProviderRequest, "stop after wake", func(ctx context.Context, req HookRequest) (HookResponse, error) {
 			if req.Payload["stage"] == "context" && preparations.Add(1) == 2 {
-				if err := os.WriteFile(path+".ready", []byte(req.TurnID), 0600); err != nil {
+				if err := publishRetryProcessReady(path, req.TurnID); err != nil {
 					return HookResponse{}, err
 				}
 				<-ctx.Done()
@@ -69,13 +69,22 @@ func TestProviderRetryRecoveryProcessHelper(t *testing.T) {
 			row, err := s.GetTurn(context.Background(), result.TurnID)
 			return err == nil && row.Phase == "retry_wait"
 		}, "committed retry successor")
-		if err = os.WriteFile(path+".ready", []byte(result.TurnID), 0600); err != nil {
+		if err = publishRetryProcessReady(path, result.TurnID); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for {
 		time.Sleep(time.Hour)
 	}
+}
+
+// Publish the complete identity before the parent can observe readiness and
+// kill us. WriteFile alone exposes an empty file between open and write.
+func publishRetryProcessReady(path, turnID string) error {
+	if err := os.WriteFile(path+".ready.tmp", []byte(turnID), 0600); err != nil {
+		return err
+	}
+	return os.Rename(path+".ready.tmp", path+".ready")
 }
 
 func TestProviderRetryRecoveryAfterKilledProcess(t *testing.T) {
