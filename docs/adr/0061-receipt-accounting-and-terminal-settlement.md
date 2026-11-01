@@ -4,6 +4,12 @@ Status: accepted
 
 ## Decision
 
+Gi keeps its existing pure-Go SQLite store as the single source for execution
+intent, receipts, continuation and UI projections. The go-ai v1.4.0 durable
+contracts are implemented behind that schema and maintained contract regressions;
+no second writable runtime store or native CGO SQLite backend is introduced.
+Legacy records without sufficient continuation proof retain conservative holds.
+
 SQLite commits each received provider response with its usage, latest context
 measurement and next execution boundary. `turn_receipts` uses
 `(turn_id, occurrence_id)` as its primary key. Provider occurrence IDs match the

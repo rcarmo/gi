@@ -52,7 +52,11 @@ Unlaunched checkpoints support terminal-only cancellation through the engine:
 writer fencing and the cancelled decision commit together, and interrupted
 cleanup cannot dispatch the checkpoint. Outstanding calls receive error results,
 including never-admitted slots, without replaying preparation or execution.
-Parent-linked retry ownership still requires further work.
+A proven recovery-held checkpoint also supports explicit skip through failed
+terminal cleanup. Its original wire receipts, usage and skipped resolution survive
+recovery, and required parent joins wait for its receipt and final hook.
+Parent-linked retry remains conservatively blocked; it cannot reverse consumed
+child outcomes. See [held-turn retry and skip](held-turn-retry.md).
 
 Executed, rejected, denied, skipped and hook-supplied tool results commit their
 terminal event and replay message in one transaction. Model continuation and
