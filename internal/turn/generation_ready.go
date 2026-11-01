@@ -9,7 +9,8 @@ import (
 )
 
 func (e *Engine) recoverGenerationReady(ctx context.Context, claim store.ActiveTurnClaim) (bool, error) {
-	if claim.Status != "running" || (claim.Phase != "generation_ready" && claim.Phase != "running") {
+	closed := claim.Status == "queued" && claim.Phase == store.ClosedGenerationReadyPhase
+	if !closed && (claim.Status != "running" || (claim.Phase != "generation_ready" && claim.Phase != "running")) {
 		return false, nil
 	}
 	if !e.providerRecoveryEnabled.Load() {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/inference"
+	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -67,9 +68,9 @@ func TestAbortStaleActiveTurn(t *testing.T) {
 	}
 }
 
-// A clean Close aborts the live turn and waits for it to finalize, so the
-// next start neither finds it 'running' nor replays it.
-func TestCloseFinalizesLiveTurn(t *testing.T) {
+// A clean Close joins the live host and retains its verified continuation,
+// never granting the ordinary queue authority to replay the original prompt.
+func TestClosePreservesLiveGenerationCheckpoint(t *testing.T) {
 	ctx := context.Background()
 	s := openTestStore(t)
 	started := make(chan struct{}, 1)
@@ -95,16 +96,21 @@ func TestCloseFinalizesLiveTurn(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("turn never reached inference")
 	}
-	engine.Close()
+	if err = engine.Close(); err != nil {
+		t.Fatal(err)
+	}
 	got, err := s.GetTurn(ctx, res.TurnID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status == "running" || got.Status == "queued" {
-		t.Fatalf("turn left %q after Close; the next start would replay it", got.Status)
+	if got.Status != "queued" || got.Phase != store.ClosedGenerationReadyPhase || got.FinishedAt != "" {
+		t.Fatalf("Close lost continuation: %#v", got)
 	}
-	if id, _, err := s.GetSessionActiveTurn(ctx, sess.ID); !errors.Is(err, sql.ErrNoRows) && (err != nil || id != "") {
-		t.Fatalf("active claim left after Close: %q %v", id, err)
+	if _, err = s.GetNextQueuedTurn(ctx, sess.ID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("checkpoint became ordinary prompt replay: %v", err)
+	}
+	if id, token, err := s.GetSessionActiveTurn(ctx, sess.ID); err != nil || id != res.TurnID || token == "" {
+		t.Fatalf("checkpoint reservation lost: %q %q %v", id, token, err)
 	}
 	s.Close()
 }

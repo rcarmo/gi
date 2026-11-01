@@ -87,7 +87,7 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} failed provide
  } finally { await browser.close(); }
 });
 
-for (const boundary of ['generation_ready', 'provider_unknown'] as const)
+for (const boundary of ['generation_ready', 'provider_unknown', 'closed_generation'] as const)
 for (const name of ['chromium', 'webkit'] as const) test(`${name} ${boundary} continuation surfaces failure without repeating the original prompt`, async () => {
  const browser = await ({chromium, webkit}[name]).launch({headless: true});
  const page = await browser.newPage();
@@ -104,7 +104,12 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} ${boundary} co
   const db = resolve(process.env.GI_TEST_DB || join(process.env.GI_TEST_RUN_ROOT!, 'instance', 'gi.db'));
   const requestId = `inference_${turnId}`;
   const prefixId = `msg_${turnId}`;
-  const phase = boundary === 'provider_unknown' ? 'running' : 'generation_ready';
+  const closed = boundary === 'closed_generation';
+  const phase = closed ? 'checkpoint_generation_ready' : boundary === 'provider_unknown' ? 'running' : 'generation_ready';
+  const queued = closed ? `insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},2,'turn.checkpoint_queued',${quote(JSON.stringify({phase, iteration: 1, checkpoint: true, reason: 'graceful_close'}))},'2026-01-01T00:00:00Z');` : '';
+  const status = closed ? 'queued' : 'running';
+  const worker = closed ? 'closed-checkpoint' : 'dead-owner';
+  const stamp = closed ? "strftime('%Y-%m-%dT%H:%M:%fZ','now')" : "'2000-01-01T00:00:00Z'";
   const interrupted = boundary === 'provider_unknown' ? `
    insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},2,'inference.started',${quote(JSON.stringify({phase: 'inference', iteration: 1, request_id: requestId}))},'2026-01-01T00:00:00Z');
    insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},3,'inference.request_prepared',${quote(JSON.stringify({phase: 'inference', iteration: 1, request_id: requestId, intent: {messages: 'old prepared request must not replay'}}))},'2026-01-01T00:00:00Z');
@@ -112,14 +117,16 @@ for (const name of ['chromium', 'webkit'] as const) test(`${name} ${boundary} co
   ` : '';
   const seed = spawnSync('sqlite3', ['-cmd', '.timeout 5000', db, `begin immediate;
    update sessions set state_json=json_remove(json_set(state_json,'$.model','test-model','$.provider','test'),'$.selected_model','$.selected_provider') where id=${quote(id)};
-   insert into turns(id,session_id,status,phase,prompt,metadata_json,created_at,updated_at) values(${quote(turnId)},${quote(id)},'running',${quote(phase)},${quote(original)},'{"intent":"prompt","model":"missing-provider/missing-model"}','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z');
+   insert into turns(id,session_id,status,phase,prompt,metadata_json,created_at,updated_at) values(${quote(turnId)},${quote(id)},${quote(status)},${quote(phase)},${quote(original)},'{"intent":"prompt","model":"missing-provider/missing-model"}','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z');
    insert into messages(id,session_id,role,content,payload_json,created_at) values(${quote(messageId)},${quote(id)},'user',${quote(original)},${quote(JSON.stringify({kind: 'chat', turn_id: turnId}))},'2026-01-01T00:00:00Z');
    insert into turn_events(turn_id,session_id,seq,event_type,payload_json,created_at) values(${quote(turnId)},${quote(id)},1,'generation.ready',${quote(continuation)},'2026-01-01T00:00:00Z');
    ${interrupted}
-   insert into session_active_turns(session_id,turn_id,worker_id,claim_token,claimed_at,updated_at) values(${quote(id)},${quote(turnId)},'dead-owner','old-claim','2000-01-01T00:00:00Z','2000-01-01T00:00:00Z');
+   ${queued}
+   insert into session_active_turns(session_id,turn_id,worker_id,claim_token,claimed_at,updated_at) values(${quote(id)},${quote(turnId)},${quote(worker)},'old-claim',${stamp},${stamp});
    commit;`], {encoding: 'utf8'});
   expect(seed.status, seed.stderr).toBe(0);
-  // Submission scans the stale claim after runtime tools/hooks are ready.
+  // Submission scans stale or gracefully closed claims after runtime readiness.
+  // Closed claims have fresh timestamps and must not wait for stale-owner expiry.
   const admitted = await api.post(BASE_URL + `/api/sessions/${id}/prompt`, {data: {prompt: 'queued after recovery', intent: 'queue'}});
   expect(admitted.status()).toBe(202);
   await expect.poll(async () => {

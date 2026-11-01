@@ -25,9 +25,11 @@ func generationPendingRequestTx(ctx context.Context, tx *sql.Tx, sessionID, turn
 			return "", false, err
 		}
 		var header struct {
-			RequestID string `json:"request_id"`
-			Iteration int    `json:"iteration"`
-			Phase     string `json:"phase"`
+			RequestID  string `json:"request_id"`
+			Iteration  int    `json:"iteration"`
+			Phase      string `json:"phase"`
+			Checkpoint bool   `json:"checkpoint"`
+			Reason     string `json:"reason"`
 		}
 		// Invalid data is a held checkpoint, not a transient database error.
 		// Decode only identity fields; never restore the old request payload.
@@ -35,7 +37,11 @@ func generationPendingRequestTx(ctx context.Context, tx *sql.Tx, sessionID, turn
 			return "", false, nil
 		}
 		switch kind {
-		case "generation.recovered":
+		case "turn.checkpoint_queued":
+			if requestID != "" || header.Phase != ClosedGenerationReadyPhase || !header.Checkpoint || header.Reason != "graceful_close" {
+				return "", false, nil
+			}
+		case "generation.close_resumed", "generation.recovered":
 			if requestID != "" || header.Phase != "generation_ready" {
 				return "", false, nil
 			}

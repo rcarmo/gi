@@ -108,17 +108,18 @@ type sessionRunner struct {
 }
 
 type runningTurn struct {
-	owner               *Engine // immutable host owner; session coordination may be shared
-	turnID              string
-	claimToken          string
-	cancel              context.CancelFunc
-	done                chan struct{}
-	cancelled           <-chan struct{}
-	terminalPending     bool // guarded by sharedSessionCoord.mu
-	checkpointClosing   bool // graceful retry reservation; no terminal lifecycle yet
-	recoveredTerminal   *store.TurnSettlement
-	recoveredRetry      *store.ProviderRetryCheckpoint
-	recoveredGeneration *store.GenerationReadyCheckpoint
+	owner                *Engine // immutable host owner; session coordination may be shared
+	turnID               string
+	claimToken           string
+	cancel               context.CancelFunc
+	done                 chan struct{}
+	cancelled            <-chan struct{}
+	terminalPending      bool   // guarded by sharedSessionCoord.mu
+	checkpointClosing    bool   // graceful reservation; no terminal lifecycle yet
+	closingProgressToken string // guarded; bounded provider snapshots only
+	recoveredTerminal    *store.TurnSettlement
+	recoveredRetry       *store.ProviderRetryCheckpoint
+	recoveredGeneration  *store.GenerationReadyCheckpoint
 }
 
 type ExtensionInfo struct {
@@ -356,7 +357,7 @@ const shutdownGrace = 5 * time.Second
 // Close fences launches and joins main, hook, side and maintenance hosts.
 // Concurrent callers share the shutdown barrier and its result. The grace
 // interval controls diagnostics only; it never releases a live owned host.
-// Verified retry checkpoints are requeued only after all owned work joins.
+// Verified retry/generation checkpoints are requeued only after all owned work joins.
 // Other phases still use conservative abort settlement (TODO #86/#92).
 func (e *Engine) Close() error {
 	if e == nil {
@@ -391,7 +392,13 @@ func (e *Engine) Close() error {
 		}
 		for _, checkpoint := range checkpoints {
 			if checkpoint.reserved {
-				e.closeErr = errors.Join(e.closeErr, e.store.CommitProviderRetryClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token))
+				var err error
+				if checkpoint.generation {
+					err = e.store.CommitGenerationClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
+				} else {
+					err = e.store.CommitProviderRetryClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
+				}
+				e.closeErr = errors.Join(e.closeErr, err)
 			}
 		}
 	})
@@ -1883,7 +1890,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	sessionCounts := map[string]*recoveryScanCounts{}
 	failedClaimsBySession := map[string][]store.ActiveTurnClaim{}
 	for _, claim := range claims {
-		if (claim.Phase == "generation_ready" || claim.Phase == "retry_wait" || claim.Phase == "running" || store.IsClosedProviderRetryPhase(claim.Phase)) && !e.providerRecoveryEnabled.Load() {
+		if (claim.Phase == "generation_ready" || claim.Phase == "retry_wait" || claim.Phase == "running" || store.IsClosedCheckpointPhase(claim.Phase)) && !e.providerRecoveryEnabled.Load() {
 			continue
 		}
 		counts := sessionCounts[claim.SessionID]
@@ -5268,7 +5275,10 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		}
 		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
 		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID})
-		partials := &providerPartialRecorder{store: s, ctx: context.WithoutCancel(ctx), turnID: turnID, sessionID: sessionID, occurrenceID: requestID, model: model}
+		partialCtx := context.WithoutCancel(ctx)
+		partials := &providerPartialRecorder{store: s, ctx: partialCtx, turnID: turnID, sessionID: sessionID, occurrenceID: requestID, model: model,
+			persist: r.providerPartialPersistence(partialCtx, s, sessionID, turnID, requestID),
+		}
 		result, inferErr := streamWithToolsWithHooks(ctx, model, requestCtx, func(ev map[string]any) {
 			ev["chat_jid"] = "gi:" + sessionID
 			ev["turn_id"] = turnID
