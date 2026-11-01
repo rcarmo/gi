@@ -13,7 +13,8 @@ import (
 // ProviderReceipt adopts one observed response and a durable successor boundary.
 // A nil Usage means unknown remote usage, not a known zero-token request.
 // Reply boundaries check steering before finalization; tools boundaries dispatch
-// only the calls in the committed message. Recovery must not repeat inference.
+// only the calls in the committed message. Recovery never infers a settled
+// response again; interrupted attempts retain explicit usage uncertainty.
 type ProviderReceipt struct {
 	MessageID   string
 	Content     string
@@ -187,51 +188,71 @@ func insertReceiptTx(ctx context.Context, tx *sql.Tx, turnID, occurrenceID, kind
 }
 
 func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, occurrenceID string, receipt ProviderReceipt) (ReceiptSettlement, error) {
-	var out ReceiptSettlement
-	if occurrenceID == "" {
-		return out, fmt.Errorf("provider settlement requires an occurrence")
-	}
-	switch receipt.Decision {
-	case "reply_boundary", "tools", "error_boundary":
-	default:
-		return out, fmt.Errorf("invalid provider successor %q", receipt.Decision)
-	}
-	if err := receipt.RetryWait.validate(); err != nil {
-		return out, err
-	}
-	if receipt.RetryWait != nil && (receipt.Decision != "error_boundary" || receipt.RetryWait.Iteration != receipt.Iteration) {
-		return out, fmt.Errorf("retry requires the matching failed provider receipt")
-	}
-	if receipt.RetryWait != nil && (receipt.Content != "" || receipt.Payload["partial"] == true) {
-		return out, fmt.Errorf("retry cannot repeat an observed partial")
-	}
-	if (receipt.Decision == "tools" || receipt.Decision == "reply_boundary") && receipt.MessageID == "" {
-		return out, fmt.Errorf("adoption requires a message identity")
-	}
-	if err := ValidateReceiptUsage(receipt.Usage); err != nil {
-		return out, err
+	if err := validateProviderReceipt(occurrenceID, receipt); err != nil {
+		return ReceiptSettlement{}, err
 	}
 	ctx, err := admitToolSettlement(ctx)
 	if err != nil {
-		return out, err
+		return ReceiptSettlement{}, err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return out, err
+		return ReceiptSettlement{}, err
 	}
 	defer tx.Rollback()
-	if err = validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
+	out, err := settleProviderAttemptTx(ctx, tx, turnID, sessionID, occurrenceID, receipt)
+	if err != nil || !out.Applied {
+		return out, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ReceiptSettlement{}, err
+	}
+	return out, nil
+}
+
+func validateProviderReceipt(occurrenceID string, receipt ProviderReceipt) error {
+	if occurrenceID == "" {
+		return fmt.Errorf("provider settlement requires an occurrence")
+	}
+	switch receipt.Decision {
+	case "reply_boundary", "tools", "error_boundary", "interrupted_boundary":
+	default:
+		return fmt.Errorf("invalid provider successor %q", receipt.Decision)
+	}
+	if err := receipt.RetryWait.validate(); err != nil {
+		return err
+	}
+	if receipt.RetryWait != nil && (receipt.Decision != "error_boundary" || receipt.RetryWait.Iteration != receipt.Iteration) {
+		return fmt.Errorf("retry requires the matching failed provider receipt")
+	}
+	if receipt.RetryWait != nil && (receipt.Content != "" || receipt.Payload["partial"] == true) {
+		return fmt.Errorf("retry cannot repeat an observed partial")
+	}
+	if (receipt.Decision == "tools" || receipt.Decision == "reply_boundary") && receipt.MessageID == "" {
+		return fmt.Errorf("adoption requires a message identity")
+	}
+	if receipt.Decision == "interrupted_boundary" && (!receipt.Unknown || receipt.RetryWait != nil) {
+		return fmt.Errorf("interrupted provider outcome must remain uncertain")
+	}
+	return ValidateReceiptUsage(receipt.Usage)
+}
+
+// settleProviderAttemptTx requires a validated receipt. Recovery uses it to fence
+// and interrupt in one transaction; no successor is authorised before commit.
+func settleProviderAttemptTx(ctx context.Context, tx *sql.Tx, turnID, sessionID, occurrenceID string, receipt ProviderReceipt) (ReceiptSettlement, error) {
+	var out ReceiptSettlement
+	if err := validateTurnWriterTx(ctx, tx, sessionID, turnID); err != nil {
 		return out, err
 	}
 	var owner, status, phase string
-	if err = tx.QueryRowContext(ctx, `select session_id,status,phase from turns where id=?`, turnID).Scan(&owner, &status, &phase); err != nil {
+	if err := tx.QueryRowContext(ctx, `select session_id,status,phase from turns where id=?`, turnID).Scan(&owner, &status, &phase); err != nil {
 		return out, err
 	}
 	if owner != sessionID {
 		return out, fmt.Errorf("provider settlement session does not own turn")
 	}
 	var kind, decisionJSON string
-	err = tx.QueryRowContext(ctx, `select kind,coalesce(message_id,''),decision_json from turn_receipts where turn_id=? and occurrence_id=?`, turnID, occurrenceID).Scan(&kind, &out.MessageID, &decisionJSON)
+	err := tx.QueryRowContext(ctx, `select kind,coalesce(message_id,''),decision_json from turn_receipts where turn_id=? and occurrence_id=?`, turnID, occurrenceID).Scan(&kind, &out.MessageID, &decisionJSON)
 	if err == nil {
 		if kind != "provider" {
 			return out, fmt.Errorf("receipt occurrence belongs to %s", kind)
@@ -317,7 +338,11 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 		}
 	}
 	event := map[string]any{"request_id": occurrenceID, "message_id": receipt.MessageID, "decision": decision, "usage": out.Accounting.Map(), "checkpoint": true, "phase": "inference"}
-	if err = receiptEventTx(ctx, tx, turnID, sessionID, "inference.settled", event); err != nil {
+	eventType := "inference.settled"
+	if receipt.Decision == "interrupted_boundary" {
+		eventType = "inference.interrupted"
+	}
+	if err = receiptEventTx(ctx, tx, turnID, sessionID, eventType, event); err != nil {
 		return out, err
 	}
 	if decision["next"] == "retry_wait" {
@@ -331,9 +356,6 @@ func (s *Store) SettleProviderAttempt(ctx context.Context, turnID, sessionID, oc
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `update sessions set updated_at=`+defaultNow+` where id=?`, sessionID); err != nil {
-		return out, err
-	}
-	if err = tx.Commit(); err != nil {
 		return out, err
 	}
 	out.Applied = true

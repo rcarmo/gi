@@ -86,12 +86,27 @@ budgets. The current iteration limit cannot expand the saved limit. Current
 generation/request hooks run during fresh preparation; the old prepared request
 is never dispatched again.
 
-At most five automatic admissions are allowed without an intervening atomic
-provider/tool receipt. Rewriting a ready frontier is not progress. Exhaustion
-uses the existing conservative hold; explicit parked-checkpoint retry remains
-separate work. Graceful Close still preserves only the verified retry phases.
-Mid-request and mid-tool recovery remain conservative. See the
+At most five automatic admissions are allowed without meaningful provider/tool
+receipt progress. Rewriting preparation or recording an interruption does not
+reset this limit. Exhaustion uses the existing conservative hold; explicit
+parked-checkpoint retry remains separate work. Graceful Close still preserves
+only the verified retry phases. See the
 [generation-ready audit](../implementation/audits/generation-ready-continuation.md).
+
+## Interrupted admitted generation
+
+One unsettled provider admission immediately after a versioned generation-ready
+frontier can resume. Recovery atomically fences the dead owner, commits an
+`interrupted_boundary` receipt, retains the structured committed prefix on its
+existing unadopted row, and writes a new ready frontier. `inference.interrupted`
+is accounting, not evidence of generation progress. Missing usage remains
+unknown; received usage is retained without claiming a final bill.
+
+The resumed host builds a fresh request with current configuration. It never
+resends the saved provider payload or executes a partial tool-call prefix.
+Settled responses, tool admissions, retry boundaries without a new generation
+frontier, and ambiguous/legacy states still require their own recovery routes.
+See the [provider interruption audit](../implementation/audits/provider-interruption-continuation.md).
 
 ## Explicit pre-admission recovery
 

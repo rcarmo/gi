@@ -55,7 +55,9 @@ func checkGenerationEffectsSettledTx(ctx context.Context, tx *sql.Tx, turnID str
 }
 
 // AcquireGenerationReadyRecovery verifies the entire frontier and fences the
-// dead owner in the same transaction. Unknown events and legacy policies hold.
+// dead owner in the same transaction. A single unsettled provider admission is
+// sealed as uncertain before authorising a fresh generation. Unknown events and
+// legacy policies hold.
 func (s *Store) AcquireGenerationReadyRecovery(ctx context.Context, claim ActiveTurnClaim, token string, olderThan time.Time) (*GenerationReadyCheckpoint, error) {
 	if token == "" || token == claim.ClaimToken {
 		return nil, fmt.Errorf("generation recovery requires a fresh claim token")
@@ -77,7 +79,7 @@ func (s *Store) AcquireGenerationReadyRecovery(ctx context.Context, claim Active
 	if current.ClaimToken != claim.ClaimToken || current.UpdatedAt != claim.UpdatedAt || !stamp.Before(olderThan) {
 		return nil, ErrQueueConflict
 	}
-	if current.Status != "running" || current.Phase != "generation_ready" {
+	if current.Status != "running" || (current.Phase != "generation_ready" && current.Phase != "running") {
 		return nil, nil
 	}
 	var seq int64
@@ -95,13 +97,14 @@ func (s *Store) AcquireGenerationReadyRecovery(ctx context.Context, claim Active
 	if json.Unmarshal([]byte(raw), &saved) != nil || saved.Continuation.Validate() != nil {
 		return nil, nil
 	}
-	var later, held int
-	if err = tx.QueryRowContext(ctx, `select count(*) from turn_events where turn_id=? and seq>? and event_type!='generation.recovered'`, claim.TurnID, seq).Scan(&later); err != nil {
+	requestID, eligible, err := generationPendingRequestTx(ctx, tx, claim.SessionID, claim.TurnID, seq, saved.Continuation.Iteration)
+	if err != nil {
 		return nil, err
 	}
-	if later != 0 {
+	if !eligible || (current.Phase == "running") != (requestID != "") {
 		return nil, nil
 	}
+	var held int
 	if err = tx.QueryRowContext(ctx, `select count(*) from turn_failures where turn_id=? and (hold_state<>'none' or coalesce(resolution_state,'')<>'')`, claim.TurnID).Scan(&held); err != nil {
 		return nil, err
 	}
@@ -131,7 +134,22 @@ func (s *Store) AcquireGenerationReadyRecovery(ctx context.Context, claim Active
 	if _, err = tx.ExecContext(ctx, `insert into turn_recovery_fences(turn_id,session_id,claim_token) values(?,?,?) on conflict(turn_id) do update set claim_token=excluded.claim_token`, claim.TurnID, claim.SessionID, token); err != nil {
 		return nil, err
 	}
-	event, err := marshalJSON(map[string]any{"phase": "generation_ready", "checkpoint": true, "iteration": saved.Continuation.Iteration, "previous_claim": claim.ClaimToken})
+	if requestID != "" {
+		writerCtx := WithTurnWriter(ctx, claim.SessionID, claim.TurnID, token)
+		if err = interruptProviderTx(writerCtx, tx, claim.SessionID, claim.TurnID, requestID, saved.Continuation.Iteration); err != nil {
+			return nil, err
+		}
+		if err = checkGenerationEffectsSettledTx(ctx, tx, claim.TurnID); err != nil {
+			return nil, err
+		}
+		if err = receiptEventTx(ctx, tx, claim.TurnID, claim.SessionID, "generation.ready", map[string]any{"continuation": saved.Continuation, "interrupted_request_id": requestID}); err != nil {
+			return nil, err
+		}
+		if _, err = tx.ExecContext(ctx, `update turns set phase='generation_ready',updated_at=`+defaultNow+` where id=? and session_id=? and status='running'`, claim.TurnID, claim.SessionID); err != nil {
+			return nil, err
+		}
+	}
+	event, err := marshalJSON(map[string]any{"phase": "generation_ready", "checkpoint": true, "iteration": saved.Continuation.Iteration, "previous_claim": claim.ClaimToken, "interrupted_request_id": requestID})
 	if err != nil {
 		return nil, err
 	}

@@ -102,13 +102,22 @@ type ProviderPartialRecord struct {
 
 // ProviderPartial returns the committed provider snapshot, never UI draft text.
 func (s *Store) ProviderPartial(ctx context.Context, turnID, sessionID, occurrenceID string) (*ProviderPartialRecord, error) {
+	return providerPartial(ctx, s.db, turnID, sessionID, occurrenceID)
+}
+
+func providerPartial(ctx context.Context, db interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, turnID, sessionID, occurrenceID string) (*ProviderPartialRecord, error) {
 	var raw, content string
-	err := s.db.QueryRowContext(ctx, `select payload_json,content from messages where id=? and session_id=? and json_extract(payload_json,'$.turn_id')=? and json_extract(payload_json,'$.request_id')=? and json_extract(payload_json,'$.partial')=1`, ProviderMessageID(occurrenceID), sessionID, turnID, occurrenceID).Scan(&raw, &content)
+	err := db.QueryRowContext(ctx, `select payload_json,content from messages where id=? and session_id=? and json_extract(payload_json,'$.turn_id')=? and json_extract(payload_json,'$.request_id')=? and json_extract(payload_json,'$.partial')=1`, ProviderMessageID(occurrenceID), sessionID, turnID, occurrenceID).Scan(&raw, &content)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if len(raw) > 512<<10 || len(content) > 64<<10 {
+		return nil, fmt.Errorf("provider partial exceeds checkpoint bounds")
 	}
 	var fields map[string]json.RawMessage
 	if err = json.Unmarshal([]byte(raw), &fields); err != nil {
@@ -136,9 +145,10 @@ func (s *Store) SealProviderPartial(ctx context.Context, turnID, sessionID, occu
 	payload := record.Payload
 	payload["receipt_error"] = reason
 	payload["partial"] = true
+	payload["interrupted"] = true
 	usage := record.Message.Usage
 	if ValidateReceiptUsage(usage) != nil {
 		usage = nil
 	}
-	return s.SettleProviderAttempt(ctx, turnID, sessionID, occurrenceID, ProviderReceipt{MessageID: ProviderMessageID(occurrenceID), Content: record.Content, Payload: payload, Usage: usage, Unknown: true, Decision: "error_boundary", Error: reason})
+	return s.SettleProviderAttempt(ctx, turnID, sessionID, occurrenceID, ProviderReceipt{MessageID: ProviderMessageID(occurrenceID), Content: providerPartialText(record), Payload: payload, Usage: usage, Unknown: true, Decision: "interrupted_boundary", Error: reason})
 }
