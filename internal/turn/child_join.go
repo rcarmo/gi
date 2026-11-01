@@ -10,6 +10,7 @@ import (
 )
 
 func (r *sessionRunner) registerHostFenceLocked(active *runningTurn, ctx context.Context) {
+	active.owner = r.engine
 	active.done = make(chan struct{})
 	active.cancelled = ctx.Done()
 	if r.hosts == nil {

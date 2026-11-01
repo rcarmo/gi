@@ -107,6 +107,7 @@ type sessionRunner struct {
 }
 
 type runningTurn struct {
+	owner             *Engine // immutable host owner; session coordination may be shared
 	turnID            string
 	claimToken        string
 	cancel            context.CancelFunc
@@ -391,7 +392,7 @@ func (e *Engine) abortActiveTurns(grace time.Duration) []string {
 		runner.mu.Lock()
 		current := runner.current
 		runner.mu.Unlock()
-		if current == nil {
+		if current == nil || current.owner != e {
 			return true
 		}
 		if err := e.CancelActiveTurn(ctx, sessionID, current.turnID); err != nil {
