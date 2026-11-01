@@ -115,6 +115,7 @@ type runningTurn struct {
 	done              chan struct{}
 	cancelled         <-chan struct{}
 	terminalPending   bool // guarded by sharedSessionCoord.mu
+	checkpointClosing bool // graceful retry reservation; no terminal lifecycle yet
 	recoveredTerminal *store.TurnSettlement
 	recoveredRetry    *store.ProviderRetryCheckpoint
 }
@@ -354,7 +355,8 @@ const shutdownGrace = 5 * time.Second
 // Close fences launches and joins main, hook, side and maintenance hosts.
 // Concurrent callers share the shutdown barrier and its result. The grace
 // interval controls diagnostics only; it never releases a live owned host.
-// TODO(#86): separate graceful close from user abort.
+// Verified retry checkpoints are requeued only after all owned work joins.
+// Other phases still use conservative abort settlement (TODO #86/#92).
 func (e *Engine) Close() error {
 	if e == nil {
 		return nil
@@ -363,7 +365,8 @@ func (e *Engine) Close() error {
 		e.launchMu.Lock()
 		e.closing.Store(true)
 		e.launchMu.Unlock()
-		e.abortActiveTurns(shutdownGrace)
+		checkpoints, err := e.stopActiveTurnsForClose(shutdownGrace)
+		e.closeErr = errors.Join(e.closeErr, err)
 		e.runs.Wait()
 		e.closeHookHosts()
 		// Fence side admission before waiting. Preserve main-turn finalisation
@@ -377,41 +380,21 @@ func (e *Engine) Close() error {
 		e.closeMCP()
 		e.maintenance.Wait() // finish DB writers before callers close/remove the store
 		if e.peering != nil {
-			e.closeErr = e.peering.Close()
+			e.closeErr = errors.Join(e.closeErr, e.peering.Close())
+		}
+		for _, checkpoint := range checkpoints {
+			// Join even the closing lease before publishing a claim that a
+			// ready peer may immediately adopt. Its heartbeat must not race
+			// that legitimate ownership handoff.
+			e.closeErr = errors.Join(e.closeErr, checkpoint.stopHeartbeat())
+		}
+		for _, checkpoint := range checkpoints {
+			if checkpoint.reserved {
+				e.closeErr = errors.Join(e.closeErr, e.store.CommitProviderRetryClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token))
+			}
 		}
 	})
 	return e.closeErr
-}
-
-// AbortActiveTurns cancels every running turn this engine owns and waits up
-// to grace for them to finalize. It returns the aborted turn IDs.
-func (e *Engine) abortActiveTurns(grace time.Duration) []string {
-	var ids []string
-	ctx, cancel := context.WithTimeout(context.Background(), grace)
-	defer cancel()
-	e.sessions.Range(func(key, value any) bool {
-		sessionID, runner := key.(string), value.(*sessionRunner)
-		runner.mu.Lock()
-		current := runner.current
-		runner.mu.Unlock()
-		if current == nil || current.owner != e {
-			return true
-		}
-		if err := e.CancelActiveTurn(ctx, sessionID, current.turnID); err != nil {
-			log.Printf("shutdown: abort %s: %v", current.turnID, err)
-			current.cancel() // still stop the worker; recovery handles the claim
-		}
-		ids = append(ids, current.turnID)
-		return true
-	})
-	done := make(chan struct{})
-	go func() { e.runs.Wait(); close(done) }()
-	select {
-	case <-done:
-	case <-ctx.Done():
-		log.Printf("shutdown: turns still finalizing after %s", grace)
-	}
-	return ids
 }
 
 // ErrTurnOwnedElsewhere reports a fresh active-turn claim held by another
@@ -864,6 +847,9 @@ func (e *Engine) AbortActiveAndRestoreTUITextDraft(ctx context.Context, sessionI
 	runner := e.runner(sessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
+	if e.closing.Load() {
+		return store.TUITextDraft{}, nil, context.Canceled
+	}
 	if runner.current == nil || runner.current.turnID != turnID || turnID == "" {
 		return store.TUITextDraft{}, nil, store.ErrQueueConflict
 	}
@@ -1890,7 +1876,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	sessionCounts := map[string]*recoveryScanCounts{}
 	failedClaimsBySession := map[string][]store.ActiveTurnClaim{}
 	for _, claim := range claims {
-		if (claim.Phase == "retry_wait" || claim.Phase == "running") && !e.providerRecoveryEnabled.Load() {
+		if (claim.Phase == "retry_wait" || claim.Phase == "running" || store.IsClosedProviderRetryPhase(claim.Phase)) && !e.providerRecoveryEnabled.Load() {
 			continue
 		}
 		counts := sessionCounts[claim.SessionID]
@@ -4139,7 +4125,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	resumed := len(continuations) > 0 && continuations[0] != nil
 	lifecycleStarted := resumed // the checkpoint follows this turn's original agent start
 	defer func() {
-		if !lifecycleStarted {
+		if !lifecycleStarted || r.checkpointClosing(turnID) {
 			return
 		}
 		agentEndReason := "unsettled"
@@ -4658,6 +4644,9 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 }
 
 func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID, agentID, model, status, systemMsg, failureKind string, payload map[string]any) {
+	if r.checkpointClosing(turnID) {
+		return
+	}
 	bgCtx := r.engine.backgroundContext()
 	if strings.TrimSpace(agentID) == "" || strings.TrimSpace(model) == "" {
 		resolvedAgentID, resolvedModel := r.resolveTurnIdentityForFinalize(bgCtx, s, sessionID, turnID)
@@ -5686,6 +5675,12 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	ctx := r.engine.backgroundContext()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if active != nil && active.checkpointClosing {
+		if r.current == active {
+			r.current = nil
+		}
+		return // the Close controller retains the fenced reservation until join
+	}
 	if active != nil && active.terminalPending {
 		// Keep the durable claim/checkpoint for recovery; releasing it would
 		// let another turn pass unresolved child or settlement ownership.

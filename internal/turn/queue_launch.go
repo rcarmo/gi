@@ -14,7 +14,7 @@ import (
 	"github.com/rcarmo/gi/internal/store/internalx"
 )
 
-func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly, activeOnly bool) error {
+func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly, activeOnly bool, duringClose ...bool) error {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turn, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
@@ -28,6 +28,9 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 	agentID, model := runner.resolveTurnAgentAndModel(opCtx, e.store, turn, turnSessionID, turn.Prompt)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
+	if e.closing.Load() && (len(duringClose) == 0 || !duringClose[0]) {
+		return context.Canceled
+	}
 	if activeOnly {
 		turn, err = e.store.GetTurn(opCtx, turnID)
 		if err != nil {
