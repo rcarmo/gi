@@ -142,3 +142,71 @@ checks were preserved. Sampled object counts and short CPU samples vary;
 build-inclusive RSS includes compilation. Raw captures and disposable logs were
 deleted after analysis. Subsequent full Go tests, focused tool and ownership
 race checks, vet, Bun checks and 204 web-adapter tests passed.
+
+## Post-repair auth reads (2026-11-01)
+
+The baseline was main `53e273dc`, Go 1.27.3, two CPUs, with sequential
+`PROFILING=1 PROFILE_KEEP=1 make test RACE=`. All 2,955 reported tests in
+35 packages passed: 110 s package wall time, 60.0 s child CPU and 795 MB
+build-inclusive peak RSS. CPU, `alloc_space` and `alloc_objects` were inspected.
+
+The largest inspected costs were:
+
+- SQLite preparation: 2.25 s (32.9%) of turn-package CPU; parser work was
+  1.15 s (33.1%) in store. `Store.Open` accounted for 1.28 s in store and
+  0.74 s in turn. These tests repeatedly create independent databases and
+  execute transactional state transitions. Schema-template reuse already
+  applies. Statement caching is a candidate for a separate fixed-workload
+  experiment, not a reason to remove transaction, cancellation or ownership
+  checks. No statement-cache benefit was measured in this pass.
+- Turn allocations: 735.12 MiB. The large-image boundary fixture accounted
+  for 173.37 MiB cumulatively; Wasm memory initialization/growth also appeared.
+  These totals include deliberately oversized image inputs and required
+  isolation. They do not establish a production image-memory regression.
+- TUI allocations: 703.53 MiB, including 199.16 MiB in `go-tui.NewBuffer`,
+  103.67 MiB in styled-rune segmentation and 70.18 MiB directly in
+  `transcriptRowsAtWidth`. The nested go-tui frames were inspected; this pass
+  makes no renderer change or claim about steady-state frame performance.
+- Scripting: 2.20 s CPU, 258.97 MiB and 5.10 million sampled objects.
+  Joker evaluation beneath `runAndCacheEmbeddedJokerProgram` accounted for
+  about 165.66 MiB and 4.69 million objects. That path both parses and
+  evaluates on cache misses; it is not solely parsing overhead. The existing
+  bounded parsed-program cache and per-call bridge setup remain unchanged.
+  Reusing mutable evaluation state without an isolation benchmark is not an
+  accepted optimization. Warm/cold scripting and steady-state rendering
+  remain separate diagnostic workloads, not verified production improvements.
+- Auth: 177.77 MiB, including 68.69 MiB in `io.ReadAll` buffer growth.
+  `readState` already knows the opened file's size. It now preallocates a
+  bounded buffer with EOF-probe slack, while retaining the read limit,
+  identity checks, JSON decoding and unknown-field preservation. Size is only
+  a hint: reads are neither truncated to the stat size nor cached across calls.
+
+The concurrent-login test has a timing-dependent reader count, so its aggregate
+allocation totals cannot prove a per-read improvement. `make bench-auth-state`
+uses fixed synthetic state, a 2 KiB unknown extension, 5,000 reads per case,
+three repetitions, and the same profiling options before and after the change.
+Medians (sample size three; no statistical significance claim):
+
+| Sessions | ns/read before → after | B/read before → after | allocs/read |
+|---|---:|---:|---:|
+| 1 | 13,492 → 11,860 (-12.1%) | 9,610 → 7,493 (-22.0%) | 32 → 27 |
+| 32 | 59,079 → 54,061 (-8.5%) | 53,595 → 40,659 (-24.1%) | 74 → 64 |
+| 128 | 191,631 → 180,374 (-5.9%) | 195,354 → 147,307 (-24.6%) | 176 → 162 |
+
+Across the equivalent benchmark runs, sampled CPU was 4.42 → 4.02 s (-9.0%),
+allocated space 3,763.77 → 2,808.97 MiB (-25.4%), and objects
+4,222,090 → 3,667,060 (-13.1%). Sampling contributes noise. Build-inclusive
+peak RSS rose 206 → 209 MB (+1.5%); that small secondary change does not
+outweigh the repeatable per-read allocation reduction. This is a bounded
+read-path improvement, not a measured end-to-end login latency improvement.
+
+Verification: `make test-auth-state` passed the complete auth package ten times
+with the race detector; fresh reads, the exact 1 MiB boundary, oversized,
+truncated and empty state were added to the regression coverage. Existing
+symlink, corruption, cross-process, revoke and crash-lock tests remain intact.
+A second profiled full Go run passed 2,962 reported tests in 35 packages, and
+`make vet RACE=` passed. Inherited `PI_CODING_AGENT_DIR` and
+`GI_CODING_AGENT_DIR` were cleared for verification. The second suite includes
+new tests and variable concurrent-reader work, so its aggregate changes are
+not an equivalent-workload performance claim. Raw captures, disposable logs
+and owned scratch were removed after analysis. No release or deployment.

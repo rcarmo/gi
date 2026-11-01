@@ -966,8 +966,13 @@ test-browser-auth-race:
 	$(TESTPROFILE) gotest $(RACE) ./internal/web ./internal/auth -count=3
 
 .PHONY: test-auth-state
-test-auth-state:
-	$(TESTPROFILE) gotest $(RACE) ./internal/auth -count=10
+test-auth-state: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) ./internal/auth -count=10
+
+.PHONY: bench-auth-state
+AUTH_STATE_BENCH_TIME ?= 5000x
+bench-auth-state: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkAuthStateRead$$' -benchtime=$(AUTH_STATE_BENCH_TIME) -count=3 -benchmem ./internal/auth
 
 .PHONY: test-selected-runtimes test-native-joker-compiler test-joker-wasm-engines
 test-joker-wasm-engines: $(TESTPROFILE)

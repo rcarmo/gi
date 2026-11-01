@@ -76,10 +76,15 @@ func readState(root *os.Root) (State, []byte, error) {
 	if !os.SameFile(info, opened) {
 		return state, nil, ErrStateConflict
 	}
-	data, err := io.ReadAll(io.LimitReader(file, maxStateBytes+1))
-	if err != nil {
+	// Size is only a bounded allocation hint: keep reading through the limit
+	// so growth after Stat cannot bypass the byte bound. Leave MinRead slack
+	// for Buffer.ReadFrom's EOF probe without doubling a full-sized buffer.
+	var content bytes.Buffer
+	content.Grow(int(min(opened.Size(), maxStateBytes)) + bytes.MinRead)
+	if _, err = content.ReadFrom(io.LimitReader(file, maxStateBytes+1)); err != nil {
 		return state, nil, err
 	}
+	data := content.Bytes()
 	if len(data) > maxStateBytes {
 		return state, nil, errors.New("auth state is too large")
 	}
