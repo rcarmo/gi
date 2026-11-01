@@ -60,15 +60,15 @@ queued checkpoint phases. It fences the old writer before cancellation and joins
 owned work before requeue. Reopening waits for runtime-ready recovery; the normal
 prompt queue cannot claim these checkpoints. Shutdown leaves the original
 receipt, lifecycle, deadline and budgets intact, without an agent-end callback
-or a fabricated crash failure. Other generation/tool phases still use
-conservative abort settlement until they have verified continuation routes.
+or a fabricated crash failure. Generation-ready and single pending-provider
+frontiers also support graceful Close; unproven tool/legacy phases still use
+conservative abort settlement.
 
 Embedding hosts call `Engine.ResumeInterruptedWork(ctx)` after registering
 runtime tools/hooks and enabling MCP. HTTP and TUI startup do this explicitly;
 normal prompt admission also opens the barrier after waiting for MCP. The
 constructor does not dispatch effectful continuations. Cancellation while waiting
-still ends the lifecycle once. General generation/tool continuation and graceful
-close are separate work; see the
+still ends the lifecycle once. See the
 [retry continuation audit](../implementation/audits/provider-retry-continuation.md).
 
 ## Generation-ready continuation
@@ -89,9 +89,27 @@ is never dispatched again.
 At most five automatic admissions are allowed without meaningful provider/tool
 receipt progress. Rewriting preparation or recording an interruption does not
 reset this limit. Exhaustion uses the existing conservative hold; explicit
-parked-checkpoint retry remains separate work. Graceful Close still preserves
-only the verified retry phases. See the
+parked-checkpoint retry requires further implementation. See the
 [generation-ready audit](../implementation/audits/generation-ready-continuation.md).
+
+## Graceful generation Close
+
+Close reserves a verified generation-ready or single pending-provider frontier
+and revokes the host's general writer before cancellation. Its owned recorder can
+still flush bounded provider snapshots through a private persistence callback;
+the provider and hooks retain their revoked contexts. Close keeps the replacement
+lease alive until main, hook, side, maintenance, peering and lease hosts have
+joined. It then seals any uncertain request and publishes
+`checkpoint_generation_ready` with the original lifecycle and budgets.
+
+The ordinary prompt queue cannot select or claim this phase, including after
+claim release. Runtime-ready recovery can adopt a completed Close immediately,
+without waiting for stale-owner expiry. `generation.close_resumed` preserves the
+existing crash counter: a graceful restart neither consumes nor resets it.
+Invalid checkpoints stay held. Persistence failures return through the shared
+Close barrier and retain the reservation for conservative recovery.
+
+See the [generation Close audit](../implementation/audits/graceful-generation-close.md).
 
 ## Interrupted admitted generation
 

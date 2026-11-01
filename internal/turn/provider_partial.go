@@ -192,6 +192,7 @@ type providerPartialRecorder struct {
 	mu                                     sync.Mutex
 	store                                  *store.Store
 	ctx                                    context.Context
+	persist                                func(string, map[string]any) error
 	turnID, sessionID, occurrenceID, model string
 	last                                   time.Time
 	stopped                                bool
@@ -226,7 +227,11 @@ func (p *providerPartialRecorder) write(message *goai.Message, force bool) error
 	if len(thinking) > 0 {
 		payload["thinking_blocks"] = thinking
 	}
-	p.err = p.store.SaveProviderPartial(p.ctx, p.turnID, p.sessionID, p.occurrenceID, goai.GetTextContent(snapshot), payload)
+	if p.persist != nil {
+		p.err = p.persist(goai.GetTextContent(snapshot), payload)
+	} else {
+		p.err = p.store.SaveProviderPartial(p.ctx, p.turnID, p.sessionID, p.occurrenceID, goai.GetTextContent(snapshot), payload)
+	}
 	if p.err == nil {
 		p.last = now
 	}

@@ -13,6 +13,7 @@ import (
 type closingRetry struct {
 	sessionID, turnID, token string
 	reserved                 bool
+	generation               bool
 	stopHeartbeat            func() error
 }
 
@@ -70,23 +71,30 @@ func (e *Engine) stopActiveTurnsForClose(grace time.Duration) ([]closingRetry, e
 		if err == nil {
 			checkpoint, err = e.store.ReserveProviderRetryClose(ctx, sessionID, active.turnID, active.claimToken, token)
 		}
-		if err != nil || checkpoint != nil {
+		var generation *store.GenerationReadyCheckpoint
+		if err == nil && checkpoint == nil {
+			generation, err = e.store.ReserveGenerationClose(ctx, sessionID, active.turnID, active.claimToken, token)
+		}
+		if err != nil || checkpoint != nil || generation != nil {
 			// A failed reservation is not permission to fabricate an abort. Preserve
 			// its original claim for conservative recovery and return the error.
 			active.checkpointClosing = true
+			if generation != nil {
+				active.closingProgressToken = token
+			}
 			active.terminalPending = true
 			reserved := err == nil
 			if !reserved {
 				token = active.claimToken
 				result = errors.Join(result, fmt.Errorf("reserve close checkpoint %s: %w", active.turnID, err))
 			}
-			plans = append(plans, closingRetry{sessionID: sessionID, turnID: active.turnID, token: token, reserved: reserved, stopHeartbeat: e.keepClosingClaim(sessionID, token)})
+			plans = append(plans, closingRetry{sessionID: sessionID, turnID: active.turnID, token: token, reserved: reserved, generation: generation != nil, stopHeartbeat: e.keepClosingClaim(sessionID, token)})
 			active.cancel()
 			runner.mu.Unlock()
 			return true
 		}
 		runner.mu.Unlock()
-		// Other phases keep their existing conservative abort settlement until a
+		// Unproven tool/legacy phases keep conservative abort settlement until a
 		// verified continuation route exists. Do not queue a whole-prompt replay.
 		if err = e.cancelTurn(ctx, sessionID, active.turnID, false, true, true); err != nil {
 			log.Printf("shutdown: abort %s: %v", active.turnID, err)

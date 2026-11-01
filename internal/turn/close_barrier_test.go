@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/inference"
+	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/tools"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -81,7 +82,7 @@ func TestCloseBarrierWaitsForCancellationIgnoringProvider(t *testing.T) {
 				}
 			}
 			turn, err := s.GetTurn(ctx, run.TurnID)
-			if err != nil || turn.Status != "cancelled" {
+			if err != nil || turn.Status != "queued" || turn.Phase != store.ClosedGenerationReadyPhase || turn.FinishedAt != "" {
 				t.Fatal(turn, err)
 			}
 			messages, err := s.ListMessages(ctx, "A")
