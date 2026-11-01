@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/rcarmo/gi/internal/logutil"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/tools"
 	goai "github.com/rcarmo/go-ai"
-	"strings"
-	"sync/atomic"
 )
 
 // shellTurnStartHook is a test seam: tests that assert on a still-active
@@ -38,92 +37,72 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	defer closeOutput()
 	var streamedOutput strings.Builder
 	executionStart := time.Now()
-	out, runErr, cancelled := tools.RunShellPrompt(ctx, run.prompt, nil, func(delta string) {
+	runPrompt := r.engine.shellPromptRunner
+	if runPrompt == nil {
+		runPrompt = func(ctx context.Context, prompt string, delta func(string)) (string, error, bool) {
+			return tools.RunShellPrompt(ctx, prompt, nil, delta)
+		}
+	}
+	out, runErr, cancelled := runPrompt(ctx, run.prompt, func(delta string) {
 		streamedOutput.WriteString(delta)
 		_ = reportOutput(streamedOutput.String(), false)
 	})
 	durationMS := time.Since(executionStart).Milliseconds()
+	if (cancelled || ctx.Err() != nil || runErr != nil) && streamedOutput.Len() > len(out) {
+		out = streamedOutput.String()
+	}
 	if outputErr := reportOutput(out, true); outputErr != nil && !cancelled {
 		runErr = outputErr
 	}
+	// Join every coalesced progress write before recording the result or
+	// entering the common child-before-parent terminal barrier.
+	closeOutput()
 	bgCtx := context.WithoutCancel(ctx)
-	status, phase := "completed", "completed"
+	status, eventType, systemMessage, failureKind := "completed", "tool.finished", "", ""
 	if cancelled || ctx.Err() != nil {
-		status, phase = "cancelled", "aborted"
+		status, eventType, systemMessage = "cancelled", "tool.cancelled", "Turn cancelled"
 	} else if runErr != nil {
-		status, phase = "failed", "failed"
+		status, eventType, failureKind = "failed", "tool.failed", "shell_error"
+		systemMessage = fmt.Sprintf("Shell tool failed: %v", runErr)
+	}
+	out, diagnostics := boundToolOutput(out)
+	messagePayload := withOutputDiagnostics(map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}, diagnostics)
+	if status != "completed" {
+		messagePayload["partial"] = true
+		messagePayload["context_contribution"] = false
+		messagePayload["adopted"] = false
+		stopReason := goai.StopReasonError
+		if status == "cancelled" {
+			stopReason = goai.StopReasonAborted
+		}
+		messagePayload["stop_reason"] = stopReason
+	} else {
+		r.addRecoveryMarker(bgCtx, run.sessionID, run.turnID, messagePayload)
+	}
+	messageID := ""
+	if out != "" {
+		messageID = store.NowID("msg")
+	}
+	event := map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "output_length": len(out), "output_policy": diagnostics}
+	if runErr != nil {
+		event["error"] = runErr.Error()
+	}
+	if failureKind != "" {
+		event["failure_kind"] = failureKind
 	}
 	r.setTerminalPending(run.turnID, true)
-	finalStatus, err := s.FinalizeRunningTurn(bgCtx, run.turnID, status, phase)
-	if err != nil {
-		log.Printf("shell turn finalization conflict for %s: %v", run.turnID, err)
+	if err := s.SettleToolResponse(bgCtx, run.turnID, run.sessionID, eventType, event, messageID, out, messagePayload); err != nil {
+		log.Printf("shell result settlement conflict for %s: %v", run.turnID, err)
 		return
 	}
-	r.setTerminalPending(run.turnID, false)
-	logutil.WarnIfErr("mark shell turn finished", s.MarkTurnFinished(bgCtx, run.turnID))
-	if finalStatus == "cancelled" {
-		r.persistStoppedTool(ctx, s, run.sessionID, run.turnID, goai.ToolCall{Name: "shell"}, toolOccurrenceID, "cancelled", durationMS)
-		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
-		logutil.WarnIfErr("append turn.cancelled event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancelled", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}))
-		logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "cancelled", "reason": "cancelled", "failure_kind": ""}))
-		r.engine.PublishRuntimeTurnEvent("turn_terminal", run.sessionID, run.turnID, run.agentID, "cancelled", "aborted", map[string]any{"reason": "cancelled", "failure_kind": ""})
-		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "cancelled", "aborted", map[string]any{"reason": "cancelled", "failure_kind": ""})
-		r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "cancelled", "")
-		r.publishSubTurnLifecycle(bgCtx, run.turnID, "cancelled")
-		msgID := store.NowID("msg")
-		logutil.WarnIfErr("add turn cancelled system message", s.AddMessage(bgCtx, msgID, run.sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": run.turnID, "clipped": true}))
-		r.broadcastSystemPost(run.sessionID, run.turnID, msgID, "Turn cancelled")
-		logutil.WarnIfErr("touch session idle after cancel", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "active_turn_id": nil, "turn_id": run.turnID, "turn_status": "cancelled", "turn_phase": "aborted", "failure_kind": "", "model": run.model})
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "active_turn_id": nil, "turn_id": run.turnID, "turn_status": "cancelled", "turn_phase": "aborted", "failure_kind": ""})
-		return
-	}
-	if finalStatus == "failed" {
-		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
-		logutil.WarnIfErr("turn failure mark", s.MarkTurnFailureWithFallbackErr(bgCtx, nil, run.turnID, run.sessionID, "shell_error", "none", runErr.Error()))
-		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"occurrence_id": toolOccurrenceID, "phase": "tool", "duration_ms": durationMS})
-		logutil.WarnIfErr("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "error": runErr.Error(), "failure_kind": "shell_error"}))
-		r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
-		msgID := store.NowID("msg")
-		logutil.WarnIfErr("add shell failure system message", s.AddMessage(bgCtx, msgID, run.sessionID, "system", fmt.Sprintf("Shell tool failed: %v", runErr), map[string]any{"kind": "status", "turn_id": run.turnID, "source": "system", "failure_kind": "shell_error"}))
-		r.broadcastSystemPost(run.sessionID, run.turnID, msgID, fmt.Sprintf("Shell tool failed: %v", runErr))
-		logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "failed", "reason": "shell_error", "failure_kind": "shell_error"}))
-		r.engine.PublishRuntimeTurnEvent("turn_terminal", run.sessionID, run.turnID, run.agentID, "failed", "failed", map[string]any{"reason": "shell_error", "failure_kind": "shell_error"})
-		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "failed", "failed", map[string]any{"reason": "shell_error", "failure_kind": "shell_error"})
-		r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "failed", "shell_error")
-		r.publishSubTurnLifecycle(bgCtx, run.turnID, "failed")
-		logutil.WarnIfErr("touch session idle after failure", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "active_turn_id": nil, "turn_id": run.turnID, "turn_status": "failed", "turn_phase": "failed", "failure_kind": "shell_error", "model": run.model})
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "active_turn_id": nil, "turn_id": run.turnID, "turn_status": "failed", "turn_phase": "failed", "failure_kind": "shell_error"})
-		return
-	}
-	r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
-	r.engine.PublishRuntimeToolEvent("tool_finished", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"occurrence_id": toolOccurrenceID, "phase": "tool", "output_length": len(out), "duration_ms": durationMS})
-	logutil.WarnIfErr("append shell tool.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "duration_ms": durationMS, "output_length": len(out)}))
+	r.engine.PublishRuntimeToolEvent(strings.ReplaceAll(eventType, ".", "_"), run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, event)
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
-	msgID := store.NowID("msg")
-	messagePayload := map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}
-	r.addRecoveryMarker(bgCtx, run.sessionID, run.turnID, messagePayload)
-	logutil.WarnIfErr("add shell assistant message", s.AddMessage(bgCtx, msgID, run.sessionID, "assistant", out, messagePayload))
-	r.engine.broadcast(run.sessionID, map[string]any{
-		"type": "new_post", "turn_id": run.turnID, "id": msgID, "chat_jid": "gi:" + run.sessionID,
-		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
-		"sender": "agent", "is_bot_message": true,
-		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": run.agentID, "content_blocks": messagePayload["content_blocks"]},
-	})
-	completionPayload := map[string]any{"reason": "completed", "completion_kind": "response"}
-	logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed", "reason": "completed", "failure_kind": "", "completion_kind": "response"}))
-	r.engine.PublishRuntimeTurnEvent("turn_completed", run.sessionID, run.turnID, run.agentID, "completed", "completed", completionPayload)
-	r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "completed", "completed", completionPayload)
-	r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "completed", "")
-	r.publishSubTurnLifecycle(bgCtx, run.turnID, "completed")
-	logutil.WarnIfErr("touch session idle after completion", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-	sessionCompletionPayload := map[string]any{"reason": "turn_completed", "active_turn_id": nil, "turn_id": run.turnID, "turn_status": "completed", "turn_phase": "completed", "failure_kind": "", "model": run.model, "completion_kind": "response"}
-	r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", sessionCompletionPayload)
-	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed", "active_turn_id": nil, "turn_id": run.turnID, "turn_status": "completed", "turn_phase": "completed", "failure_kind": "", "completion_kind": "response"})
+	if messageID != "" {
+		r.broadcastPost(run.sessionID, run.turnID, messageID, out, run.agentID, messagePayload["content_blocks"])
+	}
+	var completion map[string]any
+	if status == "completed" {
+		completion = map[string]any{"completion_kind": "response"}
+	}
+	r.finishTurnWithPayload(s, run.turnID, run.sessionID, run.agentID, run.model, status, systemMessage, failureKind, completion)
 }
-
-// admissionThinking is the thinking level captured for a turn: the session's
-// validated selection, else Pi's default (the configured default thinking
-// level, else "medium") clamped to what the model supports. Non-reasoning and
-// unknown models get none.

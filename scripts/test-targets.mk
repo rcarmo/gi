@@ -187,6 +187,14 @@ test-provider-partials: $(TESTPROFILE)
 test-durable-recovery: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestTurnWriter|TestShellFinalizationFailureKeepsClaimAndQueuedWork|TestConcurrentSubmitDifferentSessionsRunsConcurrently|TestStagedTerminalRecovery|TestActiveEscapeRestoreFencesAndCancelsBeforeCleanup|TestHeartbeatCancelsTurnWhenActiveClaimDisappears|TestParentTerminal|TestParentAbort' ./internal/store ./internal/turn
 
+.PHONY: test-bootstrap-settlement test-bootstrap-settlement-profile
+test-bootstrap-settlement: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestBootstrap|TestShellFinalizationFailure|TestTool.*Settlement|TestParentTerminal|TestParentAbort|TestTurnWriter' ./internal/store ./internal/turn
+
+BOOTSTRAP_PROFILE_COUNT ?= 200
+test-bootstrap-settlement-profile: $(TESTPROFILE)
+	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest $(RACE) -count=$(BOOTSTRAP_PROFILE_COUNT) -run '^TestBootstrapResponseCompletesOnce$$' ./internal/turn
+
 .PHONY: bench-turn-writer
 bench-turn-writer: $(TESTPROFILE)
 	env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR $(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkTurnWriterEvent$$' -benchtime=2s -benchmem ./internal/store

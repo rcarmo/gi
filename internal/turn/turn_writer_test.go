@@ -110,6 +110,12 @@ func TestTurnWriterReplacedClaimRejectsLateNativeEffects(t *testing.T) {
 }
 
 func TestShellFinalizationFailureKeepsClaimAndQueuedWork(t *testing.T) {
+	testShellSettlementFailureKeepsClaimAndQueuedWork(t, `create trigger reject_shell_terminal before update of status on turns when new.status in ('completed','cancelled','failed') begin select raise(abort,'terminal write rejected'); end`)
+}
+func TestBootstrapResponseFailureKeepsClaimAndQueuedWork(t *testing.T) {
+	testShellSettlementFailureKeepsClaimAndQueuedWork(t, `create trigger reject_shell_terminal before insert on messages when new.role='assistant' begin select raise(abort,'response write rejected'); end`)
+}
+func testShellSettlementFailureKeepsClaimAndQueuedWork(t *testing.T, trigger string) {
 	s := openChildJoinStore(t)
 	e := New(s)
 	started, release := make(chan struct{}), make(chan struct{})
@@ -138,7 +144,7 @@ func TestShellFinalizationFailureKeepsClaimAndQueuedWork(t *testing.T) {
 	if err != nil || !queued.Queued {
 		t.Fatal(queued, err)
 	}
-	if _, err := s.DB().Exec(`create trigger reject_shell_terminal before update of status on turns when new.status in ('completed','cancelled','failed') begin select raise(abort,'terminal write rejected'); end`); err != nil {
+	if _, err := s.DB().Exec(trigger); err != nil {
 		t.Fatal(err)
 	}
 	once.Do(func() { close(release) })

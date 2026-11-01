@@ -83,6 +83,8 @@ type Engine struct {
 	beforeLaunchClaimHook             func(context.Context, string, string)
 	beforeLaunchSessionStateErrorHook func(context.Context, string, string) error
 	beforeCleanupNextWorkHook         func(context.Context, string)
+	// Test seam; nil uses the joined native shell process runner.
+	shellPromptRunner func(context.Context, string, func(string)) (string, error, bool)
 }
 
 type sharedSessionCoord struct {
