@@ -44,10 +44,18 @@ func TestToolBatchProcessHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	recovering := os.Getenv("GI_TOOL_BATCH_RECOVER") == "true"
+	if recovering {
+		if _, err = s.DB().Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z'`); err != nil {
+			t.Fatal(err)
+		}
+	}
 	e := NewWithRuntimeConfig(s, config.Load(filepath.Dir(path)), "")
 	defer e.Close()
-	if _, err = s.CreateSession(ctx, "batch", "batch", nil); err != nil {
-		t.Fatal(err)
+	if !recovering {
+		if _, err = s.CreateSession(ctx, "batch", "batch", nil); err != nil {
+			t.Fatal(err)
+		}
 	}
 	stage := os.Getenv("GI_TOOL_BATCH_STAGE")
 	ready := func(turn string) {
@@ -58,7 +66,11 @@ func TestToolBatchProcessHelper(t *testing.T) {
 	}
 	if err = e.RegisterTool(tools.RegisteredTool{Name: "batch-effect", Parameters: json.RawMessage(batchTestSchema), ReplaySafe: os.Getenv("GI_TOOL_BATCH_SAFE") == "true", Executor: func(_ context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 		value := fmt.Sprint(call.Arguments["value"])
-		if err := appendBatchTestLog(path+".effects", "old:"+value); err != nil {
+		prefix := "old:"
+		if recovering {
+			prefix = "retry:"
+		}
+		if err := appendBatchTestLog(path+".effects", prefix+value); err != nil {
 			return "", err
 		}
 		if value == "prepared-two" {
@@ -110,6 +122,14 @@ func TestToolBatchProcessHelper(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if recovering && stage == "batch_end" {
+		if _, err = e.RegisterHook(HookToolExecutionEnd, "settled-checkpoint", func(_ context.Context, req HookRequest) (HookResponse, error) {
+			ready(req.TurnID)
+			return HookResponse{}, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	withStreamWithToolsStub(t, func(context.Context, string, *goai.Context, func(map[string]any)) (*inference.StreamResult, error) {
 		blocks := make([]goai.ContentBlock, 0, 3)
 		for _, id := range []string{"one", "two", "three"} {
@@ -117,7 +137,12 @@ func TestToolBatchProcessHelper(t *testing.T) {
 		}
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonToolUse, Content: blocks, Usage: &goai.Usage{Input: 7}}}, nil
 	})
-	if _, err = e.SubmitPrompt(ctx, RunInput{SessionID: "batch", Prompt: "original prompt", Model: "mock-stream"}); err != nil {
+	if recovering {
+		err = e.ResumeInterruptedWork(ctx)
+	} else {
+		_, err = e.SubmitPrompt(ctx, RunInput{SessionID: "batch", Prompt: "original prompt", Model: "mock-stream"})
+	}
+	if err != nil {
 		t.Fatal(err)
 	}
 	select {}
@@ -128,18 +153,22 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 		t.Skip("requires process kill")
 	}
 	for _, tc := range []struct {
-		name, stage                                 string
+		name, stage, secondStage                    string
 		oldSafe, currentSafe, schemaChanged, replay bool
 	}{
-		{"safe", "execute", true, true, false, true},
-		{"preparation_interrupted", "prepare", true, true, false, false},
-		{"default_unsafe", "execute", false, false, false, false},
-		{"saved_unsafe", "execute", false, true, false, false},
-		{"currently_unsafe", "execute", true, false, false, false},
-		{"changed_schema_uses_saved_arguments", "execute", true, true, true, true},
-		{"result_policy_attempted", "result", true, true, false, false},
+		{"safe", "execute", "", true, true, false, true},
+		{"preparation_interrupted", "prepare", "", true, true, false, false},
+		{"default_unsafe", "execute", "", false, false, false, false},
+		{"saved_unsafe", "execute", "", false, true, false, false},
+		{"currently_unsafe", "execute", "", true, false, false, false},
+		{"changed_schema_uses_saved_arguments", "execute", "", true, true, true, true},
+		{"result_policy_attempted", "result", "", true, true, false, false},
+		{"retry_admitted_then_interrupted", "execute", "execute", true, true, false, true},
+		{"retry_admitted_then_denied", "execute", "execute", true, false, false, false},
+		{"settled_batch_successor", "execute", "batch_end", true, true, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			secondSettled := tc.secondStage == "batch_end"
 			root := t.TempDir()
 			path := filepath.Join(root, "batch.db")
 			t.Setenv("GI_CODING_AGENT_DIR", filepath.Join(root, "agent"))
@@ -153,35 +182,50 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			child := exec.Command(binary, "-test.run=^TestToolBatchProcessHelper$")
-			child.Env = append(os.Environ(), "GI_TOOL_BATCH_DB="+path, "GI_TOOL_BATCH_STAGE="+tc.stage, fmt.Sprintf("GI_TOOL_BATCH_SAFE=%t", tc.oldSafe))
-			var output bytes.Buffer
-			child.Stdout = &output
-			child.Stderr = &output
-			if err = child.Start(); err != nil {
-				t.Fatal(err)
+			stages := []string{tc.stage}
+			if tc.secondStage != "" {
+				stages = append(stages, tc.secondStage)
 			}
-			joined := false
-			defer func() {
-				if !joined {
-					_ = child.Process.Kill()
-					_ = child.Wait()
+			var turnID string
+			for i, stage := range stages {
+				if i > 0 {
+					if err = os.Remove(path + ".ready"); err != nil {
+						t.Fatal(err)
+					}
 				}
-			}()
-			waitForCondition(t, 8*time.Second, func() bool { _, err := os.Stat(path + ".ready"); return err == nil }, "admitted tool interruption")
-			if err = child.Process.Kill(); err != nil {
-				t.Fatal(err)
+				child := exec.Command(binary, "-test.run=^TestToolBatchProcessHelper$")
+				child.Env = append(os.Environ(), "GI_TOOL_BATCH_DB="+path, "GI_TOOL_BATCH_STAGE="+stage, fmt.Sprintf("GI_TOOL_BATCH_SAFE=%t", tc.oldSafe), fmt.Sprintf("GI_TOOL_BATCH_RECOVER=%t", i > 0))
+				var output bytes.Buffer
+				child.Stdout = &output
+				child.Stderr = &output
+				if err = child.Start(); err != nil {
+					t.Fatal(err)
+				}
+				joined := false
+				defer func() {
+					if !joined {
+						_ = child.Process.Kill()
+						_ = child.Wait()
+					}
+				}()
+				waitForCondition(t, 8*time.Second, func() bool { _, err := os.Stat(path + ".ready"); return err == nil }, "admitted tool interruption")
+				if err = child.Process.Kill(); err != nil {
+					t.Fatal(err)
+				}
+				err = child.Wait()
+				joined = true
+				if err == nil {
+					t.Fatal("helper was not killed", output.String())
+				}
+				turnBytes, err := os.ReadFile(path + ".ready")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if turnID != "" && turnID != string(turnBytes) {
+					t.Fatal("recovery changed turn identity")
+				}
+				turnID = string(turnBytes)
 			}
-			err = child.Wait()
-			joined = true
-			if err == nil {
-				t.Fatal("helper was not killed", output.String())
-			}
-			turnBytes, err := os.ReadFile(path + ".ready")
-			if err != nil {
-				t.Fatal(err)
-			}
-			turnID := string(turnBytes)
 			s, err := store.Open(path)
 			if err != nil {
 				t.Fatal(err)
@@ -195,7 +239,11 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 				providers.Add(1)
 				raw, _ := json.Marshal(request)
 				rawText := string(raw)
-				for _, text := range []string{"original prompt", "once-only lifecycle prefix", "reviewed:done:prepared-one", "reviewed:new:prepared-three"} {
+				third := "reviewed:new:prepared-three"
+				if secondSettled {
+					third = "reviewed:done:prepared-three"
+				}
+				for _, text := range []string{"original prompt", "once-only lifecycle prefix", "reviewed:done:prepared-one", third} {
 					if strings.Count(rawText, text) != 1 {
 						t.Errorf("lost/duplicated %q: %s", text, raw)
 					}
@@ -221,14 +269,18 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 					}
 				}
 				hasProgress := strings.Contains(rawText, "old-progress:prepared-two")
-				if hasProgress != (!tc.replay && tc.stage != "prepare") {
+				if hasProgress != (!tc.replay && !secondSettled && tc.stage != "prepare") {
 					t.Errorf("committed partial output lost or adopted into a successful replay: %s", raw)
 				}
 				if tc.stage == "result" && strings.Contains(rawText, "done:prepared-two") {
 					t.Errorf("unapproved returned result adopted: %s", raw)
 				}
 				second := results["two"]
-				if tc.replay {
+				if secondSettled {
+					if second.IsError || !strings.Contains(rawText, "reviewed:done:prepared-two") {
+						t.Errorf("settled replay result missing: %s", raw)
+					}
+				} else if tc.replay {
 					if second.IsError || !strings.Contains(rawText, "reviewed:new:prepared-two") {
 						t.Errorf("safe result missing: %s", raw)
 					}
@@ -245,6 +297,9 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			}
 			if err = e.RegisterTool(tools.RegisteredTool{Name: "batch-effect", Parameters: json.RawMessage(schema), ReplaySafe: tc.currentSafe, Executor: func(_ context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 				executions.Add(1)
+				if secondSettled {
+					t.Error("settled batch executed again")
+				}
 				value := fmt.Sprint(call.Arguments["value"])
 				if value == "prepared-one" || value == "prepared-two" && !tc.replay {
 					t.Error("settled/unsafe callback replayed", call)
@@ -275,6 +330,9 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			for _, name := range []string{HookToolCall, HookApproveTool, HookToolResult} {
 				name := name
 				if _, err = e.RegisterHook(name, "fixture", func(_ context.Context, req HookRequest) (HookResponse, error) {
+					if secondSettled {
+						t.Error("settled batch policy repeated", name)
+					}
 					if name == HookToolResult {
 						if req.ToolCall.ID == "prepared-one" || req.ToolCall.ID == "prepared-two" && !tc.replay {
 							t.Error("result policy replayed", req.ToolCall.ID)
@@ -299,6 +357,14 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if secondSettled {
+				if _, err = e.RegisterHook(HookToolExecutionEnd, "no-repeat", func(context.Context, HookRequest) (HookResponse, error) {
+					t.Error("execution-end policy repeated")
+					return HookResponse{}, nil
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
 			time.Sleep(20 * time.Millisecond)
 			if providers.Load() != 0 || executions.Load() != 0 {
 				t.Fatal("dispatched before runtime-ready barrier")
@@ -315,6 +381,9 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			if tc.replay {
 				wantExecutions++
 			}
+			if secondSettled {
+				wantExecutions = 0
+			}
 			if providers.Load() != 1 || executions.Load() != wantExecutions || starts.Load() != 0 {
 				t.Fatal("replayed/skipped work", providers.Load(), executions.Load(), starts.Load())
 			}
@@ -330,6 +399,12 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			if tc.replay {
 				wantInput += 17
 			}
+			if tc.secondStage != "" {
+				wantInput += 11
+				if !secondSettled {
+					wantUnknown++
+				}
+			}
 			if err != nil || accounting.Iterations != 2 || int64(accounting.Usage.Input) != wantInput || accounting.Unknown != wantUnknown {
 				t.Fatal("usage lost/duplicated", accounting, err)
 			}
@@ -337,7 +412,17 @@ func TestToolBatchSurvivesKilledOwner(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			expectedEffects := []string{"old:prepared-one", "new:prepared-three"}
+			thirdEffect := "new:prepared-three"
+			if secondSettled {
+				thirdEffect = "retry:prepared-three"
+			}
+			expectedEffects := []string{"old:prepared-one", thirdEffect}
+			if tc.secondStage != "" {
+				expectedEffects = append(expectedEffects, "retry:prepared-two")
+			}
+			if tc.replay {
+				expectedEffects = append(expectedEffects, "new:prepared-two")
+			}
 			if tc.stage != "prepare" {
 				expectedEffects = append(expectedEffects, "old:prepared-two")
 			} else if strings.Contains(string(effects), "old:prepared-two") {
