@@ -27,8 +27,14 @@ consumption is not yet proven safe to reverse; retry never detaches the child or
 falls back to its original prompt. Legacy retry reservations already in progress
 retain their existing reconciliation protocol. Checkpoint reservations are not
 ordinary queue entries: ordinary queue cancellation rejects their active claim.
-Direct cancellation of an unlaunched checkpoint remains part of the owned-work
-shutdown follow-up; a launched host uses normal cancellation.
+`Engine.CancelTurn` and `Engine.CancelQueuedTurn` use dedicated cancellation
+admission for an unlaunched checkpoint. They atomically fence its writer and
+stage a cancelled terminal decision instead of executing it. Terminal cleanup
+settles outstanding tool calls under their original wire IDs, retains received
+physical usage, joins required children and emits agent end once. It can run
+before provider/tool registration; no model, preparation, result policy or
+executor is entered. A crash or persistence failure resumes only the remaining
+cleanup. A launched host uses normal cancellation.
 
 ## Follow-on retry for legacy failures
 

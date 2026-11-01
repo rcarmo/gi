@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -68,8 +69,15 @@ func (e *Engine) recoverStagedTerminal(ctx context.Context, claim store.ActiveTu
 	if decision == nil {
 		return true, store.ErrQueueConflict
 	}
+	e.launchTerminalCleanupLocked(runner, claim.SessionID, claim.TurnID, token, decision)
+	return true, nil
+}
+
+// The caller holds runner.mu and launchMu. Cancellation and crash recovery share
+// this terminal-only host; neither route passes through model/tool setup.
+func (e *Engine) launchTerminalCleanupLocked(runner *sessionRunner, sessionID, turnID, token string, decision *store.TurnSettlement) {
 	runCtx, cancel := context.WithCancel(e.backgroundContext())
-	active := &runningTurn{turnID: claim.TurnID, claimToken: token, cancel: cancel, recoveredTerminal: decision}
+	active := &runningTurn{turnID: turnID, claimToken: token, cancel: cancel, recoveredTerminal: decision}
 	runner.current = active
 	runner.registerHostFenceLocked(active, runCtx)
 	e.runs.Add(1)
@@ -78,7 +86,23 @@ func (e *Engine) recoverStagedTerminal(ctx context.Context, claim store.ActiveTu
 		defer runner.finishHostFence(active)
 		runner.mu.Lock()
 		runner.mu.Unlock()
-		runner.runTurn(e.store, claim.SessionID, claim.TurnID, runCtx, cancel, active)
+		runner.runTurn(e.store, sessionID, turnID, runCtx, cancel, active)
 	}()
-	return true, nil
+}
+
+func (r *sessionRunner) emitAgentEnd(ctx context.Context, s *store.Store, sessionID, turnID, agentID, model string) {
+	cleanupCtx := context.WithoutCancel(ctx)
+	run, err := s.ClaimAgentEnd(cleanupCtx, sessionID, turnID)
+	if err != nil {
+		log.Printf("persist agent-end attempt: %v", err)
+		return
+	}
+	if !run {
+		return
+	}
+	reason := "unsettled"
+	if rec, err := s.GetTurn(cleanupCtx, turnID); err == nil && isTerminalSubTurnStatus(rec.Status) {
+		reason = rec.Status
+	}
+	_, _ = r.engine.emitHook(cleanupCtx, HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": reason}})
 }
