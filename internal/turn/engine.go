@@ -922,8 +922,9 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		defer r.ownTurnHeartbeat(ctx, sessionID, active.claimToken, cancel)()
 		agentID, model := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
 		decision := active.recoveredTerminal
-		if decision.Status == "cancelled" && decision.Payload["checkpoint_cancellation"] == store.ClosedToolBatchPhase && decision.Payload["checkpoint_cancellation_tools_settled"] != true {
-			if err := r.settleCancelledToolBatch(ctx, s, sessionID, turnID); err != nil {
+		skipped := decision.Status == "failed" && decision.Payload["checkpoint_skip"] == store.ClosedToolBatchPhase
+		if ((decision.Status == "cancelled" && decision.Payload["checkpoint_cancellation"] == store.ClosedToolBatchPhase) || skipped) && decision.Payload["checkpoint_cancellation_tools_settled"] != true {
+			if err := r.settleClosedToolBatch(ctx, s, sessionID, turnID, skipped); err != nil {
 				r.mu.Lock()
 				active.terminalPending = true
 				r.mu.Unlock()
@@ -933,7 +934,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 			decision.Payload["checkpoint_cancellation_tools_settled"] = true
 		}
 		r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, decision.Status, decision.Message, decision.FailureKind, decision.Payload)
-		if decision.Payload["checkpoint_cancellation"] != nil {
+		if decision.Payload["checkpoint_cancellation"] != nil || decision.Payload["checkpoint_skip"] != nil {
 			if row, err := s.GetTurn(context.WithoutCancel(ctx), turnID); err == nil && isTerminalSubTurnStatus(row.Status) {
 				r.emitAgentEnd(ctx, s, sessionID, turnID, agentID, model)
 			}
@@ -1303,8 +1304,19 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 	if failureRec.HoldState == "none" {
 		return fmt.Errorf("skip held turn: turn %s is not currently held", turnID)
 	}
-	if err := e.store.ResolveTurnFailure(opCtx, turnID, "skipped", summary, ""); err != nil {
+	native, err := e.skipHeldCheckpoint(opCtx, turnRec.SessionID, turnID, summary)
+	if err != nil {
 		return err
+	}
+	if !native {
+		if err := e.store.ResolveTurnFailure(opCtx, turnID, "skipped", summary, ""); err != nil {
+			return err
+		}
+	}
+	if native {
+		if current, readErr := e.store.GetTurn(opCtx, turnID); readErr == nil {
+			turnRec = current
+		}
 	}
 	phase := turnRec.Phase
 	if phase == "held_for_retry_or_skip" {
@@ -1317,8 +1329,10 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 		"resolution_state":   "skipped",
 		"resolution_summary": summary,
 	}
-	if err := e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload); err != nil {
-		return err
+	if !native {
+		if err := e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload); err != nil {
+			return err
+		}
 	}
 	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, phase, payload)
 	return nil

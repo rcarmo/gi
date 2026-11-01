@@ -36,6 +36,25 @@ before provider/tool registration; no model, preparation, result policy or
 executor is entered. A crash or persistence failure resumes only the remaining
 cleanup. A launched host uses normal cancellation.
 
+## Native checkpoint skip
+
+`Engine.SkipHeldTurn` stages a failed terminal decision for a proven recovery-held
+checkpoint. Admission, writer fencing, pending provider settlement and the
+`skipped` failure resolution commit together. Skip preserves the original turn,
+received usage and crash budget. It never submits the prompt or enters model,
+preparation, executor or result-policy callbacks.
+
+Terminal cleanup settles each remaining tool call under its original wire ID,
+retains uncertain physical usage, joins required child hosts and emits agent end
+once. A failed write or restart resumes the remaining cleanup. Other live hosts
+in the session block admission. Parent-linked checkpoints can be skipped safely;
+their retry guard remains in force. Parent joins wait for the child's terminal
+receipt and final hook, including after skip. An already committed terminal is
+acknowledged without a second terminal decision or lifecycle callback.
+
+Unknown native frontiers retain their hold. Legacy terminal failures keep the
+existing acknowledgement-only skip path.
+
 ## Follow-on retry for legacy failures
 
 - A conditional SQLite update reserves one unresolved held terminal failure.

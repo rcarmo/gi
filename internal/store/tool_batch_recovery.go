@@ -120,7 +120,7 @@ func readToolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnI
 		return nil, err
 	}
 	var held int
-	if err = tx.QueryRowContext(ctx, `select count(*) from turn_failures where turn_id=? and (hold_state<>'none' or coalesce(resolution_state,'')<>'')`, turnID).Scan(&held); err != nil {
+	if err = tx.QueryRowContext(ctx, `select count(*) from turn_failures where turn_id=? and (hold_state<>'none' or (coalesce(resolution_state,'')<>'' and not (? and resolution_state='skipped')))`, turnID, terminalCleanup).Scan(&held); err != nil {
 		return nil, err
 	}
 	if held != 0 {
@@ -170,6 +170,7 @@ func readToolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnI
 	physicalSlots := map[string]int{}
 	cursor := 0
 	parked := 0
+	terminalReason := "checkpoint_cancel"
 	cancelling := false
 	budgetSignature, budgetFailures := checkpoint.Generation.LastToolFailureSignature, checkpoint.Generation.RepeatedToolFailures
 	for rows.Next() {
@@ -197,8 +198,16 @@ func readToolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnI
 			return nil, nil
 		}
 		if kind == "turn.terminal_staged" {
-			if !terminalCleanup || h.Phase != "settling" || !h.Checkpoint || h.Decision == nil || h.Decision.Status != "cancelled" || h.Decision.Phase != "cancelled" || h.Decision.Payload["checkpoint_cancellation"] != ClosedToolBatchPhase {
+			if !terminalCleanup || h.Phase != "settling" || !h.Checkpoint || h.Decision == nil {
 				return nil, nil
+			}
+			skip := h.Decision.Status == "failed" && h.Decision.Phase == "failed" && h.Decision.Payload["checkpoint_skip"] == ClosedToolBatchPhase
+			cancel := h.Decision.Status == "cancelled" && h.Decision.Phase == "cancelled" && h.Decision.Payload["checkpoint_cancellation"] == ClosedToolBatchPhase
+			if !skip && !cancel {
+				return nil, nil
+			}
+			if skip {
+				terminalReason = "checkpoint_skip"
 			}
 			cancelling = true
 			continue
@@ -326,8 +335,8 @@ func readToolBatchCheckpointTx(ctx context.Context, tx *sql.Tx, sessionID, turnI
 			admitted[h.OccurrenceID] = true
 			physicalSlots[h.OccurrenceID] = cursor
 		case "tool.finished", "tool.failed", "tool.skipped", "tool.interrupted":
-			cancelUnstarted := cancelling && kind == "tool.interrupted" && h.Reason == "checkpoint_cancel" && h.Unadmitted && call.OccurrenceID == ""
-			if (!call.Preparing && !cancelUnstarted) || h.OccurrenceID == "" || (cancelling && h.Reason != "checkpoint_cancel") {
+			cancelUnstarted := cancelling && kind == "tool.interrupted" && h.Reason == terminalReason && h.Unadmitted && call.OccurrenceID == ""
+			if (!call.Preparing && !cancelUnstarted) || h.OccurrenceID == "" || (cancelling && h.Reason != terminalReason) {
 				return nil, nil
 			}
 			if kind == "tool.interrupted" && h.Unadmitted {
