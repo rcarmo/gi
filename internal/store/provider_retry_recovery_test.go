@@ -161,3 +161,72 @@ func TestProviderRetryRecoveryRejectsCrossSession(t *testing.T) {
 		t.Fatal("cross-session takeover accepted")
 	}
 }
+
+func TestProviderRetryRecoveryAfterWakeBeforeNextAdmission(t *testing.T) {
+	s, ctx, _ := retryReceiptFixture(t)
+	receipt := retryReceipt()
+	receipt.RetryWait.RetryAt = time.Now().Add(-time.Second)
+	receipt.RetryWait.Lifecycle = &ProviderLifecyclePolicy{Version: 1, Message: "accepted policy"}
+	if _, err := s.SettleProviderAttempt(ctx, "t", "s", "request", receipt); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ResumeProviderRetry(ctx, "s", "t", "request"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z'`); err != nil {
+		t.Fatal(err)
+	}
+	claims, err := s.ListStaleActiveTurnClaims(context.Background(), time.Now(), "s")
+	if err != nil || len(claims) != 1 {
+		t.Fatal(claims, err)
+	}
+	checkpoint, err := s.AcquireProviderRetryRecovery(context.Background(), claims[0], "new-after-wake", time.Now())
+	if err != nil || checkpoint == nil {
+		t.Fatal("known no-dispatch retry wake was not recoverable", checkpoint, err)
+	}
+	if checkpoint.Wait.Attempt != receipt.RetryWait.Attempt || checkpoint.Wait.Iteration != receipt.RetryWait.Iteration || !checkpoint.Wait.RetryAt.Equal(receipt.RetryWait.RetryAt) {
+		t.Fatal("wake reset continuation", checkpoint)
+	}
+	var wakes int
+	if err = s.db.QueryRow(`select count(*) from turn_events where turn_id='t' and event_type='inference.retry_resumed'`).Scan(&wakes); err != nil || wakes != 1 {
+		t.Fatal("wake duplicated", wakes, err)
+	}
+	if err = s.AppendTurnEffectEvent(ctx, "t", "s", "inference.started", nil); err == nil {
+		t.Fatal("old owner revived after wake recovery")
+	}
+}
+
+func TestProviderRetryWakeRecoveryRejectsLaterEffects(t *testing.T) {
+	for _, boundary := range []string{"inference.started", "inference.request_prepared", "inference.settled", "inference.retry_scheduled", "tool.started", "tool.finished", "tool.failed", "tool.cancelled", "tool.aborted", "tool.skipped", "tool.output", "turn.terminal_staged", "turn.finished"} {
+		t.Run(boundary, func(t *testing.T) {
+			s, ctx, _ := retryReceiptFixture(t)
+			receipt := retryReceipt()
+			receipt.RetryWait.RetryAt = time.Now().Add(-time.Second)
+			receipt.RetryWait.Lifecycle = &ProviderLifecyclePolicy{Version: 1}
+			if _, err := s.SettleProviderAttempt(ctx, "t", "s", "request", receipt); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.ResumeProviderRetry(ctx, "s", "t", "request"); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.AppendTurnEvent(ctx, "t", "s", boundary, map[string]any{"request_id": "later"}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.db.Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z'`); err != nil {
+				t.Fatal(err)
+			}
+			claims, err := s.ListStaleActiveTurnClaims(context.Background(), time.Now(), "s")
+			if err != nil || len(claims) != 1 {
+				t.Fatal(claims, err)
+			}
+			checkpoint, err := s.AcquireProviderRetryRecovery(context.Background(), claims[0], "new-after-wake", time.Now())
+			if err == nil || checkpoint != nil {
+				t.Fatal("later effect replayed", checkpoint, err)
+			}
+			_, token, err := s.GetSessionActiveTurn(context.Background(), "s")
+			if err != nil || token != "epoch" {
+				t.Fatal("later effect replaced owner", token, err)
+			}
+		})
+	}
+}

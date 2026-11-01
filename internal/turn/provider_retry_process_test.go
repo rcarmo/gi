@@ -40,6 +40,21 @@ func TestProviderRetryRecoveryProcessHelper(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	woken := os.Getenv("GI_RETRY_RECOVERY_WAKE") == "1"
+	if woken {
+		var preparations atomic.Int32
+		if _, err = e.RegisterHook(HookBeforeProviderRequest, "stop after wake", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+			if req.Payload["stage"] == "context" && preparations.Add(1) == 2 {
+				if err := os.WriteFile(path+".ready", []byte(req.TurnID), 0600); err != nil {
+					return HookResponse{}, err
+				}
+				<-ctx.Done()
+			}
+			return HookResponse{}, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	withStreamWithToolsStub(t, func(context.Context, string, *goai.Context, func(map[string]any)) (*inference.StreamResult, error) {
 		return &inference.StreamResult{Usage: &goai.Usage{Input: 3}}, errors.New("HTTP 503 unavailable")
 	})
@@ -47,12 +62,16 @@ func TestProviderRetryRecoveryProcessHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitForCondition(t, 5*time.Second, func() bool {
-		row, err := s.GetTurn(context.Background(), result.TurnID)
-		return err == nil && row.Phase == "retry_wait"
-	}, "committed retry successor")
-	if err = os.WriteFile(path+".ready", []byte(result.TurnID), 0600); err != nil {
-		t.Fatal(err)
+	if woken {
+		waitForCondition(t, 5*time.Second, func() bool { _, err := os.Stat(path + ".ready"); return err == nil }, "wake before provider admission")
+	} else {
+		waitForCondition(t, 5*time.Second, func() bool {
+			row, err := s.GetTurn(context.Background(), result.TurnID)
+			return err == nil && row.Phase == "retry_wait"
+		}, "committed retry successor")
+		if err = os.WriteFile(path+".ready", []byte(result.TurnID), 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for {
 		time.Sleep(time.Hour)
@@ -60,6 +79,12 @@ func TestProviderRetryRecoveryProcessHelper(t *testing.T) {
 }
 
 func TestProviderRetryRecoveryAfterKilledProcess(t *testing.T) {
+	for _, mode := range []string{"waiting", "woken"} {
+		t.Run(mode, func(t *testing.T) { testProviderRetryRecoveryAfterKilledProcess(t, mode == "woken") })
+	}
+}
+
+func testProviderRetryRecoveryAfterKilledProcess(t *testing.T, woken bool) {
 	root := t.TempDir()
 	path := filepath.Join(root, "killed.db")
 	t.Setenv("GI_CODING_AGENT_DIR", filepath.Join(root, "agent"))
@@ -75,6 +100,9 @@ func TestProviderRetryRecoveryAfterKilledProcess(t *testing.T) {
 	}
 	child := exec.Command(executable, "-test.run=^TestProviderRetryRecoveryProcessHelper$")
 	child.Env = append(os.Environ(), "GI_RETRY_RECOVERY_DB="+path)
+	if woken {
+		child.Env = append(child.Env, "GI_RETRY_RECOVERY_WAKE=1")
+	}
 	var output bytes.Buffer
 	child.Stdout = &output
 	child.Stderr = &output
@@ -107,6 +135,16 @@ func TestProviderRetryRecoveryAfterKilledProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	if woken {
+		row, err := s.GetTurn(context.Background(), turnID)
+		if err != nil || row.Phase != "running" {
+			t.Fatal("helper was not killed after wake", row, err)
+		}
+		var intents int
+		if err = s.DB().QueryRow(`select count(*) from turn_events where turn_id=? and event_type='inference.started'`, turnID).Scan(&intents); err != nil || intents != 1 {
+			t.Fatal("second request was admitted before crash", intents, err)
+		}
+	}
 	if _, err = s.DB().Exec(`update session_active_turns set updated_at='2000-01-01T00:00:00Z' where session_id='recovery'`); err != nil {
 		t.Fatal(err)
 	}
@@ -166,6 +204,10 @@ func TestProviderRetryRecoveryAfterKilledProcess(t *testing.T) {
 	}
 	if err = s.DB().QueryRow(`select count(*) from turn_receipts where turn_id=? and kind='provider'`, turnID).Scan(&receipts); err != nil || receipts != 2 {
 		t.Fatal("provider receipts replayed", receipts, err)
+	}
+	var wakes int
+	if err = s.DB().QueryRow(`select count(*) from turn_events where turn_id=? and event_type='inference.retry_resumed'`, turnID).Scan(&wakes); err != nil || wakes != 1 {
+		t.Fatal("wake was repeated", wakes, err)
 	}
 	accounting, err := s.TurnAccounting(context.Background(), turnID)
 	if err != nil || accounting.Usage.Input != 3 || accounting.Usage.Output != 2 || accounting.Iterations != 1 {

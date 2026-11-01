@@ -50,7 +50,10 @@ A committed retry wait with versioned lifecycle policy can resume after a stale
 owner is fenced. It keeps its iteration, retry attempt, absolute deadline and
 tool-failure budget. Current context, settings and tool definitions are rebuilt;
 setup, the original prompt, start hooks and settled tools are not replayed.
-Legacy/invalid policy and unknown effects stay held for review.
+A committed wake can also resume if no later provider/tool/terminal boundary
+exists; recovery does not repeat the wake. Legacy/invalid policy and unknown
+effects stay held for review. Restoring a future wait does not reload settings;
+current full settings validation runs after the deadline, before generation.
 
 Embedding hosts call `Engine.ResumeInterruptedWork(ctx)` after registering
 runtime tools/hooks and enabling MCP. HTTP and TUI startup do this explicitly;

@@ -89,7 +89,7 @@ this analysis.
 
 ## Remaining recovery work
 
-A crash after retry wake but before the next provider admission still enters a
-conservative hold. General generation/tool checkpoints, safe unknown-tool replay,
-interruption/progress accounting and graceful close requeue are not implemented
-by this increment. These keep #83/#86/#87/#92 open.
+The [post-wake follow-up](provider-retry-post-wake.md) covers a crash after retry
+wake and before another provider admission. General generation/tool checkpoints,
+safe unknown-tool replay, interruption/progress accounting and graceful close
+requeue are not implemented by these increments. These keep #83/#86/#87/#92 open.

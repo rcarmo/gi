@@ -1890,7 +1890,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	sessionCounts := map[string]*recoveryScanCounts{}
 	failedClaimsBySession := map[string][]store.ActiveTurnClaim{}
 	for _, claim := range claims {
-		if claim.Phase == "retry_wait" && !e.providerRecoveryEnabled.Load() {
+		if (claim.Phase == "retry_wait" || claim.Phase == "running") && !e.providerRecoveryEnabled.Load() {
 			continue
 		}
 		counts := sessionCounts[claim.SessionID]

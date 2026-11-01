@@ -115,15 +115,19 @@ func (p *ProviderRetryWait) Payload() map[string]any {
 }
 
 func validateProviderRetryFrontierTx(ctx context.Context, tx *sql.Tx, turnID, occurrenceID string) error {
+	return validateProviderRetryBoundaryTx(ctx, tx, turnID, occurrenceID, "inference.retry_scheduled")
+}
+
+func validateProviderRetryBoundaryTx(ctx context.Context, tx *sql.Tx, turnID, occurrenceID, boundary string) error {
 	var current bool
 	err := tx.QueryRowContext(ctx, `select exists(
  select 1 from turn_events scheduled
- where scheduled.turn_id=? and scheduled.event_type='inference.retry_scheduled'
+ where scheduled.turn_id=? and scheduled.event_type=?
  and json_extract(scheduled.payload_json,'$.request_id')=?
  and not exists(select 1 from turn_events later
  where later.turn_id=scheduled.turn_id and later.seq>scheduled.seq
  and later.event_type in ('inference.started','inference.request_prepared','inference.settled','inference.retry_scheduled','inference.retry_resumed','tool.started','tool.finished','tool.failed','tool.cancelled','tool.aborted','tool.skipped','tool.output','turn.terminal_staged','turn.finished'))
- )`, turnID, occurrenceID).Scan(&current)
+ )`, turnID, boundary, occurrenceID).Scan(&current)
 	if err != nil {
 		return err
 	}
