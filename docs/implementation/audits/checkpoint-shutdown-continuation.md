@@ -41,17 +41,15 @@ rotating ownership and its permanent writer fence. The runtime-ready barrier
 prevents early provider dispatch. Current context/tool preparation, fixed
 iteration/attempt/deadline, cancellation and real SIGKILL/reopen checks pass.
 See [retry continuation](provider-retry-continuation.md) for checks and profiling.
+The [post-wake route](provider-retry-post-wake.md) also handles a committed wake
+before the next request admission, without duplicating the wake or budgets.
 
 ## Next implementation boundary
 
-1. Route a crash after atomic retry wake but before provider admission through
-   fresh preparation. It currently enters a conservative hold. Unknown provider
-   effects still require review; remote billing has no universal exactly-once
-   guarantee.
-2. Separate graceful cancellation from user abort only once checkpoint routing
+1. Separate graceful cancellation from user abort only once checkpoint routing
    is safe. Join actual hosts/progress/hooks before requeue or claim cleanup;
    preserve explicit cancellation and propagate persistence errors.
-3. Add generation/tool boundary continuation and process-kill regressions.
+2. Add generation/tool boundary continuation and process-kill regressions.
    Never re-execute settled tools. Unknown tool effects require both persisted
    and current `ReplaySafe`; retain prepared arguments without rerunning hooks.
    Count crash interruptions, reset only after committed forward progress, and

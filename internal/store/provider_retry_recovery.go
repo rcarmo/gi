@@ -13,6 +13,7 @@ import (
 type ProviderRetryCheckpoint struct {
 	OccurrenceID string
 	Wait         *ProviderRetryWait
+	Resumed      bool // wake committed before the owner stopped; do not wake again
 }
 
 // AcquireProviderRetryRecovery rotates a stale incarnation only while its
@@ -31,8 +32,13 @@ func (s *Store) AcquireProviderRetryRecovery(ctx context.Context, claim ActiveTu
 	if err = tx.QueryRowContext(ctx, `select t.status,t.phase,a.claim_token,a.updated_at from turns t join session_active_turns a on a.turn_id=t.id and a.session_id=t.session_id where t.id=? and t.session_id=?`, claim.TurnID, claim.SessionID).Scan(&status, &phase, &token, &updated); err != nil {
 		return nil, err
 	}
-	if status != "running" || phase != "retry_wait" {
+	if status != "running" || (phase != "retry_wait" && phase != "running") {
 		return nil, nil
+	}
+	boundary := "inference.retry_scheduled"
+	resumed := phase == "running"
+	if resumed {
+		boundary = "inference.retry_resumed"
 	}
 	stamp, err := time.Parse(time.RFC3339Nano, updated)
 	if err != nil {
@@ -42,14 +48,14 @@ func (s *Store) AcquireProviderRetryRecovery(ctx context.Context, claim ActiveTu
 		return nil, ErrQueueConflict
 	}
 	var occurrence string
-	err = tx.QueryRowContext(ctx, `select json_extract(payload_json,'$.request_id') from turn_events where turn_id=? and session_id=? and event_type='inference.retry_scheduled' order by seq desc limit 1`, claim.TurnID, claim.SessionID).Scan(&occurrence)
+	err = tx.QueryRowContext(ctx, `select json_extract(payload_json,'$.request_id') from turn_events where turn_id=? and session_id=? and event_type=? order by seq desc limit 1`, claim.TurnID, claim.SessionID, boundary).Scan(&occurrence)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if err = validateProviderRetryFrontierTx(ctx, tx, claim.TurnID, occurrence); err != nil {
+	if err = validateProviderRetryBoundaryTx(ctx, tx, claim.TurnID, occurrence, boundary); err != nil {
 		return nil, err
 	}
 	var raw string
@@ -71,6 +77,9 @@ func (s *Store) AcquireProviderRetryRecovery(ctx context.Context, claim ActiveTu
 		return nil, nil
 	}
 	if err = decision.Wait.validate(); err != nil {
+		return nil, nil
+	}
+	if resumed && time.Now().Before(decision.Wait.RetryAt) {
 		return nil, nil
 	}
 	if decision.Wait.Iteration < 1 || decision.Wait.Iteration != decision.Iteration || decision.Wait.Lifecycle == nil {
@@ -103,5 +112,5 @@ func (s *Store) AcquireProviderRetryRecovery(ctx context.Context, claim ActiveTu
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &ProviderRetryCheckpoint{OccurrenceID: occurrence, Wait: decision.Wait}, nil
+	return &ProviderRetryCheckpoint{OccurrenceID: occurrence, Wait: decision.Wait, Resumed: resumed}, nil
 }

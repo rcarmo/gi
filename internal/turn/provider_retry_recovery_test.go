@@ -19,7 +19,7 @@ import (
 )
 
 func TestProviderRetryRecoveryFreshContinuationWithoutLifecycleOrToolReplay(t *testing.T) {
-	for _, mode := range []string{"success", "exhausted", "disabled", "legacy", "invalid", "cancelled", "failure-loop"} {
+	for _, mode := range []string{"success", "exhausted", "disabled", "legacy", "invalid", "cancelled", "failure-loop", "woken"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx := context.Background()
 			root := t.TempDir()
@@ -62,6 +62,9 @@ func TestProviderRetryRecoveryFreshContinuationWithoutLifecycleOrToolReplay(t *t
 			if mode == "cancelled" {
 				deadline = time.Now().Add(time.Hour)
 			}
+			if mode == "woken" {
+				deadline = time.Now().Add(-time.Second)
+			}
 			wait := &store.ProviderRetryWait{Attempt: 2, MaxAttempts: 3, Iteration: 3, Model: "mock-stream", RetryAt: deadline, FailureCategory: "network", Lifecycle: &store.ProviderLifecyclePolicy{Version: 1, Message: "once-only prefix", Tools: json.RawMessage(`[{"name":"completed_effect","description":"old definition","parameters":{"type":"object","properties":{}}}]`), RegisteredTools: map[string]bool{"completed_effect": true}}}
 			if mode == "legacy" {
 				wait.Lifecycle = nil
@@ -75,6 +78,11 @@ func TestProviderRetryRecoveryFreshContinuationWithoutLifecycleOrToolReplay(t *t
 			}
 			if mode == "invalid" {
 				if _, err := s.DB().Exec(`update turn_receipts set decision_json=json_set(decision_json,'$.retry_wait.lifecycle.version',9) where occurrence_id='failed-request'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if mode == "woken" {
+				if err := s.ResumeProviderRetry(writer, "recovery", "interrupted", "failed-request"); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -145,7 +153,7 @@ func TestProviderRetryRecoveryFreshContinuationWithoutLifecycleOrToolReplay(t *t
 				t.Fatal(err)
 			}
 			want := "completed"
-			if mode != "success" {
+			if mode != "success" && mode != "woken" {
 				want = "failed"
 			}
 			if mode == "cancelled" {
@@ -179,6 +187,12 @@ func TestProviderRetryRecoveryFreshContinuationWithoutLifecycleOrToolReplay(t *t
 			if ends.Load() != wantEnds {
 				t.Fatal("lost or replayed agent end", ends.Load(), wantEnds)
 			}
+			if mode == "woken" {
+				var wakes int
+				if err := s.DB().QueryRow(`select count(*) from turn_events where turn_id='interrupted' and event_type='inference.retry_resumed'`).Scan(&wakes); err != nil || wakes != 1 {
+					t.Fatal("wake replayed", wakes, err)
+				}
+			}
 			var originalUsers int
 			if err := s.DB().QueryRow(`select count(*) from messages where session_id='recovery' and role='user' and content='original user prompt'`).Scan(&originalUsers); err != nil || originalUsers != 1 {
 				t.Fatal("original prompt replayed", originalUsers, err)
@@ -207,5 +221,28 @@ func TestProviderRetryRecoveredAttemptBudget(t *testing.T) {
 	}, func() error { return nil })
 	if err == nil || requests != 2 || waits != 1 {
 		t.Fatal("recovered attempt budget changed", requests, waits, err)
+	}
+}
+
+func TestProviderRetryRestoreDoesNotReadSettingsBeforeDeadline(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GI_CODING_AGENT_DIR", filepath.Join(root, "agent"))
+	if err := os.MkdirAll(filepath.Join(root, ".pi"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	settings := filepath.Join(root, ".pi", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"defaultModel":"mock-stream"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := openChildJoinStore(t)
+	e := NewWithRuntimeConfig(s, config.Load(root), "")
+	defer e.Close()
+	if err := os.WriteFile(settings, []byte(`{"retry":`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	wait := &store.ProviderRetryWait{Attempt: 1, Iteration: 1, Model: "mock-stream", RetryAt: time.Now().Add(time.Hour), Lifecycle: &store.ProviderLifecyclePolicy{Version: 1}}
+	preparation, err := e.runner("recovery").restoreProviderPreparation(wait)
+	if err != nil || preparation == nil {
+		t.Fatal("settings ended restored wait before its deadline", err)
 	}
 }

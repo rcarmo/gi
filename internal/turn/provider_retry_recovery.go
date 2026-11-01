@@ -15,15 +15,17 @@ func (r *sessionRunner) restoreProviderPreparation(wait *store.ProviderRetryWait
 	if err := wait.Lifecycle.Validate(); err != nil {
 		return nil, err
 	}
-	cfg, err := r.engine.runtimeCfg.ForGeneration()
-	if err != nil {
-		return nil, err
-	}
+	// Current settings are read by refreshProviderPreparation after the wake.
+	// A transient settings error must not finish a future wait prematurely.
+	cfg := r.engine.runtimeCfg
 	policy := wait.Lifecycle.Clone()
 	return &providerPreparation{initialized: true, startCaptured: true, retryAttempt: wait.Attempt, lastToolFailureSig: wait.LastToolFailureSignature, repeatedToolFailureCount: wait.RepeatedToolFailures, model: wait.Model, cfg: cfg, startPrompt: policy.SystemPrompt, startMessage: policy.Message, startMessages: policy.Messages, startTools: policy.Tools, startRegistered: policy.RegisteredTools}, nil
 }
 
 func (r *sessionRunner) waitRecoveredProviderRetry(ctx context.Context, s *store.Store, sessionID, turnID string, checkpoint *store.ProviderRetryCheckpoint) error {
+	if checkpoint.Resumed {
+		return ctx.Err()
+	} // fresh preparation follows the already committed wake
 	r.publishProviderRetryWait(turnID, sessionID, checkpoint.Wait)
 	timer := time.NewTimer(max(0, time.Until(checkpoint.Wait.RetryAt)))
 	defer timer.Stop()
@@ -39,7 +41,7 @@ func (r *sessionRunner) waitRecoveredProviderRetry(ctx context.Context, s *store
 }
 
 func (e *Engine) recoverProviderRetry(ctx context.Context, claim store.ActiveTurnClaim) (bool, error) {
-	if claim.Phase != "retry_wait" || claim.Status != "running" {
+	if (claim.Phase != "retry_wait" && claim.Phase != "running") || claim.Status != "running" {
 		return false, nil
 	}
 	runner := e.runner(claim.SessionID)
