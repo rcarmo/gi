@@ -116,7 +116,8 @@ type runningTurn struct {
 	cancelled            <-chan struct{}
 	terminalPending      bool   // guarded by sharedSessionCoord.mu
 	checkpointClosing    bool   // graceful reservation; no terminal lifecycle yet
-	closingProgressToken string // guarded; bounded provider snapshots only
+	closingProgressToken string // guarded; bounded provider/tool snapshots only
+	closingProgressErr   error  // guarded; controller reads only after hosts join
 	recoveredTerminal    *store.TurnSettlement
 	recoveredRetry       *store.ProviderRetryCheckpoint
 	recoveredGeneration  *store.GenerationReadyCheckpoint
@@ -358,7 +359,7 @@ const shutdownGrace = 5 * time.Second
 // Close fences launches and joins main, hook, side and maintenance hosts.
 // Concurrent callers share the shutdown barrier and its result. The grace
 // interval controls diagnostics only; it never releases a live owned host.
-// Verified retry/generation checkpoints are requeued only after all owned work joins.
+// Verified native checkpoints are requeued only after all owned work joins.
 // Other phases still use conservative abort settlement (TODO #86/#92).
 func (e *Engine) Close() error {
 	if e == nil {
@@ -392,9 +393,15 @@ func (e *Engine) Close() error {
 			e.closeErr = errors.Join(e.closeErr, checkpoint.stopHeartbeat())
 		}
 		for _, checkpoint := range checkpoints {
+			if checkpoint.owner.closingProgressErr != nil {
+				e.closeErr = errors.Join(e.closeErr, checkpoint.owner.closingProgressErr)
+				continue // Never report a successful queue after losing recorder data.
+			}
 			if checkpoint.reserved {
 				var err error
-				if checkpoint.generation {
+				if checkpoint.toolBatch {
+					err = e.store.CommitToolBatchClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
+				} else if checkpoint.generation {
 					err = e.store.CommitGenerationClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
 				} else {
 					err = e.store.CommitProviderRetryClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
@@ -5715,8 +5722,11 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		defer closeOutput()
 		images := &toolExtras{occurrenceID: toolOccurrenceID}
 		if batchID != "" {
+			persistUsage := r.checkpointProgressPersistence(ctx, sessionID, turnID)
 			images.usageRecorder = func(usage goai.Usage, unknown, returned bool) error {
-				return s.SaveToolUsage(ctx, sessionID, turnID, toolOccurrenceID, usage, unknown, returned)
+				return persistUsage(func(writeCtx context.Context) error {
+					return s.SaveToolUsage(writeCtx, sessionID, turnID, toolOccurrenceID, usage, unknown, returned)
+				})
 			}
 			r.mu.Lock()
 			if active := r.current; active != nil && active.turnID == turnID {
@@ -5727,7 +5737,23 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		executionStart := time.Now()
 		toolResult, toolErr := r.executeToolWithImages(ctx, call, sessionID, turnID, func(text string) error { return reportOutput(text, false) }, images, registered)
 		durationMS := time.Since(executionStart).Milliseconds()
+		var closingOutputErr error
+		if r.checkpointClosing(turnID) {
+			// Flush only SDK reports before marking executor return. The returned
+			// body is not an approved result and must not replace that prefix.
+			closingOutputErr = closeOutput()
+			images.unknownUsageFunc()()
+		}
 		usageCaptureErr := images.finishUsageCapture()
+		if r.checkpointClosing(turnID) {
+			r.mu.Lock()
+			if active := r.current; active != nil && active.turnID == turnID {
+				active.closingProgressErr = errors.Join(active.closingProgressErr, closingOutputErr, usageCaptureErr)
+			}
+			r.mu.Unlock()
+			outcome.terminated = true
+			return outcome
+		}
 		if usageCaptureErr != nil && !isCancellationError(usageCaptureErr) {
 			r.persistStoppedTool(ctx, s, sessionID, turnID, call, toolOccurrenceID, "aborted", durationMS, images)
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", "Persist received tool usage: "+usageCaptureErr.Error(), "persistence_error")

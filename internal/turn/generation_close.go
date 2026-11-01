@@ -7,11 +7,46 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-// The owned provider may flush its final bounded snapshot after cancellation.
-// Keep this narrow capability in the recorder, not in the provider/hook context:
-// it cannot admit requests, settle a response or authorise tool execution. The
-// controller does not publish the checkpoint until the recorder and host join.
-func (r *sessionRunner) providerPartialPersistence(ctx context.Context, s *store.Store, sessionID, turnID, occurrenceID string) func(string, map[string]any) error {
+// checkpointProgressPersistence binds bounded recorders to this physical host.
+// The closing incarnation is never exposed to tools or used for settlements.
+// A replacement host on the same logical turn cannot inherit these callbacks.
+func (r *sessionRunner) checkpointProgressPersistence(ctx context.Context, sessionID, turnID string) func(func(context.Context) error) error {
+	ctx = context.WithoutCancel(ctx)
+	if r.sharedSessionCoord == nil {
+		return func(persist func(context.Context) error) error { return persist(ctx) }
+	}
+	r.mu.Lock()
+	owner := r.current
+	r.mu.Unlock()
+	closingContext := func() (context.Context, bool) {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if owner != nil && r.current == owner && owner.turnID == turnID && owner.closingProgressToken != "" {
+			return store.WithTurnWriter(ctx, sessionID, turnID, owner.closingProgressToken), true
+		}
+		return ctx, false
+	}
+	return func(persist func(context.Context) error) error {
+		writeCtx, closing := closingContext()
+		err := persist(writeCtx)
+		// Reservation can win between reading the token and the DB write.
+		if errors.Is(err, store.ErrQueueConflict) && !closing {
+			if next, available := closingContext(); available {
+				err = persist(next)
+			}
+		}
+		if err != nil {
+			r.mu.Lock()
+			if owner != nil && r.current == owner && owner.turnID == turnID && owner.closingProgressToken != "" {
+				owner.closingProgressErr = errors.Join(owner.closingProgressErr, err)
+			}
+			r.mu.Unlock()
+		}
+		return err
+	}
+}
+
+func (r *sessionRunner) providerPartialPersistence(ctx context.Context, s *store.Store, sessionID, turnID, requestID string) func(string, map[string]any) error {
 	if r.sharedSessionCoord == nil {
 		return nil
 	}
@@ -21,24 +56,10 @@ func (r *sessionRunner) providerPartialPersistence(ctx context.Context, s *store
 	if owner == nil || owner.turnID != turnID {
 		return nil
 	}
-	writer := func() (context.Context, bool) {
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		if r.current == owner && owner.closingProgressToken != "" {
-			return store.WithTurnWriter(ctx, sessionID, turnID, owner.closingProgressToken), true
-		}
-		return ctx, false
-	}
+	persist := r.checkpointProgressPersistence(ctx, sessionID, turnID)
 	return func(content string, payload map[string]any) error {
-		current, closing := writer()
-		err := s.SaveProviderPartial(current, turnID, sessionID, occurrenceID, content, payload)
-		if !closing && errors.Is(err, store.ErrQueueConflict) {
-			// Reservation may linearize between reading the old token and writing.
-			// Retry only that ownership transition, once; never borrow a newer host.
-			if reserved, ok := writer(); ok {
-				return s.SaveProviderPartial(reserved, turnID, sessionID, occurrenceID, content, payload)
-			}
-		}
-		return err
+		return persist(func(writeCtx context.Context) error {
+			return s.SaveProviderPartial(writeCtx, turnID, sessionID, requestID, content, payload)
+		})
 	}
 }
