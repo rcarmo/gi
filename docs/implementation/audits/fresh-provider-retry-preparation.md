@@ -1,7 +1,8 @@
 # Fresh provider retry preparation
 
 A provider retry now rebuilds its inputs from committed sources before host
-entry. Restart recovery still parks interrupted work. #90 and #92 stay open.
+entry. Restart recovery still parks interrupted work. #90 is closed; #92 tracks
+remaining checkpoint continuation.
 
 ## Generation inputs
 

@@ -12,6 +12,20 @@ import (
 // SettleToolResult commits the replay result and its terminal boundary together.
 // Callers must not publish completion or continue the provider before it succeeds.
 func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventType string, event map[string]any, messageID, content string, payload map[string]any) error {
+	return s.settleToolResult(ctx, turnID, sessionID, eventType, event, messageID, content, payload, "tool_result")
+}
+
+// SettleToolResponse commits a terminal tool's user-facing assistant response
+// with its receipt. Empty output needs no history row. Parent settlement still
+// joins required children and commits its own terminal projection separately.
+func (s *Store) SettleToolResponse(ctx context.Context, turnID, sessionID, eventType string, event map[string]any, messageID, content string, payload map[string]any) error {
+	if messageID == "" && content != "" {
+		return fmt.Errorf("tool response requires a message identity")
+	}
+	return s.settleToolResult(ctx, turnID, sessionID, eventType, event, messageID, content, payload, "assistant")
+}
+
+func (s *Store) settleToolResult(ctx context.Context, turnID, sessionID, eventType string, event map[string]any, messageID, content string, payload map[string]any, messageRole string) error {
 	if eventType != "tool.finished" && eventType != "tool.failed" && eventType != "tool.skipped" && eventType != "tool.cancelled" && eventType != "tool.aborted" {
 		return fmt.Errorf("invalid tool settlement event %q", eventType)
 	}
@@ -38,12 +52,25 @@ func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventTy
 		return err
 	}
 	// Foreign keys validate each ID separately, not their ownership relation.
-	var owner string
-	if err := tx.QueryRowContext(ctx, `select session_id from turns where id=?`, turnID).Scan(&owner); err != nil {
+	var owner, status string
+	if err := tx.QueryRowContext(ctx, `select session_id,status from turns where id=?`, turnID).Scan(&owner, &status); err != nil {
 		return err
 	}
 	if owner != sessionID {
 		return fmt.Errorf("tool settlement session does not own turn")
+	}
+	if messageRole == "assistant" && status == "cancelling" {
+		// Cancellation can commit before the host's context is cancelled.
+		// Retain the observed response without adopting it into model context.
+		partial := make(map[string]any, len(payload)+4)
+		for k, v := range payload {
+			partial[k] = v
+		}
+		partial["partial"], partial["adopted"], partial["context_contribution"], partial["stop_reason"] = true, false, false, goai.StopReasonAborted
+		resultJSON, err = marshalJSON(partial)
+		if err != nil {
+			return err
+		}
 	}
 	occurrence, _ := event["occurrence_id"].(string)
 	if occurrence == "" {
@@ -89,10 +116,10 @@ func (s *Store) SettleToolResult(ctx context.Context, turnID, sessionID, eventTy
 		return err
 	}
 	if messageID != "" {
-		if _, err = tx.ExecContext(ctx, `insert into messages(id,session_id,role,content,payload_json,created_at) values(?,?,'tool_result',?,?,`+defaultNow+`)`, messageID, sessionID, content, resultJSON); err != nil {
+		if _, err = tx.ExecContext(ctx, `insert into messages(id,session_id,role,content,payload_json,created_at) values(?,?,?,?,?,`+defaultNow+`)`, messageID, sessionID, messageRole, content, resultJSON); err != nil {
 			return err
 		}
-	} else if eventType != "tool.cancelled" && eventType != "tool.aborted" {
+	} else if messageRole != "assistant" && eventType != "tool.cancelled" && eventType != "tool.aborted" {
 		return fmt.Errorf("tool result requires a message identity")
 	}
 	if _, err = tx.ExecContext(ctx, `update turns set updated_at=`+defaultNow+` where id=?`, turnID); err != nil {
