@@ -41,7 +41,7 @@ func (r *sessionRunner) waitRecoveredProviderRetry(ctx context.Context, s *store
 }
 
 func (e *Engine) recoverProviderRetry(ctx context.Context, claim store.ActiveTurnClaim) (bool, error) {
-	if (claim.Phase != "retry_wait" && claim.Phase != "running") || claim.Status != "running" {
+	if !((claim.Status == "running" && (claim.Phase == "retry_wait" || claim.Phase == "running")) || (claim.Status == "queued" && store.IsClosedProviderRetryPhase(claim.Phase))) {
 		return false, nil
 	}
 	runner := e.runner(claim.SessionID)

@@ -55,6 +55,14 @@ exists; recovery does not repeat the wake. Legacy/invalid policy and unknown
 effects stay held for review. Restoring a future wait does not reload settings;
 current full settings validation runs after the deadline, before generation.
 
+Graceful engine close preserves valid retry waits and committed wakes in dedicated
+queued checkpoint phases. It fences the old writer before cancellation and joins
+owned work before requeue. Reopening waits for runtime-ready recovery; the normal
+prompt queue cannot claim these checkpoints. Shutdown leaves the original
+receipt, lifecycle, deadline and budgets intact, without an agent-end callback
+or a fabricated crash failure. Other generation/tool phases still use
+conservative abort settlement until they have verified continuation routes.
+
 Embedding hosts call `Engine.ResumeInterruptedWork(ctx)` after registering
 runtime tools/hooks and enabling MCP. HTTP and TUI startup do this explicitly;
 normal prompt admission also opens the barrier after waiting for MCP. The
