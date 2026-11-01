@@ -115,6 +115,7 @@ type runningTurn struct {
 	done                 chan struct{}
 	cancelled            <-chan struct{}
 	terminalPending      bool   // guarded by sharedSessionCoord.mu
+	interruptedClosing   bool   // guarded; unproven frontier will be held
 	checkpointClosing    bool   // graceful reservation; no terminal lifecycle yet
 	closingProgressToken string // guarded; bounded provider/tool snapshots only
 	closingProgressErr   error  // guarded; controller reads only after hosts join
@@ -360,7 +361,7 @@ const shutdownGrace = 5 * time.Second
 // Concurrent callers share the shutdown barrier and its result. The grace
 // interval controls diagnostics only; it never releases a live owned host.
 // Verified native checkpoints are requeued only after all owned work joins.
-// Other phases still use conservative abort settlement (TODO #86/#92).
+// Unsupported continuations are held conservatively after the same join barrier.
 func (e *Engine) Close() error {
 	if e == nil {
 		return nil
@@ -399,7 +400,12 @@ func (e *Engine) Close() error {
 			}
 			if checkpoint.reserved {
 				var err error
-				if checkpoint.toolBatch {
+				if checkpoint.interrupted {
+					err = e.store.CommitInterruptedClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token, store.TurnFailure{
+						FailureKind: InterruptedFailureKind,
+						Summary:     "Graceful shutdown joined the turn without a proven continuation; review it before explicit retry or skip.",
+					})
+				} else if checkpoint.toolBatch {
 					err = e.store.CommitToolBatchClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
 				} else if checkpoint.generation {
 					err = e.store.CommitGenerationClose(context.Background(), checkpoint.sessionID, checkpoint.turnID, checkpoint.token)
@@ -2096,6 +2102,9 @@ func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, ses
 // could repeat side effects (#21); only turns that had not started yet are
 // requeued.
 func recoveryDispositionForClaim(claim store.ActiveTurnClaim) string {
+	if claim.WorkerID == store.InterruptedClosingWorker {
+		return "hold_for_retry_or_skip_after_interruption"
+	}
 	switch claim.Phase {
 	case "waiting_on_tools":
 		return "hold_for_retry_or_skip_after_tool_checkpoint"
@@ -2133,25 +2142,27 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	if handled, err := e.recoverStagedTerminal(opCtx, claim); handled || err != nil {
 		return err
 	}
-	if handled, err := e.recoverProviderRetry(opCtx, claim); handled || err != nil {
-		return err
-	}
-	if handled, err := e.recoverToolBatch(opCtx, claim); handled || err != nil {
-		return err
-	}
-	if handled, err := e.recoverGenerationReady(opCtx, claim); handled || err != nil {
-		return err
+	if claim.WorkerID != store.InterruptedClosingWorker {
+		if handled, err := e.recoverProviderRetry(opCtx, claim); handled || err != nil {
+			return err
+		}
+		if handled, err := e.recoverToolBatch(opCtx, claim); handled || err != nil {
+			return err
+		}
+		if handled, err := e.recoverGenerationReady(opCtx, claim); handled || err != nil {
+			return err
+		}
 	}
 	disposition := recoveryDispositionForClaim(claim)
 	status := claim.Status
 	phase := claim.Phase
 	markFinished := false
 	recoveryPhase := claim.Phase
-	if record, getErr := e.store.GetTurn(opCtx, claim.TurnID); getErr == nil && record.Metadata["operation"] == "manual_compaction" && status != "completed" && status != "failed" && status != "cancelled" && status != "aborted" {
+	if record, getErr := e.store.GetTurn(opCtx, claim.TurnID); claim.WorkerID != store.InterruptedClosingWorker && getErr == nil && record.Metadata["operation"] == "manual_compaction" && status != "completed" && status != "failed" && status != "cancelled" && status != "aborted" {
 		recoveryPhase = "cancelling"
 		disposition = "abort_interrupted_manual_compaction"
 	}
-	if claim.Phase == "compacting" && disposition == "hold_for_retry_or_skip_after_interruption" && !e.turnStartedWork(opCtx, claim.TurnID) {
+	if claim.WorkerID != store.InterruptedClosingWorker && claim.Phase == "compacting" && disposition == "hold_for_retry_or_skip_after_interruption" && !e.turnStartedWork(opCtx, claim.TurnID) {
 		// Compacting before the turn's first request: nothing was sent and
 		// no tool ran, so replaying it is safe.
 		disposition, recoveryPhase = "requeue_after_compaction_checkpoint", "queued"
@@ -4310,6 +4321,17 @@ func (r *sessionRunner) runAgentLoopFromCheckpoint(ctx context.Context, s *store
 		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx, providerState)
 		if providerState.initialized {
 			model = providerState.model
+		}
+		if r.interruptedClosing(turnID) {
+			if result != nil && result.OccurrenceID != "" {
+				// Preserve the physical outcome without approving a continuation.
+				// Received usage/terminal and committed progress remain separate.
+				result.Incomplete = true
+				_ = r.checkpointProgressPersistence(ctx, sessionID, turnID)(func(writeCtx context.Context) error {
+					return r.settleProviderFailure(writeCtx, s, turnID, sessionID, model, iter, result, fmt.Errorf("interrupted by graceful shutdown"))
+				})
+			}
+			return
 		}
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {

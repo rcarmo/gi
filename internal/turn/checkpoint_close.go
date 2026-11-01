@@ -15,6 +15,7 @@ type closingRetry struct {
 	reserved                 bool
 	generation               bool
 	toolBatch                bool
+	interrupted              bool
 	owner                    *runningTurn
 	stopHeartbeat            func() error
 }
@@ -81,11 +82,16 @@ func (e *Engine) stopActiveTurnsForClose(grace time.Duration) ([]closingRetry, e
 		if err == nil && checkpoint == nil && generation == nil {
 			toolBatch, err = e.store.ReserveToolBatchClose(ctx, sessionID, active.turnID, active.claimToken, token)
 		}
-		if err != nil || checkpoint != nil || generation != nil || toolBatch != nil {
+		interrupted := false
+		if err == nil && checkpoint == nil && generation == nil && toolBatch == nil {
+			interrupted, err = e.store.ReserveInterruptedClose(ctx, sessionID, active.turnID, active.claimToken, token)
+		}
+		if err != nil || checkpoint != nil || generation != nil || toolBatch != nil || interrupted {
 			// A failed reservation is not permission to fabricate an abort. Preserve
 			// its original claim for conservative recovery and return the error.
 			active.checkpointClosing = true
-			if generation != nil || toolBatch != nil {
+			active.interruptedClosing = interrupted
+			if generation != nil || toolBatch != nil || interrupted {
 				active.closingProgressToken = token
 			}
 			active.terminalPending = true
@@ -94,21 +100,15 @@ func (e *Engine) stopActiveTurnsForClose(grace time.Duration) ([]closingRetry, e
 				token = active.claimToken
 				result = errors.Join(result, fmt.Errorf("reserve close checkpoint %s: %w", active.turnID, err))
 			}
-			plans = append(plans, closingRetry{sessionID: sessionID, turnID: active.turnID, token: token, reserved: reserved, generation: generation != nil, toolBatch: toolBatch != nil, owner: active, stopHeartbeat: e.keepClosingClaim(sessionID, token)})
+			plans = append(plans, closingRetry{sessionID: sessionID, turnID: active.turnID, token: token, reserved: reserved, generation: generation != nil, toolBatch: toolBatch != nil, interrupted: interrupted, owner: active, stopHeartbeat: e.keepClosingClaim(sessionID, token)})
 			active.cancel()
 			runner.mu.Unlock()
 			return true
 		}
+		// A previously staged outcome or explicit user cancellation retains its
+		// settlement path; shutdown does not replace it with an abort.
+		active.cancel()
 		runner.mu.Unlock()
-		// Unproven legacy phases keep conservative abort settlement until a
-		// verified continuation route exists. Do not queue a whole-prompt replay.
-		if err = e.cancelTurn(ctx, sessionID, active.turnID, false, true, true); err != nil {
-			log.Printf("shutdown: abort %s: %v", active.turnID, err)
-			if !errors.Is(err, store.ErrQueueConflict) {
-				result = errors.Join(result, fmt.Errorf("abort during close %s: %w", active.turnID, err))
-			}
-			active.cancel()
-		}
 		return true
 	})
 	done := make(chan struct{})
@@ -128,4 +128,13 @@ func (r *sessionRunner) checkpointClosing(turnID string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.current != nil && r.current.turnID == turnID && r.current.checkpointClosing
+}
+
+func (r *sessionRunner) interruptedClosing(turnID string) bool {
+	if r.sharedSessionCoord == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.current != nil && r.current.turnID == turnID && r.current.interruptedClosing
 }

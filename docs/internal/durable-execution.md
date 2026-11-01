@@ -36,6 +36,18 @@ recorders remain bound to that physical host while it joins. Only after all owne
 work and the closing heartbeat join does the controller publish a queued tool
 checkpoint. Recorder or commit failures return an error and leave the reservation
 unpublished. Graceful shutdown neither spends nor resets the crash budget.
+
+When no continuation is proven, `Close` reserves an `interruption-closing`
+writer and joins the same owned hosts and recorders before parking a review hold.
+Received SDK output and usage remain in their diagnostic snapshots. A returned
+provider outcome settles as an uncertain error-boundary receipt; its terminal
+message and committed prefix stay separate. The hold creates no root terminal
+receipt or agent-end attempt. If shutdown itself is
+interrupted, that worker identity forces a hold even for setup or pre-request
+compaction; automatic prompt replay is disabled. An explicit user cancellation
+or previously staged outcome keeps its own settlement path. Failed hold
+publication rolls back and returns the shared Close error.
+
 Unlaunched checkpoints support terminal-only cancellation through the engine:
 writer fencing and the cancelled decision commit together, and interrupted
 cleanup cannot dispatch the checkpoint. Outstanding calls receive error results,
