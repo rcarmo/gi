@@ -15,7 +15,7 @@ require (
 	github.com/klauspost/compress v1.20.3
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/rcarmo/go-ai v1.4.0
-	github.com/rcarmo/go-joker/v42 v42.12.4
+	github.com/rcarmo/go-joker/v42 v42.12.6
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/yuin/goldmark v1.8.6
 	golang.org/x/crypto v0.58.0

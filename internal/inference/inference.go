@@ -723,8 +723,10 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
-	if hooks != nil {
-		goai.ApplyHeaders(req.Header, goai.WithOpenCodeSessionHeader(model.Provider, hooks.SessionID, nil))
+	if hooks != nil && hooks.SessionID != "" {
+		// Gi's legacy opencode-zen provider ID is not a native go-ai ID;
+		// this dedicated adapter still uses OpenCode's session affinity.
+		req.Header.Set("x-opencode-session", hooks.SessionID)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -774,9 +776,9 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
 			Usage struct {
-				PromptTokens     int `json:"prompt_tokens"`
-				CompletionTokens int `json:"completion_tokens"`
-				TotalTokens      int `json:"total_tokens"`
+				PromptTokens        int `json:"prompt_tokens"`
+				CompletionTokens    int `json:"completion_tokens"`
+				TotalTokens         int `json:"total_tokens"`
 				PromptTokensDetails struct {
 					CachedTokens int `json:"cached_tokens"`
 				} `json:"prompt_tokens_details"`

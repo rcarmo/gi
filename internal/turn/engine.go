@@ -5454,7 +5454,8 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 				// publish a terminal error while a transient retry is pending.
 			}
 		}, &inference.StreamHooks{
-			Thinking: thinking,
+			SessionID: sessionID,
+			Thinking:  thinking,
 			OnProgress: func(message *goai.Message) error {
 				if message != nil && (len(message.Content) > 0 || !providerUsageUnknown(message.Usage)) {
 					progress = true
