@@ -19,7 +19,7 @@ type transcriptClickSequence struct {
 
 const transcriptMultiClickInterval = 500 * time.Millisecond
 
-// Match pi-tui's path/kebab joiners on Unicode word boundaries. Map byte
+// Match Pi 1.5's iTerm2 path/token joiners on Unicode word boundaries. Map byte
 // boundaries back to full rendered grapheme cells, never slice terminal text.
 func transcriptWordRange(row int, value transcriptSearchRow, column int) (transcriptSelectionRange, bool) {
 	var text strings.Builder
@@ -45,7 +45,7 @@ func transcriptWordRange(row int, value transcriptSearchRow, column int) (transc
 	it := words.FromString(source)
 	for it.Next() {
 		v := it.Value()
-		joiner := v == "/" || v == "-"
+		joiner := v != "" && strings.Trim(v, "/-+\\~_.") == ""
 		word := strings.ContainsFunc(v, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsMark(r) || r == '_' })
 		parts = append(parts, segment{start: cells[it.Start()].start, end: cells[it.End()-1].end, word: word || joiner, joiner: joiner})
 	}

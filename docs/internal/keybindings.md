@@ -1,9 +1,9 @@
 # Keybindings
 
-Gi's TUI targets Pi 1.1.0 default keybindings (pi-coding-agent
+Gi's TUI uses Pi's default keybindings (pi-coding-agent
 `docs/keybindings.md`, `core/keybindings.js` and pi-tui's `keybindings.js`).
 The current bounded alignment and remaining gaps are in
-[Pi 1.1.0 alignment](../implementation/terminal/tui-pi-1.1.0.md). gi-only actions use keys
+[terminal alignment audit](tui-pi-1.5-alignment.md). gi-only actions use keys
 that Pi leaves free. `/hotkeys` prints Pi's own `/hotkeys` text, followed by a
 table of gi's extra keys.
 
@@ -35,7 +35,8 @@ Code:
 | `app.thinking.toggle` | Ctrl+T hides thinking blocks behind an italic "Thinking..." label and saves `hideThinkingBlock` |
 | `app.tools.expand` | Ctrl+O |
 | `app.message.copy` | Ctrl+X copies the selection, or else the last assistant message |
-| `app.message.followUp` / `dequeue` | Alt+Enter / Alt+Up |
+| `app.message.followUp` / `dequeue` | Alt+Enter queues follow-up / Alt+Up retrieves pending steering then follow-ups ahead of the current draft, without aborting the current run. Text-only and unclaimed; conflicts preserve delivery. |
+| `tui.select.pageUp` / `pageDown` | PageUp/PageDown page open selectors or autocomplete, clamped at the edges, including regular-mode autocomplete |
 | `tui.editor.*` | Pi's cursor, word, line, kill ring (Ctrl+W, Alt+Backspace, Alt+D, Alt+Delete, Ctrl+U, Ctrl+K), Ctrl+Y yank, Alt+Y yank-pop, Ctrl+- undo, Ctrl+] and Ctrl+Alt+] character jump |
 | `tui.altScreen.*` | PageUp/PageDown, Ctrl+Home/Ctrl+End (top/bottom), Ctrl+Shift+Up/Down and Ctrl+Up/Down (previous/next prompt), Ctrl+Shift+F (search) |
 

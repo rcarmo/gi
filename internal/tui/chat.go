@@ -1834,7 +1834,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 	}
 	if c.modelMenuOpen {
 		if c.modelMenuKind == "thinking" {
-			return gotui.KeyMap{
+			return append(selectorPageKeys(c.pageModelMenuSelection), gotui.KeyMap{
 				gotui.OnPreemptStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.closeModelMenu() }),
 				gotui.OnPreemptStop(gotui.KeyEscape, func(ke gotui.KeyEvent) { c.closeModelMenu() }),
 				gotui.OnPreemptStop(gotui.Rune('s').Ctrl(), func(ke gotui.KeyEvent) { c.acceptThinkingMenuAsDefault() }),
@@ -1843,7 +1843,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 				gotui.OnPreemptStop(gotui.KeyEnter, func(ke gotui.KeyEvent) { c.acceptModelMenuSelection() }),
 				gotui.OnPreemptStop(gotui.KeyBackspace, func(ke gotui.KeyEvent) { c.modelMenuBackspace() }),
 				gotui.OnFocused(gotui.AnyRune, func(ke gotui.KeyEvent) { c.modelMenuTypeRune(ke.Rune) }),
-			}
+			}...)
 		}
 		if c.modelMenuKind == "model" {
 			// Pi's selector: Escape/Ctrl+C cancel, Tab scope, Ctrl+S save default.
@@ -1854,8 +1854,8 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 				gotui.OnPreemptStop(gotui.Rune('s').Ctrl(), func(ke gotui.KeyEvent) { c.acceptModelMenuAsDefault() }),
 				gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-1) }),
 				gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(1) }),
-				gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-5) }),
-				gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(5) }),
+				gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.pageModelMenuSelection(-1) }),
+				gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageModelMenuSelection(1) }),
 				gotui.OnPreemptStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.setModelMenuSelection(0) }),
 				gotui.OnPreemptStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.setModelMenuSelection(len(c.modelMenuChoices) - 1) }),
 				gotui.OnPreemptStop(gotui.KeyEnter, func(ke gotui.KeyEvent) { c.acceptModelMenuSelection() }),
@@ -1874,8 +1874,8 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			}),
 			gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-1) }),
 			gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(1) }),
-			gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-5) }),
-			gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(5) }),
+			gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.pageModelMenuSelection(-1) }),
+			gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageModelMenuSelection(1) }),
 			gotui.OnPreemptStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.setModelMenuSelection(0) }),
 			gotui.OnPreemptStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.setModelMenuSelection(len(c.modelMenuChoices) - 1) }),
 			gotui.OnPreemptStop(gotui.KeyEnter, func(ke gotui.KeyEvent) { c.acceptModelMenuSelection() }),
@@ -1884,11 +1884,15 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		}
 	}
 	keys := defaultPiKeys
+	dequeueKey, _ := keys.dequeue()
 	pasteKey, _ := keys.pasteImage()
 	cycleBackKey, _ := keys.cycleModelBackward()
 	bindings := gotui.KeyMap{
 		// Pi's app.* bindings (docs/internal/keybindings.md).
 		gotui.OnPreemptStop(gotui.KeyCtrlC, func(gotui.KeyEvent) { c.handleCtrlC() }),
+		// App-level like Pi: restoring pending work must not depend on the
+		// editor retaining go-tui focus after submit/redraw.
+		gotui.OnPreemptStop(dequeueKey, func(gotui.KeyEvent) { c.restoreQueuedDraft(); c.focusInput() }),
 		gotui.OnPreemptStop(gotui.Rune('x').Ctrl(), func(gotui.KeyEvent) { c.copySelectionOrLastMessage() }),
 		gotui.OnStop(gotui.KeyCtrlD, func(ke gotui.KeyEvent) {
 			if c.input.Text() == "" {
@@ -1976,11 +1980,13 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			gotui.OnPreemptStop(gotui.KeyUp.Ctrl().Shift(), func(ke gotui.KeyEvent) { c.jumpTranscriptPrompt(-1) }),
 			gotui.OnPreemptStop(gotui.KeyDown.Ctrl().Shift(), func(ke gotui.KeyEvent) { c.jumpTranscriptPrompt(1) }))
 	}
+	if c.regularMode {
+		bindings = regularKeyMap(bindings)
+	}
+	// Autocomplete owns its page keys even in regular mode. Only transcript
+	// navigation belongs to terminal scrollback; don't filter menu bindings.
 	if slash := c.slashMenuKeys(); slash != nil {
 		bindings = append(slash, bindings...)
-	}
-	if c.regularMode {
-		return regularKeyMap(bindings)
 	}
 	return bindings
 }
@@ -2111,7 +2117,15 @@ func (c *chatTUI) applyModelMenuFilter() {
 		// (plus gi's context/reasoning metadata), best matches first.
 		items := make([]slashItem, len(c.modelMenuAll))
 		for i, label := range c.modelMenuAll {
-			items[i] = slashItem{name: label, description: label + " " + c.modelMenuMetadata[label].search}
+			text := c.modelMenuMetadata[label].search
+			if text == "" {
+				provider, id := splitModelLabel(label)
+				text = modelSelectorSearchText(provider, id, "")
+			}
+			if label == c.modelMenuDefault {
+				text += " default"
+			}
+			items[i] = slashItem{name: label, description: text}
 		}
 		c.modelMenuChoices = nil
 		for _, it := range piFuzzyFilter(items, c.modelMenuQuery, func(it slashItem) string { return it.description }) {
@@ -2805,7 +2819,7 @@ func (c *chatTUI) restoreQueuedDraftForActive(activeID string) {
 	var ids []string
 	var err error
 	if activeID == "" {
-		restored, ids, err = c.store.RestoreQueuedTUITextDraft(ctx, c.sessionID, d.pair.Text)
+		restored, ids, err = c.store.RestoreAllQueuedTUITextDraft(ctx, c.sessionID, d.pair.Text)
 	} else if c.engine != nil {
 		restored, ids, err = c.engine.AbortActiveAndRestoreTUITextDraft(ctx, c.sessionID, activeID, d.pair.Text)
 	} else {

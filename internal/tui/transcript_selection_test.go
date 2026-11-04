@@ -26,8 +26,10 @@ func selectionFixture(t *testing.T, width, height int) *chatTUI {
 	c.transcriptRef = gotui.NewRef()
 	c.transcriptRef.Set(root)
 	c.transcriptRegion = root
+	previousKind := ""
 	for _, b := range c.buildTranscriptRenderableBlocks(c.visibleTranscript()) {
-		root.AddChild(c.renderTranscriptBlock(b))
+		root.AddChild(c.renderTranscriptBlockAfter(b, previousKind))
+		previousKind = b.Kind
 	}
 	root.RenderTo(gotui.NewBuffer(width, height), width, height)
 	c.input.SetText("newer draft")
@@ -47,10 +49,10 @@ func TestTranscriptSelectionWideCellsReverseDragAndCopyPolicy(t *testing.T) {
 			var clipboard bytes.Buffer
 			c.osc52Writer = &clipboard
 			send(gotui.MousePress, 1, 1)
-			send(gotui.MouseDrag, 22, 4)
-			send(gotui.MouseRelease, 22, 4)
+			send(gotui.MouseDrag, 22, 5)
+			send(gotui.MouseRelease, 22, 5)
 			selected := c.textSelection.text()
-			if !strings.Contains(selected, "row-00 中文🙂 e\u0301\n\n\n row-01 中文🙂 e\u0301") {
+			if !strings.Contains(selected, "row-00 中文🙂 e\u0301\n\n\n\n row-01 中文🙂 e\u0301") {
 				t.Fatal("wide/combining rows damaged", selected)
 			}
 			if clipboard.Len() != 0 || !strings.Contains(c.textSelection.notice, "Clipboard off") {
@@ -62,7 +64,7 @@ func TestTranscriptSelectionWideCellsReverseDragAndCopyPolicy(t *testing.T) {
 			if err != nil || clipboard.String() != seq {
 				t.Fatal("OSC 52 selection mismatch")
 			}
-			send(gotui.MousePress, 22, 4)
+			send(gotui.MousePress, 22, 5)
 			send(gotui.MouseDrag, 1, 1)
 			send(gotui.MouseRelease, 1, 1)
 			if c.textSelection.text() != selected {
@@ -382,8 +384,8 @@ func TestTranscriptMultiClickWordLineDragAndInvalidation(t *testing.T) {
 		t.Fatalf("triple:%q", got)
 	}
 	c.clearTranscriptSelection()
-	click(2, 7)
-	mouse(c, gotui.MousePress, 3, 7)
+	click(2, 9)
+	mouse(c, gotui.MousePress, 3, 9)
 	mouse(c, gotui.MouseDrag, 3, 1)
 	mouse(c, gotui.MouseRelease, 3, 1)
 	if got := c.textSelection.text(); !strings.HasPrefix(got, "row-00") || !strings.HasSuffix(got, "row-02") {

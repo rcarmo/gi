@@ -17,7 +17,7 @@ func (c *chatTUI) captureModelPickerMetadata() {
 	c.modelMenuMetadata = map[string]modelPickerMetadata{}
 	usage, err := c.store.LatestContextMeasurement(context.Background(), c.sessionID)
 	for _, option := range c.sessionModelCatalogue() {
-		search := []string{option.Label, option.Provider, option.ID, option.Name}
+		search := []string{modelSelectorSearchText(option.Provider, option.ID, option.Name)}
 		contextLabel := ""
 		if option.ContextWindow > 0 {
 			contextLabel = formatTokenCount(option.ContextWindow) + " ctx"

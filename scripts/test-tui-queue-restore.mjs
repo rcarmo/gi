@@ -1,4 +1,4 @@
-/** Disposable PTY/SQLite proof: Alt+Up returns two text-only queued turns to the editor without redelivery. */
+/** Disposable PTY/SQLite proof: Alt+Up returns steering then follow-ups without abort or redelivery. */
 import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -17,23 +17,26 @@ for(const mode of ['fullscreen','regular']){
  const altEnter=()=>tm('send-keys','-t',pane,'-H','1b','5b','31','33','3b','33','75');
  const altUp=()=>tm('send-keys','-t',pane,'-H','1b','5b','31','3b','33','41');
  try{
-  tm('new-session','-d','-s','proof','-x','100','-y','32',`cd '${dir}' && HOME='${dir}' PATH='${shell}':"$PATH" GI_UX_QUEUE_GATES='${gates}' '${binary}' -tui -tui-mode ${mode} -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'; sleep 20`);
+  tm('new-session','-d','-s','proof','-x','100','-y','32',`cd '${dir}' && env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR HOME='${dir}' PATH='${shell}':"$PATH" GI_UX_QUEUE_GATES='${gates}' '${binary}' -tui -tui-mode ${mode} -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'; sleep 20`);
   tm('set-option','-t','proof','status','off');await wait(()=>cap().includes('%/'),'startup');
   send('UX queue gate:held');await wait(()=>sql("select count(*) from turn_events where event_type='tool.started';")==='1','held active turn');
   const sid=sql('select id from sessions limit 1');
+  send('restore steering');await wait(()=>sql("select count(*) from steering_queue where content='restore steering' and status='queued';")==='1','pending steering');
   for(const text of ['restore first','restore second']){tm('send-keys','-t',pane,'-l',text);altEnter();await wait(()=>sql(`select count(*) from turns where prompt=${quote(text)} and status='queued';`)==='1',`queue ${text}`)}
   tm('send-keys','-t',pane,'-l','newer draft');
   await wait(()=>sql(`select json_extract(value,'$.text') from kv_store where namespace='tui_text_draft_v1' and key=${quote(sid)};`)==='newer draft','unsent draft journal');
   altUp();
-  const expected='restore first\n\nrestore second\n\nnewer draft';
-  await wait(()=>sql(`select json_extract(value,'$.text') from kv_store where namespace='tui_text_draft_v1' and key=${quote(sid)};`)==='restore first\n\nrestore second\n\nnewer draft','restored journal');
+  const expected='restore steering\n\nrestore first\n\nrestore second\n\nnewer draft';
+  await wait(()=>sql(`select json_extract(value,'$.text') from kv_store where namespace='tui_text_draft_v1' and key=${quote(sid)};`)===expected,'restored journal');
+  if(sql("select count(*) from steering_queue where content='restore steering' and status='cancelled';")!=='1')throw Error('steering was not withdrawn');
+  if(sql("select count(*) from turns where status='running';")!=='1')throw Error('Alt+Up aborted the current run');
   if(sql("select count(*) from turns where prompt in ('restore first','restore second') and status='cancelled' and phase='aborted';")!=='2')throw Error('queued turns were not cancelled');
   if(sql("select count(*) from turns where status='queued';")!=='0')throw Error('durable queue not empty');
   if(sql(`select json_extract(state_json,'$.queue_count') from sessions where id=${quote(sid)};`)!=='0')throw Error('queue_count not cleared');
   if(!cap().includes('newer draft')||!cap().includes('restore first'))throw Error('restored editor not visible');
   writeFileSync(join(out,mode+'-restored.txt'),cap());
   writeFileSync(join(gates,'held'),'go');await wait(()=>sql("select count(*) from turns where status='running';")==='0','active completion');
-  if(sql("select count(*) from messages where role='user' and content in ('restore first','restore second');")!=='0')throw Error('restored prompt was redelivered');
+  if(sql("select count(*) from messages where role='user' and content in ('restore steering','restore first','restore second');")!=='0')throw Error('restored prompt was redelivered');
   results.push({mode,result:'pass',restored:expected});
  }catch(e){results.push({mode,result:'fail',error:String(e)});try{writeFileSync(join(out,mode+'-failure.txt'),cap());writeFileSync(join(out,mode+'-runtime.log'),readFileSync(join(dir,'runtime.log')))}catch{}}
  finally{writeFileSync(join(gates,'held'),'go');try{tm('kill-server')}catch{}rmSync(dir,{recursive:true,force:true})}

@@ -2,6 +2,17 @@
 
 `/queue` now inspects the native durable queue. Removal, steering and relative moves require full turn IDs; there is no implicit resend, retry or idle-submit fallback. Responses appear only when requested, with no permanent queue panel or extra idle rows.
 
+## Alt+Up: retrieve pending text
+
+Outside selectors, Alt+Up (Alt+Q on Windows/WSL) restores pending steering,
+then follow-up text, ahead of the current draft. It works without editor focus
+and does not abort the current run. The durable draft save and queue withdrawal
+commit in one SQLite transaction. Source turns for queue-backed steering are
+cancelled too, so cleanup cannot return and redeliver them. Already claimed or
+consumed messages are not recalled. Media, maintenance, stale-draft and writer
+conflicts fail closed without losing delivery. Escape retains its separate
+interrupt-and-restore ownership checks. See [the TUI guide](tui.md).
+
 ## Commands
 
 - `/queue [page]` reads queued turns in native queue order, six rows per page. It shows total count, page count and the current running turn ID when available. IDs are complete; prompt previews are control-sanitised and limited to40display cells.

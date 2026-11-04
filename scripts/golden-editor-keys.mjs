@@ -4,12 +4,12 @@
 //   bun scripts/golden-editor-keys.mjs [node_modules dir]
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { requirePi130, goldenPath } from './pi-reference.mjs';
+import { requirePi150, goldenPath } from './pi-reference.mjs';
 
 const candidates = [process.argv[2], `${homedir()}/.bun/install/global/node_modules`, "/workspace/.cache/pi-ref/node_modules"];
 const root = candidates.find((dir) => dir && existsSync(`${dir}/@earendil-works/pi-tui/dist/index.js`));
 if (!root) throw new Error("pi-tui not found");
-requirePi130(root, ['@earendil-works/pi-tui']);
+requirePi150(root, ['@earendil-works/pi-tui']);
 const tui = await import(`${root}/@earendil-works/pi-tui/dist/index.js`);
 
 const identity = (s) => s;

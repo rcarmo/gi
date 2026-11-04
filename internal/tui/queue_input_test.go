@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	gotui "github.com/grindlemire/go-tui"
 	"testing"
 )
@@ -37,5 +38,33 @@ func TestPiFollowUpAdmissionRetainsDraftWhenNoModelSelected(t *testing.T) {
 	}
 	if len(c.history) != 0 {
 		t.Fatal("rejected follow-up added to history")
+	}
+}
+
+func TestPi150AltUpRestoresSteeringAndFollowUpWithoutEditorFocus(t *testing.T) {
+	for _, regular := range []bool{false, true} {
+		c := durableTestChat(t)
+		c.regularMode = regular
+		c.input.SetText("current draft")
+		c.saveDurableDraft()
+		c.inputActive = false
+		c.input.Blur()
+		ctx := context.Background()
+		if _, err := c.store.EnqueueSteering(ctx, "A", "", "user", "steering", nil, nil, "one-at-a-time"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.store.CreateTurnWithStatus(ctx, "edit-follow", "A", "queued", "follow up", nil); err != nil {
+			t.Fatal(err)
+		}
+		defer func(keys piKeys) { defaultPiKeys = keys }(defaultPiKeys)
+		defaultPiKeys = piKeys{}
+		pressAppKey(t, c, gotui.KeyEvent{Key: gotui.KeyUp, Mod: gotui.ModAlt})
+		if c.input.Text() != "steering\n\nfollow up\n\ncurrent draft" || !c.inputActive {
+			t.Fatalf("regular=%v: Alt+Up did not edit all text: %q, status %q", regular, c.input.Text(), c.status)
+		}
+		pending, err := c.store.ListPendingTUIMessages(ctx, "A")
+		if err != nil || len(pending) != 0 {
+			t.Fatal("edited queue can still deliver", pending, err)
+		}
 	}
 }

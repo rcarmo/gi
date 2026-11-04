@@ -15,7 +15,7 @@ import (
 // one transaction, so a failed save or competing claim cannot lose delivery.
 // The caller must supply the editor snapshot it has actually displayed.
 func (s *Store) RestoreQueuedTUITextDraft(ctx context.Context, sessionID string, expected TUITextDraft) (TUITextDraft, []string, error) {
-	return s.restoreQueuedTUITextDraft(ctx, sessionID, "", "", expected)
+	return s.restoreQueuedTUITextDraft(ctx, sessionID, "", "", expected, false)
 }
 
 // AbortActiveTurnAndRestoreQueuedTUITextDraft is called only by the runner
@@ -27,10 +27,17 @@ func (s *Store) AbortActiveTurnAndRestoreQueuedTUITextDraft(ctx context.Context,
 	if activeTurnID == "" || claimToken == "" {
 		return TUITextDraft{}, nil, ErrQueueConflict
 	}
-	return s.restoreQueuedTUITextDraft(ctx, sessionID, activeTurnID, claimToken, expected)
+	return s.restoreQueuedTUITextDraft(ctx, sessionID, activeTurnID, claimToken, expected, false)
 }
 
-func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, activeTurnID, claimToken string, expected TUITextDraft) (TUITextDraft, []string, error) {
+// RestoreAllQueuedTUITextDraft is Alt+Up: withdraw still-pending text steering
+// first, then follow-ups, without aborting the current run. Already consumed
+// steering, media and maintenance work are never silently retracted.
+func (s *Store) RestoreAllQueuedTUITextDraft(ctx context.Context, sessionID string, expected TUITextDraft) (TUITextDraft, []string, error) {
+	return s.restoreQueuedTUITextDraft(ctx, sessionID, "", "", expected, true)
+}
+
+func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, activeTurnID, claimToken string, expected TUITextDraft, allPending bool) (TUITextDraft, []string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return TUITextDraft{}, nil, err
@@ -56,6 +63,13 @@ func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, active
 		}
 		if metadata["media"] != nil || metadata["tui_media_claim"] != nil || metadata["initial_steering"] != nil || metadata["operation"] == "manual_compaction" {
 			return TUITextDraft{}, nil, ErrQueueConflict
+		}
+	}
+	var steering []SteeringMessage
+	if allPending {
+		steering, err = pendingTextSteeringForRestore(ctx, tx, sessionID)
+		if err != nil {
+			return TUITextDraft{}, nil, err
 		}
 	}
 	rows, err := tx.QueryContext(ctx, `select id, prompt, metadata_json from turns where session_id=? and status='queued' order by queue_position, created_at, id`, sessionID)
@@ -87,9 +101,18 @@ func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, active
 	if err != nil {
 		return TUITextDraft{}, nil, err
 	}
-	if len(ids) == 0 && activeTurnID == "" {
+	if len(ids) == 0 && len(steering) == 0 && activeTurnID == "" {
 		return TUITextDraft{}, nil, sql.ErrNoRows
 	}
+	// Pi's visual/edit order is steering, follow-up, then the current editor.
+	var steeringPrompts []string
+	for _, msg := range steering {
+		steeringPrompts = append(steeringPrompts, msg.Content)
+		if msg.SourceQueueID != "" {
+			ids = append(ids, msg.SourceQueueID)
+		}
+	}
+	prompts = append(steeringPrompts, prompts...)
 	// Restoration is an editor action, not a cross-session dequeue: leave
 	// another frontend's or crashed run's queue untouched until its claim has
 	// been settled by the normal recovery path.
@@ -115,7 +138,7 @@ func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, active
 	if err := tx.QueryRowContext(ctx, `select exists(select 1 from steering_queue where session_id=? and status in ('queued','claimed'))`, sessionID).Scan(&bound); err != nil {
 		return TUITextDraft{}, nil, err
 	}
-	if bound {
+	if bound && !allPending {
 		return TUITextDraft{}, nil, ErrQueueConflict
 	}
 	if activeTurnID != "" {
@@ -164,8 +187,17 @@ func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, active
 	if err != nil {
 		return TUITextDraft{}, nil, err
 	}
+	for _, msg := range steering {
+		res, err := tx.ExecContext(ctx, `update steering_queue set status='cancelled', updated_at=`+defaultNow+` where id=? and session_id=? and status='queued'`, msg.ID, sessionID)
+		if err != nil {
+			return TUITextDraft{}, nil, err
+		}
+		if changed, err := res.RowsAffected(); err != nil || changed != 1 {
+			return TUITextDraft{}, nil, ErrQueueConflict
+		}
+	}
 	for _, id := range ids {
-		res, err := tx.ExecContext(ctx, `update turns set status='cancelled', phase='aborted', finished_at=`+defaultNow+`, updated_at=`+defaultNow+` where id=? and session_id=? and status='queued' and not exists(select 1 from session_active_turns where turn_id=?)`, id, sessionID, id)
+		res, err := tx.ExecContext(ctx, `update turns set status='cancelled', phase='aborted', finished_at=`+defaultNow+`, updated_at=`+defaultNow+` where id=? and session_id=? and status in ('queued','steering') and not exists(select 1 from session_active_turns where turn_id=?)`, id, sessionID, id)
 		if err != nil {
 			return TUITextDraft{}, nil, err
 		}
@@ -206,6 +238,11 @@ func (s *Store) restoreQueuedTUITextDraft(ctx context.Context, sessionID, active
 	}
 	if err := tx.Commit(); err != nil {
 		return TUITextDraft{}, nil, err
+	}
+	for _, msg := range steering {
+		if msg.SourceQueueID == "" {
+			ids = append(ids, fmt.Sprintf("steering:%d", msg.ID))
+		}
 	}
 	return updated, ids, nil
 }

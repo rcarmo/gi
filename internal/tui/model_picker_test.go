@@ -51,8 +51,13 @@ func TestModelPickerMetadataEnabledNavigationAndOwnership(t *testing.T) {
 		}
 		if width >= 60 {
 			text := strings.Join(rows, "\n")
-			// Pi rows: "id [provider]"; gi appends why a model cannot be chosen.
-			if !strings.Contains(text, "picker-pine [opencode-zen]") || !strings.Contains(text, "picker-small [opencode-zen] · context too small") || strings.Contains(text, "80 ctx") {
+			// Pi 1.5 shows distinct names; gi keeps unavailable reasons ahead
+			// of optional aliases on narrow rows.
+			blocked := "picker-small [opencode-zen] · context too small"
+			if width >= 100 {
+				blocked = "picker-small (Forest Small) [opencode-zen] · context too small"
+			}
+			if !strings.Contains(text, "picker-pine (Forest Pine) [opencode-zen]") || !strings.Contains(text, blocked) || strings.Contains(text, "80 ctx") {
 				t.Fatalf("metadata/blocked priority: %s", text)
 			}
 		}

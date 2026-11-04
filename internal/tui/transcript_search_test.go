@@ -135,8 +135,10 @@ func TestTranscriptSearchRowsMatchActualScrollLayout(t *testing.T) {
 		c.transcript = []string{"you: first", strings.Repeat("wrapped ", 70), "you: second", "Gi: final"}
 		c.appendTranscriptBlock(transcriptBlockMeta{Key: "tool", Kind: "tool", Title: "shell", Status: "ok"}, []string{"long " + strings.Repeat("output ", 40), "tail", "hidden"})
 		el := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(width), gotui.WithHeight(8), gotui.WithScrollable(gotui.ScrollVertical))
+		previousKind := ""
 		for _, block := range c.buildTranscriptRenderableBlocks(c.visibleTranscript()) {
-			el.AddChild(c.renderTranscriptBlock(block))
+			el.AddChild(c.renderTranscriptBlockAfter(block, previousKind))
+			previousKind = block.Kind
 		}
 		el.RenderTo(gotui.NewBuffer(width, 8), width, 8)
 		c.transcriptRef.Set(el)

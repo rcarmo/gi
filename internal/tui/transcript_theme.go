@@ -172,10 +172,13 @@ func padTranscriptBlock(content *gotui.Element, block transcriptRenderableBlock)
 	return wrapper
 }
 
-// Pi inserts a Spacer(1) before a subsequent user message. An assistant
-// already has a leading spacer; only add one after it when the next block
-// does not provide its own separation. Keep it outside the next message band.
+// Pi inserts a Spacer(1) before every subsequent user message, not just
+// after an assistant: adjacent colored bands must never touch. Other blocks
+// usually provide their own leading separator. Keep gaps outside the band.
 func assistantGapBefore(previousKind, nextKind string) int {
+	if previousKind != "" && nextKind == "user" {
+		return 1
+	}
 	separator, _, _ := transcriptSpacing(nextKind)
 	if previousKind == "assistant" && separator == 0 {
 		return 1

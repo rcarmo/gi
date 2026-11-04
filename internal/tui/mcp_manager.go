@@ -286,13 +286,25 @@ func (c *chatTUI) mcpManagerKeys() gotui.KeyMap {
 		c.mcpManager.selected[c.mcpManager.screen] = menu.items[i].value
 		c.markDirty()
 	}
-	return gotui.KeyMap{
+	page := func(direction int) {
+		if c.mcpManager.status[0] != "" {
+			return
+		}
+		menu := c.mcpManagerMenu()
+		if len(menu.items) == 0 {
+			return
+		}
+		i := selectPageIndex(c.mcpManagerSelection(menu), len(menu.items), mcpManagerMaxVisible, direction)
+		c.mcpManager.selected[c.mcpManager.screen] = menu.items[i].value
+		c.markDirty()
+	}
+	return append(selectorPageKeys(page), gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.KeyUp, func(gotui.KeyEvent) { move(-1) }),
 		gotui.OnPreemptStop(gotui.KeyDown, func(gotui.KeyEvent) { move(1) }),
 		gotui.OnPreemptStop(gotui.KeyEnter, func(gotui.KeyEvent) { c.mcpManagerConfirm() }),
 		gotui.OnPreemptStop(gotui.KeyEscape, func(gotui.KeyEvent) { c.mcpManagerBack() }),
 		gotui.OnPreemptStop(gotui.KeyCtrlC, func(gotui.KeyEvent) { c.mcpManagerBack() }),
-	}
+	}...)
 }
 
 // mcpSignInKeys are the sign-in screen's: Enter submits a non-empty URL,

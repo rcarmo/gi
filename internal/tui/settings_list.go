@@ -69,6 +69,12 @@ func (s *settingsListState) handle(key string, r rune) {
 		s.selected = (s.selected - 1 + n) % n
 	case key == "down" && n > 0:
 		s.selected = (s.selected + 1) % n
+	case (key == "pgup" || key == "pgdn") && n > 0:
+		direction := 1
+		if key == "pgup" {
+			direction = -1
+		}
+		s.selected = selectPageIndex(s.selected, n, settingsMaxVisible, direction)
 	case key == "enter" || (key == "rune" && r == ' ' && (!s.search || s.query == "")):
 		s.activate()
 	case key == "esc":
@@ -195,6 +201,15 @@ func (m *selectSubmenu) handle(key string, _ rune) {
 			delta = -1
 		}
 		m.selected = (m.selected + delta + n) % n
+		if m.onSelectionChange != nil {
+			m.onSelectionChange(m.options[m.selected].value)
+		}
+	case (key == "pgup" || key == "pgdn") && n > 0:
+		direction := 1
+		if key == "pgup" {
+			direction = -1
+		}
+		m.selected = selectPageIndex(m.selected, n, 10, direction)
 		if m.onSelectionChange != nil {
 			m.onSelectionChange(m.options[m.selected].value)
 		}
@@ -426,6 +441,8 @@ func settingsListKeys(handle func(key string, r rune), dirty func()) gotui.KeyMa
 	return gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.KeyUp, on("up")),
 		gotui.OnPreemptStop(gotui.KeyDown, on("down")),
+		gotui.OnPreemptStop(gotui.KeyPageUp, on("pgup")),
+		gotui.OnPreemptStop(gotui.KeyPageDown, on("pgdn")),
 		gotui.OnPreemptStop(gotui.KeyEnter, on("enter")),
 		gotui.OnPreemptStop(gotui.KeyEscape, on("esc")),
 		gotui.OnPreemptStop(gotui.KeyCtrlC, on("esc")),

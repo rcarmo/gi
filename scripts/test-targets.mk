@@ -1037,7 +1037,7 @@ test-tui-theme-pty:
 	$(GO) test -c -o $(BIN_DIR)/gi-theme-test ./internal/tui
 	@set -eu; root="$(GI_TEST_RUN_ROOT)/tests/theme-reference"; mkdir -p "$$root"; \
 	trap 'rm -rf "$$root"' EXIT; \
-	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-coding-agent":"1.3.0"}}' > "$$root/package.json"; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-coding-agent":"1.5.0"}}' > "$$root/package.json"; \
 	$(BUN) install --cwd "$$root"; \
 	PI_NODE_MODULES="$$root/node_modules" GI_THEME_TEST_BIN=$(abspath $(BIN_DIR)/gi-theme-test) $(BUN) scripts/test-tui-theme.mjs
 
@@ -1135,24 +1135,41 @@ test-program-status-reader:
 
 # Compare the current TUI goldens with exact published references, without
 # installing/updating Pi globally or rewriting the checked-in fixtures.
-.PHONY: test-tui-pi110-reference
-test-tui-pi110-reference: test-tui-pi130-reference
+.PHONY: test-tui-pi110-reference test-tui-pi130-reference test-tui-pi150-reference
+test-tui-pi110-reference test-tui-pi130-reference: test-tui-pi150-reference
 
-.PHONY: test-tui-pi130-reference
-test-tui-pi130-reference:
+test-tui-pi150-reference:
 	$(BUN) test scripts/pi-reference.test.ts
-	@set -eu; root="$(GI_TEST_RUN_ROOT)/pi130-reference"; mkdir -p "$$root/home" "$$root/goldens"; \
+	@set -eu; root="$(GI_TEST_RUN_ROOT)/pi150-reference"; mkdir -p "$$root/home" "$$root/goldens"; \
 	trap 'rm -rf "$$root"' EXIT; \
-	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-tui":"1.3.0","@earendil-works/pi-coding-agent":"1.3.0"}}' > "$$root/package.json"; \
+	printf '%s\n' '{"private":true,"dependencies":{"@earendil-works/pi-tui":"1.5.0","@earendil-works/pi-coding-agent":"1.5.0"}}' > "$$root/package.json"; \
 	HOME="$$root/home" BUN_INSTALL_CACHE_DIR="$$root/cache" $(BUN) install --cwd "$$root"; \
 	export PI_GOLDEN_OUTPUT_DIR="$$root/goldens" PI_CODING_AGENT_DIR="$$root/home/.pi/agent" GI_CODING_AGENT_DIR="$$root/home/.gi/agent"; \
 	$(BUN) scripts/golden-pi-navigation.mjs "$$root/node_modules/@earendil-works/pi-tui"; \
 	$(BUN) scripts/golden-editor-keys.mjs "$$root/node_modules"; \
 	$(BUN) scripts/golden-hotkeys.mjs "$$root/node_modules"; \
+	$(BUN) scripts/golden-scoped-models.mjs "$$root/node_modules"; \
 	for file in "$$root"/goldens/*; do diff -u "internal/tui/testdata/$$(basename "$$file")" "$$file"; done; \
-	echo 'Pi 1.3.0 navigation/editor/hotkeys goldens match; isolated reference disposed'
+	echo 'Pi 1.5.0 navigation/editor/hotkeys/scoped-models goldens match; isolated reference disposed'
 
-.PHONY: tidy
+.PHONY: fmt-pi150 generate-pi150-reference upgrade-joker tidy
+fmt-pi150:
+	gofmt -w internal/tui/selector_paging.go internal/tui/pi150_alignment_test.go internal/tui/colored_spacing_test.go internal/tui/queue_input_test.go internal/store/queued_steering_restore.go internal/store/queued_steering_restore_test.go docs/embed_test.go
+
+# Explicit regeneration, separate from the comparison gate. PI_NODE_MODULES
+# must contain exact published 1.5.0 packages (generators check identities).
+generate-pi150-reference:
+	$(BUN) scripts/golden-pi-navigation.mjs "$(PI_NODE_MODULES)/@earendil-works/pi-tui"
+	$(BUN) scripts/golden-editor-keys.mjs "$(PI_NODE_MODULES)"
+	$(BUN) scripts/golden-hotkeys.mjs "$(PI_NODE_MODULES)"
+	$(BUN) scripts/golden-scoped-models.mjs "$(PI_NODE_MODULES)"
+
+# Explicit dependency maintenance; never invoked implicitly by a build.
+JOKER_VERSION ?= v42.12.6
+upgrade-joker:
+	$(GO) get github.com/rcarmo/go-joker/v42@$(JOKER_VERSION)
+	$(GO) mod tidy
+
 tidy:
 	$(GO) mod tidy
 

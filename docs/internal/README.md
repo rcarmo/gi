@@ -39,12 +39,15 @@ Update the relevant reference when a change affects tools, scripting bridges, ho
 - [Shell environment](shell-environment.md)
 - [Sub-turn runtime contract](subturn-runtime.md)
 - [System prompt (#32)](system-prompt.md)
+- [Provider prompt caching](prompt-caching.md) — stable conversation identity, usage and diagnostics
 - [Recorded tool execution duration](tool-duration.md)
 - [Tool terminal provenance](tool-terminal-provenance.md)
 - [Internal topic system design](topic-system.md)
 
 ## Terminal
 
+- [Using Gi's TUI](tui.md) — startup, input, models, queues, sessions and recovery
+- [Terminal alignment audit and limits](tui-pi-1.5-alignment.md)
 - [Keybindings](keybindings.md)
 - [Pi terminal and Piclaw queue contract](pi-tui-piclaw-queue-contract.md)
 - [TUI clipboard and media](tui-clipboard-media.md)

@@ -1,0 +1,16 @@
+{
+  "tui.editor.cursorLineStart": [
+    "home",
+    "ctrl+a"
+  ],
+  "tui.editor.cursorLineEnd": [
+    "end",
+    "ctrl+e"
+  ],
+  "tui.altScreen.top": [
+    "ctrl+home"
+  ],
+  "tui.altScreen.bottom": [
+    "ctrl+end"
+  ]
+}

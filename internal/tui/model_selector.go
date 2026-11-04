@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/config"
@@ -168,6 +169,20 @@ func (c *chatTUI) piModelSelectorRows(width int) [][]gotui.TextSpan {
 			idStyle = accent
 		}
 		row = append(row, gotui.TextSpan{Text: id, Style: idStyle})
+		if name := distinctModelName(id, c.modelMenuName(label)); name != "" {
+			// An unavailable row's safety reason outranks the optional alias
+			// on narrow screens. The detail slot still shows its full name.
+			suffix := " [" + provider + "]"
+			if label == c.modelMenuDefault {
+				suffix += " · default"
+			}
+			if reason != "" {
+				suffix += " · " + reason
+			}
+			if reason == "" || gotui.StringWidth("    "+id+" ("+name+")"+suffix) <= width {
+				row = append(row, gotui.TextSpan{Text: " (" + name + ")", Style: muted})
+			}
+		}
 		if provider != "" {
 			row = append(row, gotui.TextSpan{Text: " [" + provider + "]", Style: muted})
 		}
@@ -200,6 +215,34 @@ func (c *chatTUI) piModelSelectorRows(width int) [][]gotui.TextSpan {
 		[]gotui.TextSpan{{Text: truncateCells("  Enter to select · Ctrl+S to set as default · Escape/Ctrl+C to cancel", width), Style: dim}},
 		rule)
 	return rows
+}
+
+// distinctModelName follows Pi 1.5's getDistinctModelName: only show names
+// that add words, not differences in casing, separators or version suffixes.
+func distinctModelName(id, name string) string {
+	words := func(text string) []string {
+		return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+			return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+		})
+	}
+	idWords := words(id)
+	tokens := make(map[string]bool, len(idWords))
+	for _, word := range idWords {
+		tokens[word] = true
+	}
+	compact := strings.Join(idWords, "")
+	for _, word := range words(name) {
+		if !tokens[word] && !(len([]rune(word)) > 1 && strings.Contains(compact, word)) {
+			return strings.TrimSpace(name)
+		}
+	}
+	return ""
+}
+
+// modelSelectorSearchText keeps the provider before the bare ID, so a direct
+// provider/id query ranks ahead of the same ID through a proxy provider.
+func modelSelectorSearchText(provider, id, name string) string {
+	return fmt.Sprintf("%s %s/%s %s %s %s", provider, provider, id, provider, id, name)
 }
 
 func (c *chatTUI) modelMenuName(label string) string {

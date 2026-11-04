@@ -2,12 +2,12 @@
 import {mkdirSync, mkdtempSync, writeFileSync, rmSync} from 'node:fs';
 import {resolve, join} from 'node:path';
 import {homedir} from 'node:os';
-import {requirePi130} from './pi-reference.mjs';
+import {requirePi150} from './pi-reference.mjs';
 import {existsSync as piModulesExist} from 'node:fs';
 // Pi's packages: PI_NODE_MODULES, the global bun install, or the reference install.
 const PI_MODULES = [process.env.PI_NODE_MODULES, `${homedir()}/.bun/install/global/node_modules`, '/workspace/.cache/pi-ref/node_modules'].find((dir) => dir && piModulesExist(`${dir}/@earendil-works/pi-coding-agent`));
-if (!PI_MODULES) throw Error('Provide Pi 1.3.0 via PI_NODE_MODULES');
-requirePi130(PI_MODULES, ['@earendil-works/pi-coding-agent']);
+if (!PI_MODULES) throw Error('Provide Pi 1.5.0 via PI_NODE_MODULES');
+requirePi150(PI_MODULES, ['@earendil-works/pi-coding-agent']);
 const {generateSystemThemeColors} = await import(`${PI_MODULES}/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/system-theme.js`);
 const bin = process.env.GI_THEME_TEST_BIN || resolve('bin/gi-theme-test');
 if (!process.env.GI_TEST_RUN_ROOT) throw Error('Use make test-env and source scripts/project-test-env.sh');

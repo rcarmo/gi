@@ -88,7 +88,11 @@ func (c *chatTUI) authSelectorKeys() gotui.KeyMap {
 		c.markDirty()
 	}
 	cancel := func(gotui.KeyEvent) { finish(nil) }
-	return gotui.KeyMap{
+	page := func(direction int) {
+		s.selected = selectPageIndex(s.selected, len(s.filtered()), 8, direction)
+		c.markDirty()
+	}
+	return append(selectorPageKeys(page), gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.KeyUp, func(gotui.KeyEvent) { move(-1) }),
 		gotui.OnPreemptStop(gotui.KeyDown, func(gotui.KeyEvent) { move(1) }),
 		gotui.OnPreemptStop(gotui.KeyEnter, func(gotui.KeyEvent) {
@@ -104,7 +108,7 @@ func (c *chatTUI) authSelectorKeys() gotui.KeyMap {
 			}
 		}),
 		gotui.OnFocused(gotui.AnyRune, func(ke gotui.KeyEvent) { search(s.query + string(ke.Rune)) }),
-	}
+	}...)
 }
 
 // authTypeLabel is Pi's formatAuthSelectorProviderType.

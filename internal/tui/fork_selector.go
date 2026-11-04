@@ -67,13 +67,19 @@ func (c *chatTUI) forkSelectorKeys() gotui.KeyMap {
 			c.app.MarkDirty()
 		}
 	}
-	return gotui.KeyMap{
+	page := func(direction int) {
+		if len(c.modelMenuChoices) > 0 {
+			c.modelMenuSelected = selectPageIndex(c.modelMenuSelected, len(c.modelMenuChoices), forkMaxVisible, direction)
+			c.markDirty()
+		}
+	}
+	return append(selectorPageKeys(page), gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.KeyCtrlC, func(gotui.KeyEvent) { c.closeModelMenu() }),
 		gotui.OnPreemptStop(gotui.KeyEscape, func(gotui.KeyEvent) { c.closeModelMenu() }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(gotui.KeyEvent) { move(-1) }),
 		gotui.OnPreemptStop(gotui.KeyDown, func(gotui.KeyEvent) { move(1) }),
 		gotui.OnPreemptStop(gotui.KeyEnter, func(gotui.KeyEvent) { c.acceptForkSelection() }),
-	}
+	}...)
 }
 
 func (c *chatTUI) piForkSelectorRows(width int) spanRows {

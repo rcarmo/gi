@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/inference"
@@ -99,7 +100,8 @@ func piFuzzyMatch(query, text string) (bool, float64) {
 		if len(q) > len(t) {
 			return false, 0
 		}
-		score, last, consecutive, qi := 0.0, -1, 0, 0
+		positions := make([]int, 0, len(q))
+		last, qi := -1, 0
 		for qi < len(q) {
 			i := -1
 			for j := last + 1; j < len(t); j++ {
@@ -111,25 +113,46 @@ func piFuzzyMatch(query, text string) (bool, float64) {
 			if i == -1 {
 				break
 			}
-			boundary := i == 0 || strings.ContainsRune(" \t\n-_./:", t[i-1])
-			if last == i-1 {
-				consecutive++
-				score -= float64(consecutive * 5)
-			} else {
-				consecutive = 0
-				if last >= 0 {
-					score += float64((i - last - 1) * 2)
-				}
-			}
-			if boundary {
-				score -= 10
-			}
-			score += float64(i) * 0.1
+			positions = append(positions, i)
 			last = i
 			qi++
 		}
 		if qi < len(q) {
 			return false, 0
+		}
+		scorePositions := func(positions []int) float64 {
+			score, last, consecutive := 0.0, -1, 0
+			for _, i := range positions {
+				if last == i-1 {
+					consecutive++
+					score -= float64(consecutive * 5)
+				} else {
+					consecutive = 0
+					if last >= 0 {
+						score += float64((i - last - 1) * 2)
+					}
+				}
+				if i == 0 || unicode.IsSpace(t[i-1]) || strings.ContainsRune("-_./:", t[i-1]) {
+					score -= 10
+				}
+				score += float64(i) * 0.1
+				last = i
+			}
+			return score
+		}
+		score := scorePositions(positions)
+		// Pi 1.5 also scores contiguous occurrences: a scattered match in a
+		// provider prefix must not outrank the actual model name later on.
+		for start := 0; start+len(q) <= len(t); start++ {
+			if !slices.Equal(t[start:start+len(q)], q) {
+				continue
+			}
+			for k := range positions {
+				positions[k] = start + k
+			}
+			if candidate := scorePositions(positions); candidate < score {
+				score = candidate
+			}
 		}
 		if string(q) == string(t) {
 			score -= 100
@@ -154,7 +177,7 @@ func piFuzzyMatch(query, text string) (bool, float64) {
 // piFuzzyFilter ports fuzzyFilter: every whitespace/slash token must match;
 // results are ordered by total score (stable for ties).
 func piFuzzyFilter(items []slashItem, query string, text func(slashItem) string) []slashItem {
-	tokens := strings.FieldsFunc(strings.TrimSpace(query), func(r rune) bool { return r == '/' || r == ' ' || r == '\t' })
+	tokens := strings.FieldsFunc(strings.TrimSpace(query), func(r rune) bool { return r == '/' || unicode.IsSpace(r) })
 	if len(tokens) == 0 {
 		return items
 	}
@@ -461,6 +484,8 @@ func (c *chatTUI) slashMenuKeys() gotui.KeyMap {
 	return gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.KeyUp, func(gotui.KeyEvent) { c.moveSlashSelection(-1) }),
 		gotui.OnPreemptStop(gotui.KeyDown, func(gotui.KeyEvent) { c.moveSlashSelection(1) }),
+		gotui.OnPreemptStop(gotui.KeyPageUp, func(gotui.KeyEvent) { c.pageSlashSelection(-1) }),
+		gotui.OnPreemptStop(gotui.KeyPageDown, func(gotui.KeyEvent) { c.pageSlashSelection(1) }),
 		gotui.OnPreemptStop(gotui.KeyTab, func(gotui.KeyEvent) { c.applySlashSelection(false) }),
 		gotui.OnPreemptStop(gotui.KeyEnter, func(gotui.KeyEvent) { c.applySlashSelection(true) }),
 		gotui.OnPreemptStop(gotui.KeyEscape, func(gotui.KeyEvent) { c.closeSlashMenu() }),

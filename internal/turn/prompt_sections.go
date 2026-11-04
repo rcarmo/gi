@@ -72,6 +72,9 @@ var giPromptGuidelines = []string{
 
 const giDocsSection = `gi documentation (read only when the user asks about gi itself: its tools, scripting, hooks, MCP, codemode or TUI):
 - Reference: vfs://reference/README.md (read-only; read it with the read tool)
+- TUI usage and alignment status: vfs://reference/tui.md and vfs://reference/tui-pi-1.5-alignment.md; keys: vfs://reference/keybindings.md
+- Provider prompt caching: vfs://reference/prompt-caching.md
+- Resolve relative documentation links under vfs://reference/, not the current workspace; these virtual URLs are not shell filesystem paths.
 - Tools: vfs://reference/tools/, MCP: vfs://reference/mcp.md, codemode: vfs://reference/codemode.md and vfs://reference/codemode-scripts.md
 - Model selection and scoped models: vfs://reference/scoped-models.md (an ordered shortlist for model cycling); selector keys: vfs://reference/tui-selectors.md
 - gi reads Pi's settings, models and credentials (.gi first, then .pi)`

@@ -5,10 +5,12 @@
 //   bun scripts/golden-scoped-models.mjs [node_modules dir]
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { requirePi150, goldenPath } from './pi-reference.mjs';
 
 const candidates = [process.argv[2], `${homedir()}/.bun/install/global/node_modules`, "/workspace/.cache/pi-ref/node_modules"];
 const root = candidates.find((dir) => dir && existsSync(`${dir}/@earendil-works/pi-coding-agent/dist/index.js`));
 if (!root) throw new Error("pi-coding-agent not found");
+requirePi150(root, ['@earendil-works/pi-tui', '@earendil-works/pi-coding-agent']);
 const agent = `${root}/@earendil-works/pi-coding-agent/dist`;
 const { initTheme } = await import(`${agent}/modes/interactive/theme/theme.js`);
 const { ScopedModelsSelectorComponent } = await import(`${agent}/modes/interactive/components/scoped-models-selector.js`);
@@ -61,4 +63,4 @@ for (const width of [80, 50]) {
 		(out[name] ??= { enabled: scenario.enabled, steps: scenario.steps, widths: {} }).widths[width] = states;
 	}
 }
-writeFileSync("internal/tui/testdata/pi-scoped-models.json", JSON.stringify({ models, scenarios: out }, null, 1) + "\n");
+writeFileSync(goldenPath('pi-scoped-models.json'), JSON.stringify({ models, scenarios: out }, null, 1) + "\n");

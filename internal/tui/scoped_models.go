@@ -221,6 +221,14 @@ func (c *chatTUI) scopedModelsKeys() gotui.KeyMap {
 	return gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.KeyUp, func(gotui.KeyEvent) { move(-1) }),
 		gotui.OnPreemptStop(gotui.KeyDown, func(gotui.KeyEvent) { move(1) }),
+		gotui.OnPreemptStop(gotui.KeyPageUp, func(gotui.KeyEvent) {
+			s.selected = selectPageIndex(s.selected, len(s.items()), scopedModelsMaxVisible, -1)
+			c.markDirty()
+		}),
+		gotui.OnPreemptStop(gotui.KeyPageDown, func(gotui.KeyEvent) {
+			s.selected = selectPageIndex(s.selected, len(s.items()), scopedModelsMaxVisible, 1)
+			c.markDirty()
+		}),
 		gotui.OnPreemptStop(gotui.KeyUp.Alt(), func(gotui.KeyEvent) { reorder(-1) }),
 		gotui.OnPreemptStop(gotui.KeyDown.Alt(), func(gotui.KeyEvent) { reorder(1) }),
 		gotui.OnPreemptStop(gotui.KeyEnter, func(gotui.KeyEvent) {
@@ -320,7 +328,13 @@ func (c *chatTUI) piScopedModelsRows(width int) spanRows {
 			if i == s.selected {
 				style = style.Foreground(piAccent)
 			}
-			line = append(line, gotui.TextSpan{Text: name, Style: style}, gotui.TextSpan{Text: badge, Style: muted})
+			line = append(line, gotui.TextSpan{Text: name, Style: style})
+			if s.available(id) {
+				if distinct := distinctModelName(name, s.names[id]); distinct != "" {
+					line = append(line, gotui.TextSpan{Text: " (" + distinct + ")", Style: muted})
+				}
+			}
+			line = append(line, gotui.TextSpan{Text: badge, Style: muted})
 			rows = append(rows, text(line...)...)
 		}
 		if start > 0 || end < len(items) {
