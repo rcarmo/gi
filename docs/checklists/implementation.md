@@ -971,3 +971,9 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [x] In a separate change (`ffbafe19`, `fix/tool-absolute-paths`; not merged), stop `read`/shared tool resolution from silently joining absolute paths to the workspace root. Accept in-workspace absolute paths or clearly reject unsupported paths; test outside-workspace paths, traversal and symlink escapes, and update the tool contract. Reported while profiling tables; deliberately excluded from renderer changes.
 
 - [x] 2026-10-04: consume the front-end only from fixtures-vibes `ui/gi` at `6e49ae1`; backend imports its embedded assets. Removed 14 retired card/highlight/annotation skips. Build, hook checks, local/moved adapter tests, Go suite/vet, functional suite (142 passed, 11 skipped), session-panel (12/12) and cross-builds pass. Full gate is run separately at this pin.
+
+### Session failure diagnosis and scoped-model defaults
+
+- [x] Normalize empty Anthropic tool-result text at the request boundary without mutating history; cover the next inference and subsequent-turn replay.
+- [x] Correct script-tool namespace/VFS guidance, expose current-session turn events to JavaScript, and require recorded inference errors when diagnosing failed turns.
+- [x] Ship a scoped-model guide and default the shortlist to Copilot GPT-6.1 Sol, GPT-6 Luna and Claude Opus 5.5; preserve explicit project/user lists, explicit empty opt-out and startup model selection.

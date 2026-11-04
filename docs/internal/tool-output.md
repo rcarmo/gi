@@ -16,3 +16,17 @@ serial, persist before notification and coalesce at a size-dependent interval
 with a 100 ms minimum. A terminal result replaces interim progress, including
 an empty result or a result replaced by a hook. Tool completion joins pending
 progress writes. A failed write remains an error at final flush.
+
+## Empty results and provider serialization
+
+Empty tool output is a valid result, not a tool failure. Gi preserves its
+stored text and error flag. Before each Anthropic Messages request (including
+Claude through Copilot), request preparation removes only exactly-empty text
+blocks from tool-result messages. This avoids the pinned encoder emitting
+`{"type":"text"}` without its required `text` field; an all-empty result uses
+the provider's valid empty-result representation instead. Nonempty output,
+whitespace, images, tool-call IDs and success/error status are retained.
+
+This also applies when replaying earlier results in a later turn, so an old
+empty result does not repeatedly poison subsequent provider requests. It is
+request normalization, not a database rewrite or model-switch workaround.

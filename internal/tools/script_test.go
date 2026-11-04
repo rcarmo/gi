@@ -957,3 +957,85 @@ func TestScriptToolRuntimeChoiceForFilesPayloadAndNativeJoker(t *testing.T) {
 		}
 	}
 }
+
+func TestScriptToolJavaScriptGuidanceAndReferenceAccess(t *testing.T) {
+	s, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	description := tool.Definition()["description"].(string)
+	for _, want := range []string{"gi.listDir(path)", "gi.readFile(path)", "gi.listTurnEvents(turnID)", "gi.log(level, message)", "console.log()", "not as bare globals", "not shell commands"} {
+		if !strings.Contains(description, want) {
+			t.Fatalf("missing script guidance %q", want)
+		}
+	}
+	for _, engine := range []string{"goja", "quickjs"} {
+		t.Run(engine, func(t *testing.T) {
+			source := `const entries = gi.listDir("vfs://reference/"); const text = gi.readFile("vfs://reference/README.md"); console.log(entries.some(e => e.name === "README.md") && text.includes("Internal reference"));`
+			if engine == "quickjs" {
+				source = `(async () => { const entries = await gi.listDir("vfs://reference/"); const text = await gi.readFile("vfs://reference/README.md"); console.log(entries.some(e => e.name === "README.md") && text.includes("Internal reference")); })()`
+			}
+			out := tool.Execute(context.Background(), ScriptInput{Engine: engine, Script: source})
+			if out.Error != "" || out.Result != "true" {
+				t.Fatalf("reference access: %+v", out)
+			}
+		})
+	}
+}
+
+func TestScriptToolJavaScriptTurnFailureIntrospection(t *testing.T) {
+	s, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	for _, id := range []string{"current", "other"} {
+		if _, err := s.CreateSession(ctx, id, id, nil); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.CreateTurn(ctx, "turn-"+id, id, "diagnose", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.CreateTurn(ctx, "empty", "current", "no events", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendTurnEvent(ctx, "turn-current", "current", "inference.failed", map[string]any{"error": "HTTP 400: tool_result text: Field required"}); err != nil {
+		t.Fatal(err)
+	}
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	for _, engine := range []string{"goja", "quickjs"} {
+		t.Run(engine, func(t *testing.T) {
+			for _, tc := range []struct {
+				source, want string
+				fails        bool
+			}{
+				{`gi.listTurnEvents("turn-current")`, `"type":"inference.failed"`, false},
+				{`gi.listTurnEvents("empty")`, `[]`, false},
+				{`gi.listTurnEvents("turn-other")`, "current session", true},
+				{`gi.listTurnEvents("missing")`, "current session", true},
+				{`gi.listTurnEvents()`, "requires a turn ID", true},
+				{`gi.listTurnEvents("")`, "requires a turn ID", true},
+				{`gi.listTurnEvents(null)`, "requires a turn ID", true},
+			} {
+				source := tc.source
+				if engine == "quickjs" {
+					source = `(async () => { return await ` + source + `; })()`
+				}
+				out := tool.Execute(ctx, ScriptInput{SessionID: "current", Engine: engine, Script: source})
+				got := out.Result
+				if tc.fails {
+					got = out.Error
+				} else if out.Error != "" {
+					t.Fatalf("%s: %s", tc.source, out.Error)
+				}
+				if !strings.Contains(got, tc.want) {
+					t.Fatalf("%s: %+v, want %q", tc.source, out, tc.want)
+				}
+			}
+		})
+	}
+}

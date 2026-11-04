@@ -53,7 +53,7 @@ func TestLoadFallsBackToGiDefaultsWhenNoPiSettingsExist(t *testing.T) {
 	if cfg.DefaultProvider != "opencode-zen" || cfg.DefaultModel != "opencode-zen/minimax-m2.5-free" || cfg.DefaultThinkingLevel != "medium" {
 		t.Fatalf("unexpected defaults: %#v", cfg)
 	}
-	if len(cfg.EnabledModels) != 1 || cfg.EnabledModels[0] != "opencode-zen/minimax-m2.5-free" {
+	if got := strings.Join(cfg.EnabledModels, ","); got != "github-copilot/gpt-6.1-sol,github-copilot/gpt-6-luna,github-copilot/claude-opus-5.5" || !cfg.EnabledModelsConfigured {
 		t.Fatalf("unexpected enabled-model defaults: %#v", cfg.EnabledModels)
 	}
 	if !cfg.InboundWork.Enabled || cfg.InboundWork.IntervalMS != 500 || cfg.InboundWork.BatchSize != 8 || cfg.InboundWork.WorkerID != "web-runtime" || cfg.InboundWork.LeaseTTLMS != 2000 {
@@ -337,5 +337,47 @@ func TestJavaScriptRuntimeProjectOverridesGlobal(t *testing.T) {
 	}
 	if cfg := Load(project); cfg.JavaScriptRuntime != "goja" {
 		t.Fatal(cfg.JavaScriptRuntime)
+	}
+}
+
+func TestDefaultScopedModelsRespectExplicitSettings(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GI_CODING_AGENT_DIR", t.TempDir())
+	agent := t.TempDir()
+	t.Setenv("PI_CODING_AGENT_DIR", agent)
+	if err := os.WriteFile(filepath.Join(agent, "settings.json"), []byte(`{"enabledModels":["user/model"]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, project, want string
+		scoped              bool
+	}{
+		{"user", `{}`, "user/model", true},
+		{"project", `{"enabledModels":["project/second","project/first"],"defaultModel":"keep"}`, "project/second,project/first", true},
+		{"empty-project", `{"enabledModels":[]}`, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(root, ".pi"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, ".pi", "settings.json"), []byte(tc.project), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cfg := Load(root)
+			if strings.Join(cfg.EnabledModels, ",") != tc.want || cfg.EnabledModelsConfigured != tc.scoped {
+				t.Fatalf("unexpected scope: %#v configured=%v", cfg.EnabledModels, cfg.EnabledModelsConfigured)
+			}
+			if tc.name == "project" && cfg.DefaultModel != "keep" {
+				t.Fatal("changed configured startup model")
+			}
+		})
+	}
+	if err := os.WriteFile(filepath.Join(agent, "settings.json"), []byte(`{"enabledModels":[]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(t.TempDir())
+	if len(cfg.EnabledModels) != 0 || cfg.EnabledModelsConfigured {
+		t.Fatal("explicit empty user scope ignored")
 	}
 }

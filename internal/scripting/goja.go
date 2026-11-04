@@ -187,6 +187,23 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 		})
 	}
 
+	if bridge.Funcs.ListTurnEvents != nil {
+		obj.Set("listTurnEvents", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 || goja.IsNull(call.Arguments[0]) || goja.IsUndefined(call.Arguments[0]) || strings.TrimSpace(call.Arguments[0].String()) == "" {
+				panic(vm.NewGoError(fmt.Errorf("listTurnEvents requires a turn ID")))
+			}
+			events, err := bridge.Funcs.ListTurnEvents(ctx, call.Arguments[0].String())
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, err := vm.RunString("(" + mustJSONStr(events) + ")")
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return v
+		})
+	}
+
 	if bridge.Funcs.ListMessages != nil {
 		obj.Set("listMessages", func(call goja.FunctionCall) goja.Value {
 			limit := 50

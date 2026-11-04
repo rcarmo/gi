@@ -25,6 +25,18 @@ name winning: `skills/`, `tools/` (script tool manifests), `extensions/`.
 The workspace index includes `.gi/skills` as a skills root only where it
 exists, so other workspaces keep their index fingerprint.
 
+## Scoped models (`enabledModels`)
+
+`enabledModels` is an ordered shortlist for terminal model cycling and the
+scoped view of `/model`, not the current model, a permission boundary or an
+automatic failover list. `/scoped-models` edits the running TUI's scope;
+Ctrl+S saves it in project settings. Global settings apply below project
+settings. When neither level specifies a list, the default is Copilot's
+GPT‑6.1 Sol, GPT‑6 Luna and Claude Opus 5.5, in that order.
+An explicit empty array disables scoping, including inherited defaults.
+See [scoped models](scoped-models.md) for a configuration example,
+selection and persistence details.
+
 ## Provider transport
 
 Pi's `transport` setting is read from project settings over user settings and passed to go-ai for normal turns, side prompts, compaction and branch summaries. Values are `auto` (default), `sse`, `websocket` and `websocket-cached`. The legacy `websockets` boolean maps to `websocket` or `sse` when the enum is absent. Reading either form leaves the file unchanged.

@@ -46,12 +46,14 @@ var builtinPromptContributions = map[string]promptContribution{
 		"Each edits[].oldText is matched against the original file, not after earlier edits are applied. Do not emit overlapping or nested edits. Merge nearby changes into one edit.",
 		"Keep edits[].oldText as small as possible while still being unique in the file. Do not pad with large unchanged regions.",
 	}},
-	"shell":          {"Execute shell commands (ls, grep, find, tests, package tooling, etc.)", nil},
-	"rtk":            {"Run noisy commands (git, search, listings, tests) with compact output", []string{"Use rtk for noisy command output and shell when the raw output is needed"}},
-	"tools":          {"List, inspect and activate tools (query first, then fetch one tool's full schema)", []string{"Activate only the extra tools you need with tools, and reset them afterwards"}},
-	"skills":         {"List discovered skills and read a skill's SKILL.md", nil},
-	"messages":       {"Search chat messages or read them by row id", nil},
-	"script":         {"Run Goja JavaScript or Joker scripts through gi's script bridge", nil},
+	"shell":    {"Execute shell commands (ls, grep, find, tests, package tooling, etc.)", nil},
+	"rtk":      {"Run noisy commands (git, search, listings, tests) with compact output", []string{"Use rtk for noisy command output and shell when the raw output is needed"}},
+	"tools":    {"List, inspect and activate tools (query first, then fetch one tool's full schema)", []string{"Activate only the extra tools you need with tools, and reset them afterwards"}},
+	"skills":   {"List discovered skills and read a skill's SKILL.md", nil},
+	"messages": {"Search chat messages or read them by row id", nil},
+	"script": {"Run Goja JavaScript or Joker scripts through gi's script bridge", []string{
+		"JavaScript bridge helpers use the gi namespace (gi.listDir, gi.readFile, gi.listTurns, gi.listTurnEvents); use console.log for captured output. Await bridge calls in QuickJS.",
+	}},
 	"compact":        {"Inspect compaction thresholds and whether the session should compact", nil},
 	"peering":        {"Inspect tsnet/Tailscale peer-discovery status (disabled unless configured)", nil},
 	"tool_search":    {"Search for tools that are not loaded yet and load the matches", nil},
@@ -62,6 +64,8 @@ var builtinPromptContributions = map[string]promptContribution{
 var giPromptGuidelines = []string{
 	"Read relevant files before editing them",
 	"Workspace paths go through gi's path resolver; vfs://namespace/path reaches gi's managed files",
+	"Access vfs:// paths through read or gi file helpers, not shell commands; virtual paths are not OS filesystem paths.",
+	"When diagnosing failed turns, inspect turn status and recorded inference.failed/turn.failure_marked events as well as tool errors; do not claim a runtime fix from a successful tool retry alone.",
 	"Keep secrets, tokens and other auth material out of chat output",
 	"Avoid destructive operations unless the user asks for them or they are clearly scoped and reversible",
 }
@@ -69,6 +73,7 @@ var giPromptGuidelines = []string{
 const giDocsSection = `gi documentation (read only when the user asks about gi itself: its tools, scripting, hooks, MCP, codemode or TUI):
 - Reference: vfs://reference/README.md (read-only; read it with the read tool)
 - Tools: vfs://reference/tools/, MCP: vfs://reference/mcp.md, codemode: vfs://reference/codemode.md and vfs://reference/codemode-scripts.md
+- Model selection and scoped models: vfs://reference/scoped-models.md (an ordered shortlist for model cycling); selector keys: vfs://reference/tui-selectors.md
 - gi reads Pi's settings, models and credentials (.gi first, then .pi)`
 
 // promptSections builds this turn's sections for the declared tools.

@@ -454,6 +454,9 @@ type StreamResult struct {
 }
 
 type StreamHooks struct {
+	// Stable conversation identity for provider prompt-cache routing and session
+	// affinity. Reuse across turns/retries; never substitute a request/turn ID.
+	SessionID string
 	// Validated choice captured for this request; empty leaves the provider default unset.
 	Thinking   string
 	Transport  goai.Transport // Pi's configured transport; empty leaves go-ai's default
@@ -484,6 +487,9 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 	if model == nil {
 		return nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
 	}
+	if model.Api == goai.ApiAnthropicMessages {
+		convCtx = contextWithoutEmptyToolResultText(convCtx)
+	}
 	if hooks != nil && hooks.Thinking != "" {
 		if err := ValidateThinking(modelID, hooks.Thinking); err != nil {
 			return nil, err
@@ -508,6 +514,7 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 		APIKey: apiKey,
 	}
 	if hooks != nil {
+		opts.SessionID = hooks.SessionID
 		opts.OnPayload = hooks.OnPayload
 		opts.OnResponse = hooks.OnResponse
 		opts.Transport = hooks.Transport
@@ -716,6 +723,9 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
+	if hooks != nil {
+		goai.ApplyHeaders(req.Header, goai.WithOpenCodeSessionHeader(model.Provider, hooks.SessionID, nil))
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -767,13 +777,19 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 				PromptTokens     int `json:"prompt_tokens"`
 				CompletionTokens int `json:"completion_tokens"`
 				TotalTokens      int `json:"total_tokens"`
+				PromptTokensDetails struct {
+					CachedTokens int `json:"cached_tokens"`
+				} `json:"prompt_tokens_details"`
 			} `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 			continue
 		}
 		if chunk.Usage.TotalTokens > 0 {
-			usage.Input = chunk.Usage.PromptTokens
+			// OpenAI-compatible prompt_tokens includes cached input. Keep the
+			// same non-overlapping counters as go-ai's native adapters.
+			usage.CacheRead = max(0, min(chunk.Usage.PromptTokensDetails.CachedTokens, chunk.Usage.PromptTokens))
+			usage.Input = chunk.Usage.PromptTokens - usage.CacheRead
 			usage.Output = chunk.Usage.CompletionTokens
 			usage.TotalTokens = chunk.Usage.TotalTokens
 		}

@@ -14,9 +14,9 @@ So this was the result. If you like `pi`, you should feel very much at home. If 
 
 Gi runs a terminal UI (the default) and a web UI (`gi -web`) from one pure-Go binary, with embedded web assets and SQLite-backed sessions, messages and turns. Builds use Go 1.27.2. Bun is needed to build the browser assets; there is no Node or Bun runtime dependency.
 
-The terminal targets Pi TUI 1.3.0 workflows and keybindings, with alignment acceptance in progress; [verified slices and remaining gaps](docs/internal/tui-pi-1.3-alignment.md) are recorded separately. The committed browser baseline follows Piclaw 3.3.0. Gi reuses pinned Piclaw web components and implements its own backend, adapters and host UI, so the applications are not interchangeable. Browser behaviour is measured against the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite; the [feature and parity matrix][parity] has the latest results, the known differences and the open issues.
+The terminal targets Pi TUI 1.5.0 workflows and keybindings, with alignment acceptance in progress; [current alignment and remaining gaps](docs/internal/tui-pi-1.5-alignment.md) are recorded separately. The committed browser baseline follows Piclaw 3.3.0. Gi reuses pinned Piclaw web components and implements its own backend, adapters and host UI, so the applications are not interchangeable. Browser behaviour is measured against the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite; the [feature and parity matrix][parity] has the latest results, the known differences and the open issues.
 
-Model inference uses [`go-ai`](https://github.com/rcarmo/go-ai) **v1.3.0**, as recorded in `go.mod`. Integration evidence and limitations are in [the upgrade notes](docs/internal/go-ai-1.3.0.md).
+Model inference uses [`go-ai`](https://github.com/rcarmo/go-ai) **v1.4.0**, as recorded in `go.mod`. Integration evidence and limitations are in [the upgrade notes](docs/internal/go-ai-1.3.0.md).
 
 ## Features
 
@@ -63,6 +63,26 @@ tsnet web access and Iroh inter-instance chat are planned. The tsnet manager sca
 Fullscreen `Ctrl+Shift+F` searches rendered transcript rows without submitting a prompt. Enter/Shift+Enter move between matches; Escape restores the draft and reading position. `Ctrl+Shift+Up/Down` jump between user prompts. See [ADR-0032](docs/adr/0032-fullscreen-transcript-search.md) for rendered-row and retention limits.
 
 In fullscreen mode, drag to select transcript text and hold at a viewport edge to scroll. Release or Ctrl-C/Ctrl-X copies through `tuiClipboardMode`; Escape clears selection. Clipboard-off is respected. Feedback occupies the existing separator row. See [ADR-0034](docs/adr/0034-fullscreen-transcript-selection.md).
+
+## Scoped models
+
+A **scoped model** is a model in an ordered shortlist used by the terminal's
+model picker and cycling shortcuts—not a different model type or an automatic
+fallback policy. Run `/scoped-models`, toggle models with Enter, and reorder
+with Alt+Up/Down. Changes apply immediately in the running TUI; Ctrl+S saves
+`enabledModels` to the project's settings for future runs. Closing the selector
+does not undo unsaved in-memory changes.
+
+The built-in shortlist is GPT‑6.1 Sol, GPT‑6 Luna and Claude
+Opus 5.5 through GitHub Copilot. Explicit `enabledModels` settings override it;
+an empty array opts into all-model cycling. Credentials and availability still
+apply, and the shortlist does not change the startup model.
+
+Outside the selector, Ctrl+P cycles through the available models in the scope;
+without an effective scope it cycles through all available models. `/model`
+can still select a model outside the shortlist. Model selection itself is
+session-local. See [scoped models](docs/internal/scoped-models.md) for settings,
+provider toggles, fallback behaviour and the textual management commands.
 
 ## Internal reference
 
@@ -120,7 +140,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make check-cross-build` | Optional local pure-Go builds for Linux/macOS amd64/arm64 and Windows amd64; release CI also builds Windows amd64/arm64 (built, not tested) |
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
-| `make test-tui-pi130-reference` | Compare navigation/editor/hotkeys goldens with isolated published Pi 1.3.0 packages |
+| `make test-tui-pi150-reference` | Compare navigation/editor/hotkeys/scoped-models goldens with isolated published Pi 1.5.0 packages |
 | `make test-upstream-alignment` | Three-repeat native dependency/TUI/transport/retry regressions; add `PROFILING=1` for release verification |
 | `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |
 | `make test-tui-search` | Three-size fullscreen search, prompt-jump, draft/cursor and live-output checks |

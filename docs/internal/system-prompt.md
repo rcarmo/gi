@@ -37,6 +37,13 @@ to the table in `internal/turn/prompt_sections.go`):
 Because the tools section follows the declared tools, switching codemode on
 or loading tools changes the prompt from the next turn, as in Pi.
 
+Gi's script contribution explicitly requires the `gi` JavaScript namespace
+and captured `console.log` output. Common rules distinguish VFS paths from
+OS paths and require recorded turn/inference errors when diagnosing a failed
+turn; a successful tool retry alone is not evidence of a runtime repair.
+The docs section links the [scoped-models guide](scoped-models.md) so model
+shortlists are explained in gi's context rather than another framework's.
+
 ## Changes mid-conversation
 
 The sections when a session starts lead the conversation. Each turn the

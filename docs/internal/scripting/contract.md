@@ -33,7 +33,10 @@ The JSON Schema and TypeScript shapes are available here:
 
 Goja calls the helpers synchronously. QuickJS exposes the same host-provided values/names, but helpers return promises and must be awaited. Use an async expression/IIFE to produce the completion value. Each QuickJS invocation has a fresh instance, joined cancellation and the same deadline for its host calls; no implicit Goja fallback. Console output takes precedence over the completion value.
 
-A global object `gi` is injected in script context.
+A global object `gi` is injected in script context. Helpers require that
+namespace (`gi.listDir`, not `listDir`); use `console.log` for captured output
+or `gi.log(level, message)` for host logging. VFS URLs require the gi file
+helpers or `read`, never shell filesystem commands.
 
 ### Core
 - `gi.sessionId: string`
@@ -47,6 +50,7 @@ A global object `gi` is injected in script context.
 - `gi.getSessionInfo(): object`
 - `gi.getRuntimeConfig(): object`
 - `gi.listTurns(limit?: number): object[]`
+- `gi.listTurnEvents(turnID: string): {seq: number, type: string, payload: object}[]` — current-session turns only; missing/foreign IDs fail, no events returns `[]`
 - `gi.listMessages(limit?: number): object[]`
 
 ### File helpers

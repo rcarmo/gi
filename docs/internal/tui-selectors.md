@@ -61,6 +61,11 @@ Future Pi selectors (tree/settings/theme) can reuse the same `kind`/values machi
 
 ## Scoped models
 
+A scoped model is an entry in an ordered shortlist for the TUI's model picker
+and cycling shortcuts. It is a switching preference, not a new model type,
+security restriction or automatic fallback policy. See [scoped models](scoped-models.md)
+for a user-oriented guide, configuration example and persistence rules.
+
 A bare `/scoped-models` opens Pi's `ScopedModelsSelectorComponent`. The code
 is in `internal/tui/scoped_models.go`. Pi's golden is
 `scripts/golden-scoped-models.mjs`, checked by `TestScopedModelsMatchPi`.
@@ -73,11 +78,18 @@ is in `internal/tui/scoped_models.go`. Pi's golden is
 - Ctrl+P toggles every model from the selected model's provider.
 - Alt+Up and Alt+Down reorder enabled models.
 - Ctrl+S saves the selection as `enabledModels`. When every model is enabled,
-  Ctrl+S removes the setting instead.
+  Ctrl+S removes the project setting instead; the next settings load then
+  uses the user setting or built-in default shortlist. An explicit
+  `enabledModels: []` in project settings persists all-model cycling.
 - Typing searches with Pi's fuzzy filter. Ctrl+C clears the search, or cancels
   when the search is empty. Escape cancels.
 
 Changes apply to the running TUI at once, as Pi's session scope does.
+Closing the selector does not revert those changes; Ctrl+S is needed only to
+persist them for future runs. If none of the enabled models is available, the
+TUI uses the all-models scope. In the `/model` picker, Ctrl+A switches between
+the scope and all models; an explicit `/model provider/model` is not restricted
+to the shortlist.
 `Ctrl+P` cycles through the enabled models that are available. When there is
 no scope, it cycles through every available model. When only one model is
 left, it shows Pi's "Only one model in scope" or "Only one model available".

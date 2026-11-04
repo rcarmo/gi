@@ -34,6 +34,7 @@ Update the relevant reference when a change affects tools, scripting bridges, ho
 - [Runtime target state](runtime-target-state.md)
 - [Session import, export and sharing](session-import.md)
 - [Session Plan backend](session-plan.md)
+- [Scoped models and model switching](scoped-models.md)
 - [Session thinking selection](session-thinking.md)
 - [Shell environment](shell-environment.md)
 - [Sub-turn runtime contract](subturn-runtime.md)

@@ -33,8 +33,8 @@ type RuntimeConfig struct {
 	ScrollbackLimit      int                `json:"scrollback_limit"`
 	TUIHistoryLimit      int                `json:"tui_history_limit"`
 	TUIClipboardMode     string             `json:"tui_clipboard_mode"`
-	// EnabledModelsConfigured is false when EnabledModels is gi's built-in
-	// fallback; Pi then has no "scoped" model list.
+	// EnabledModelsConfigured reports an effective model shortlist, including
+	// gi's built-in defaults. An explicit empty enabledModels disables scoping.
 	EnabledModelsConfigured bool `json:"-"`
 	// Transport is Pi's transport preference; project settings override user settings.
 	Transport string `json:"transport"`
@@ -271,7 +271,9 @@ func loadRuntimeConfig(workspaceRoot string, readSettings func(string, any) erro
 		cfg.DefaultModel = ps.DefaultModel
 		cfg.DefaultThinkingLevel = ps.DefaultThinkingLevel
 		cfg.Transport = piTransport(ps)
-		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
+		if ps.EnabledModels != nil {
+			cfg.EnabledModels = append([]string{}, ps.EnabledModels...)
+		}
 		cfg.MaxIterations = ps.MaxIterations
 		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
 		cfg.TUIHistoryLimit = ps.TUIHistoryLimit
@@ -337,13 +339,24 @@ func loadRuntimeConfig(workspaceRoot string, readSettings func(string, any) erro
 	if strings.TrimSpace(cfg.DefaultProvider) == "" {
 		cfg.DefaultProvider = "opencode-zen"
 	}
+	// Preserve startup model selection independently of the default shortlist.
+	if cfg.DefaultModel == "" {
+		if len(cfg.EnabledModels) > 0 {
+			cfg.DefaultModel = cfg.EnabledModels[0]
+		} else {
+			cfg.DefaultModel = "opencode-zen/minimax-m2.5-free"
+		}
+	}
+	if cfg.EnabledModels == nil {
+		// Latest Sol, Luna and Opus in the pinned go-ai catalogue.
+		// Explicit project/user lists (including []) always take precedence.
+		cfg.EnabledModels = []string{
+			"github-copilot/gpt-6.1-sol",
+			"github-copilot/gpt-6-luna",
+			"github-copilot/claude-opus-5.5",
+		}
+	}
 	cfg.EnabledModelsConfigured = len(cfg.EnabledModels) > 0
-	if len(cfg.EnabledModels) == 0 {
-		cfg.EnabledModels = []string{"opencode-zen/minimax-m2.5-free"}
-	}
-	if cfg.DefaultModel == "" && len(cfg.EnabledModels) > 0 {
-		cfg.DefaultModel = cfg.EnabledModels[0]
-	}
 	if strings.TrimSpace(cfg.DefaultThinkingLevel) == "" {
 		// Pi's DEFAULT_THINKING_LEVEL.
 		cfg.DefaultThinkingLevel = "medium"
@@ -398,7 +411,7 @@ func PersistModelSelection(workspaceRoot, provider, model, thinking string, enab
 }
 
 // PersistEnabledModels saves Pi's enabledModels (Pi's setEnabledModels); nil
-// removes the setting, so every model is enabled.
+// removes the project override, restoring the user setting or built-in scope.
 func PersistEnabledModels(workspaceRoot string, models []string) error {
 	_, err := updatePiSettings(workspaceRoot, "", func(d *settingsDocument) error {
 		if models == nil {
@@ -605,8 +618,8 @@ func applyGlobalPiSettings(cfg *RuntimeConfig, readSettings func(string, any) er
 	if global.Codemode != nil {
 		cfg.Codemode = *global.Codemode
 	}
-	if len(cfg.EnabledModels) == 0 && len(global.EnabledModels) > 0 {
-		cfg.EnabledModels = append([]string(nil), global.EnabledModels...)
+	if cfg.EnabledModels == nil && global.EnabledModels != nil {
+		cfg.EnabledModels = append([]string{}, global.EnabledModels...)
 	}
 }
 

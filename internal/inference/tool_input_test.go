@@ -15,7 +15,7 @@ import (
 	goai "github.com/rcarmo/go-ai"
 )
 
-func TestAnthropicEmptyToolInputRoundTrip(t *testing.T) {
+func TestAnthropicEmptyToolInputAndOutputRoundTrip(t *testing.T) {
 	Init()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -31,12 +31,24 @@ func TestAnthropicEmptyToolInputRoundTrip(t *testing.T) {
 			return
 		}
 		n := requests.Add(1)
-		if n == 2 {
+		if n >= 2 {
 			for _, msg := range payload["messages"].([]any) {
 				m := msg.(map[string]any)
 				blocks, _ := m["content"].([]any)
 				for _, value := range blocks {
 					b := value.(map[string]any)
+					if b["type"] == "tool_result" {
+						if content, ok := b["content"].([]any); ok {
+							for _, item := range content {
+								text, _ := item.(map[string]any)
+								if text["type"] == "text" && (text["text"] == nil || text["text"] == "") {
+									w.WriteHeader(400)
+									fmt.Fprint(w, `{"type":"error","error":{"type":"invalid_request_error","message":"tool_result text: Field required"}}`)
+									return
+								}
+							}
+						}
+					}
 					if b["type"] == "tool_use" {
 						secondInput = b["input"]
 						if _, ok := secondInput.(map[string]any); !ok {
@@ -66,7 +78,7 @@ func TestAnthropicEmptyToolInputRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	conversation.Messages = append(conversation.Messages, *first.Message)
-	goai.AppendToolResult(conversation, "call-empty", "noop", "ok", false)
+	goai.AppendToolResult(conversation, "call-empty", "noop", "", false)
 	second, err := StreamWithTools(context.Background(), "anthropic/"+id, conversation, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +88,23 @@ func TestAnthropicEmptyToolInputRoundTrip(t *testing.T) {
 	}
 	if args, ok := secondInput.(map[string]any); !ok || len(args) != 0 {
 		t.Fatal(secondInput)
+	}
+	// The next turn replays the empty result from persisted history too.
+	conversation.Messages = append(conversation.Messages, *second.Message, goai.UserMessage("continue"))
+	raw, err := json.Marshal(conversation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var replay goai.Context
+	if err := json.Unmarshal(raw, &replay); err != nil {
+		t.Fatal(err)
+	}
+	third, err := StreamWithTools(context.Background(), "anthropic/"+id, &replay, nil)
+	if err != nil || third == nil || third.Text != "done" || requests.Load() != 3 {
+		t.Fatalf("replay: result=%+v err=%v requests=%d", third, err, requests.Load())
+	}
+	if conversation.Messages[2].Content[0].Text != "" {
+		t.Fatal("request preparation mutated empty tool output in history")
 	}
 }
 

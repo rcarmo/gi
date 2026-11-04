@@ -121,3 +121,15 @@ func TestPromptSectionsFollowDeclaredTools(t *testing.T) {
 		t.Fatalf("custom: %+v", custom)
 	}
 }
+
+func TestPromptGuidesScriptAndFailureDiagnosis(t *testing.T) {
+	s := openTestStore(t)
+	e := New(s)
+	defer e.Close()
+	text := prompt.Render(e.promptSections([]goai.Tool{{Name: "script"}, {Name: "read"}}))
+	for _, want := range []string{"gi.listDir", "gi.listTurnEvents", "console.log", "Await bridge calls in QuickJS", "not OS filesystem paths", "inference.failed/turn.failure_marked", "not claim a runtime fix", "vfs://reference/scoped-models.md", "vfs://reference/tui-selectors.md", "ordered shortlist for model cycling"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing guidance %q", want)
+		}
+	}
+}

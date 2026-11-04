@@ -84,6 +84,7 @@ export type GiJsBridge = {
   getSessionInfo(): SessionInfo;
   getRuntimeConfig(): Record<string, unknown>;
   listTurns(limit?: number): Array<Record<string, unknown>>;
+  listTurnEvents(turnID: string): Array<{ seq: number; type: string; payload: Record<string, unknown> }>;
   listMessages(limit?: number): Array<Record<string, unknown>>;
 
   // Files

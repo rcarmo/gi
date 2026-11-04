@@ -147,7 +147,7 @@ func (t *ScriptTool) SetConnectivityCallbacks(
 func (t *ScriptTool) Definition() map[string]any {
 	return map[string]any{
 		"name":        "script",
-		"description": "Execute a script with access to gi's live session state, session info, turns, config, and workspace files. Supports Joker/Clojure (.joke, .clj, baked into the gi binary) and JavaScript (.js). The gi bridge provides sessionId, getSessionInfo(), getSessionState(), setSessionState(), listTurns(), getRuntimeConfig(), listMessages(), readFile(), writeFile(), listDir(), and log().",
+		"description": "Execute a script with access to gi's live session state, session info, turns, config, and workspace files. Supports Joker/Clojure (.joke, .clj, baked into the gi binary) and JavaScript (.js). JavaScript helpers live on the global gi object, not as bare globals: gi.sessionId, gi.getSessionInfo(), gi.getSessionState(), gi.setSessionState(), gi.listTurns(), gi.listTurnEvents(turnID), gi.getRuntimeConfig(), gi.listMessages(), gi.readFile(path), gi.writeFile(path, content), gi.listDir(path), and gi.log(level, message). Use console.log() for captured output. Goja calls are synchronous; await bridge calls in QuickJS. Access vfs:// paths with gi file helpers or the read tool, not shell commands.",
 		"parameters": map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -363,11 +363,15 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 			return result, nil
 		},
 		ListTurnEvents: func(ctx context.Context, turnID string) ([]map[string]any, error) {
+			turn, err := t.store.GetTurn(ctx, turnID)
+			if err != nil || turn.SessionID != sessionID {
+				return nil, fmt.Errorf("turn not found in current session")
+			}
 			events, err := t.store.ListTurnEvents(ctx, turnID)
 			if err != nil {
 				return nil, err
 			}
-			var result []map[string]any
+			result := make([]map[string]any, 0, len(events))
 			for _, e := range events {
 				result = append(result, map[string]any{
 					"seq":     e.Seq,

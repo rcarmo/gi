@@ -71,6 +71,7 @@ The Goja runtime exposes a global `gi` object with the methods listed below, inc
 - `gi.getSessionInfo()`
 - `gi.getRuntimeConfig()`
 - `gi.listTurns(limit)`
+- `gi.listTurnEvents(turnID)` — ordered `{seq, type, payload}` events for a turn in the current session; missing/foreign turns fail
 - `gi.listMessages(limit)`
 - `gi.readFile(path)`
 - `gi.writeFile(path, content)`
@@ -95,7 +96,16 @@ The Goja runtime exposes a global `gi` object with the methods listed below, inc
 - `gi.topics.read(subscriptionId, max)`
 - `gi.topics.unsubscribe(subscriptionId)`
 
-It also provides `console.log/error/warn/debug`.
+It also provides `console.log/error/warn/debug`. Helpers are on `gi`, not
+bare globals such as `listDir()` or `log()`. QuickJS requires `await` on
+bridge calls. `vfs://` paths are virtual: use `gi.readFile`/`gi.listDir` or the
+`read` tool, not shell filesystem commands.
+
+For failed-turn diagnosis, inspect turn status and `inference.failed` /
+`turn.failure_marked` events, not only the last tool error. A tool retry or
+model switch does not establish that a provider failure is repaired. See
+[script tool guidance](../tools/script.md#failure-diagnosis). The turn-event
+helper is exposed to Goja and QuickJS, not currently to Joker.
 
 ## Joker bridge surface
 Joker currently receives a data-oriented binding via `*gi-bridge*` plus helper functions defined in the execution preamble.
